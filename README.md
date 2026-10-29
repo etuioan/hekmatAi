@@ -1106,8 +1106,12 @@ Bezeichner sind englisch (Python-Konvention), Dokumentation und Ausgaben deutsch
   Eis 11,7 statt 11,9, Drehscheiben mit Stand 0.16 12,1 statt 13,9. Im Strom verschiedener
   Welten (Ergebnis 21) ist der Bayes-Faktor schneller (18 / 82 / 66 / 79 statt 23 / 78 / 90 /
   103 Schritte), erkennt jede Welt (100 %) und findet die erste Karte öfter wieder (90 statt
-  80 %). Bibliothek (Ergebnis 18) und Erkennen (Ergebnis 19) sind unverändert. Alle Formen
-  werden wie in 0.17 gefunden.
+  80 %). Bibliothek (Ergebnis 18): ohne Bibliothek weniger geprüfte Programme (2D 2521 statt
+  2757, 3D 5931 statt 6555); mit Bibliothek bei der Suche etwas mehr (786 statt 734), die
+  Bibliothek spart dadurch noch weniger als in 0.17. Erkennen (Ergebnis 19): Raum B schneller
+  (Bayes-Faktor 28 statt 44 Schritte), aber „nie neue Karte“ und „erwartet / unerwartet“
+  erkennen B seltener (70 statt 100 %), und „erwartet / unerwartet“ braucht zurück in A 41
+  statt 11 Schritte. Alle Formen werden wie in 0.17 gefunden.
 
 ## Änderungen in 0.17
 
