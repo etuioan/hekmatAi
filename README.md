@@ -920,50 +920,49 @@ Prüfstein ist **Crafter** (Hafner 2021), ein kleines 2D-Minecraft mit 22 Erfolg
 sieht nur 85 gemischte Zahlen und 17 Tasten ohne Namen; der Adapter liegt in einem eigenen
 Paket (`hekmatki.adapters`), und ein Test prüft, dass der Agent ihn nie importiert
 ([docs/CRAFTER.md](docs/CRAFTER.md)). Jeder Agent spielt 30 Runden auf immer neuen Karten
-und behält sein Wissen; gezählt werden die Runden 11 bis 30, über 8 Karten-Startwerte
+und behält sein Wissen; gezählt werden die Runden 11 bis 30, über 16 Karten-Startwerte
 (`experiments/crafter_run.py`, Rohdaten in `docs/crafter_messung.json`).
 
-| Agent | Wertung | verschiedene Erfolge je Runde | Runde dauert | Erfolgsarten überhaupt |
-|---|---:|---:|---:|---:|
-| Zufall | 1,4 % | 2,09 | 165 | 7 |
-| Tabelle (Q-Lernen) | 1,6 % | 2,31 | 173 | 8 |
-| Stand 0.17 | 1,4 % | 2,21 | 171 | 6 |
-| **Stand 0.18** | **2,6 %** | 2,06 | 169 | **13** |
+| Agent | Wertung | Mittel je Startwert | verschiedene Erfolge je Runde | Runde dauert | Erfolgsarten |
+|---|---:|---:|---:|---:|---:|
+| Zufall | 1,6 % | 1,36 ± 0,08 % | 2,23 | 165 | 8 |
+| Tabelle (Q-Lernen) | 1,5 % | 1,28 ± 0,07 % | 2,20 | 165 | 10 |
+| Stand 0.17 | 1,6 % | 1,41 ± 0,07 % | 2,38 | 169 | 8 |
+| **Stand 0.18** | **2,0 %** | 1,49 ± 0,16 % | 1,86 | 174 | 10 |
 
-Wertung wie im Crafter-Paper: geometrisches Mittel der Erfolgsquoten über alle 22 Erfolge.
+Wertung wie im Crafter-Paper: geometrisches Mittel der Erfolgsquoten über alle 22 Erfolge,
+über alle Runden zusammen; daneben das Mittel der Wertungen je Startwert mit Standardfehler.
 
 | Erfolg | Zufall | Stand 0.17 | Stand 0.18 |
 |---|---:|---:|---:|
-| Holz sammeln | 18 % | 17 % | **37 %** |
-| Werkbank bauen | 2 % | 4 % | **14 %** |
-| Holzschwert | 0 % | 0 % | **7 %** |
-| Holzspitzhacke | 0 % | 0 % | **2 %** |
-| Zombie besiegen | 0 % | 0 % | **6 %** |
-| Trinken | 7 % | 11 % | **15 %** |
-| Kuh essen | 1 % | 0 % | **3 %** |
-| Kohle, Stein abbauen, Stein setzen | 0 % | 0 % | je 1 % |
-| aufwachen | 92 % | 94 % | 42 % |
-| pflanzen | 41 % | 44 % | 24 % |
+| Trinken | 8 % | 8 % | **27 %** |
+| Holz sammeln | 25 % | 28 % | **39 %** |
+| Werkbank bauen | 5 % | 6 % | **8 %** |
+| Zombie besiegen | 0 % | 0 % | **3 %** |
+| Kuh essen | 0 % | 0 % | **2 %** |
+| Holzspitzhacke, Holzschwert | je 1 % | 0 / 1 % | je 2 % |
+| Setzling sammeln | 47 % | 52 % | 43 % |
+| pflanzen | 43 % | 47 % | 19 % |
+| aufwachen | 94 % | 95 % | 41 % |
 
-- **Der Agent mit eigenen Zielen schafft fast doppelt so viel Wertung wie Zufall und 0.17
-  (2,6 statt 1,4 %), und fast doppelt so viele Arten von Erfolgen (13 statt 7).** Er sammelt
-  doppelt so oft Holz, baut siebenmal so oft eine Werkbank, stellt Werkzeug her und baut
-  zum ersten Mal Kohle und Stein ab. Niemand hat ihm gesagt, was Holz ist; er hat gelernt,
-  dass eine bestimmte Zahl nach einer bestimmten Taste steigt, wenn vor ihm eine bestimmte
-  Nummer steht (in der gezeigten Runde 60 von 60 Mal), und wollte diese Zahl höher bringen.
-- **Ohne eigene Ziele (0.17) ist er so gut wie Zufall.** Das Ziel der Welt allein reicht
-  nicht: Jeder Erfolg zählt in Crafter nur einmal pro Runde, also gibt es kein festes Ziel,
-  das er wieder ansteuern könnte.
+- **Was er sich selbst vornimmt, schafft er deutlich öfter:** dreimal so oft trinken, fast
+  doppelt so oft Holz, öfter Werkbank, Werkzeug, Kuh und Zombie. Niemand hat ihm gesagt, was
+  Holz oder Wasser ist; er hat gelernt, dass eine bestimmte Zahl nach einer bestimmten Taste
+  steigt, wenn vor ihm eine bestimmte Nummer steht, und wollte diese Zahl höher bringen
+  (Durst als Bedürfnis, Holz als Rekord).
+- **In der Wertung ist der Vorsprung klein und unsicher:** 2,0 statt 1,6 % über alle Runden,
+  je Startwert 1,49 ± 0,16 gegen 1,36 ± 0,08 %. Das liegt innerhalb der Streuung. Er
+  tauscht leichte Zufallserfolge (aufwachen, pflanzen), die Zufall nebenbei schafft, gegen
+  seltenere; darum schafft er sogar weniger verschiedene Erfolge je Runde (1,86 statt 2,23).
+- **Die Streuung ist groß.** Je Startwert liegt er zwischen 0,5 und 3,1 %. Frühere Messungen
+  mit 8 Startwerten und fast demselben Code ergaben 2,1, 2,2, 2,6 und 1,5 %. Eine Zahl aus 8
+  Startwerten reicht in Crafter nicht.
 - **Er stirbt so früh wie der Zufallsagent** (nach etwa 170 Schritten, meist durch Zombies).
   Seine Gefahren hängen an einem bestimmten Feld („Zombie direkt über mir“); dass derselbe
-  Zombie links genauso gefährlich ist, weiß er nicht. Darum bleibt er weit unter Agenten mit
-  tiefem Lernen (DreamerV2 10 % nach einer Million Schritten; er spielt nur etwa 5000).
-- **Leichte Zufallserfolge verliert er** (aufwachen, pflanzen), weil er Ziele verfolgt, statt
-  zufällig zu schlafen. Die Zahl der Erfolge je Runde bleibt darum gleich; die Wertung steigt,
-  weil sie seltene Erfolge stärker zählt.
-- **Die Streuung ist groß:** Je Karten-Startwert liegt er zwischen 0,8 und 2,6 % (Zufall
-  zwischen 1,0 und 1,5 %); bei 6 von 8 Startwerten liegt er über dem besten Zufallswert.
-  Zwei frühere Messungen mit fast demselben Code ergaben 2,1 und 2,2 % (Zufall 1,5 %).
+  Zombie links genauso gefährlich ist, weiß er nicht. Ohne Überleben bleibt jede Wertung
+  klein (DreamerV2: 10 % nach einer Million Schritten; er spielt nur etwa 5000).
+- **Ohne eigene Ziele (0.17) ist er so gut wie Zufall.** Jeder Erfolg zählt in Crafter nur
+  einmal pro Runde, also gibt es kein festes Ziel der Welt, das er wieder ansteuern könnte.
 
 Zum Anschauen: [docs/crafter.html](docs/crafter.html) zeigt eine Runde Schritt für Schritt
 (was um die Figur ist, Inventar, Taste und Grund), die Erfolge aller Agenten, die Lernkurve
@@ -971,7 +970,8 @@ und was er selbst herausgefunden hat.
 
 ## Grenzen
 
-- In Crafter (Ergebnis 22) stirbt er so früh wie Zufall. Gefahren und Ursachen hängen an
+- In Crafter (Ergebnis 22) ist der Vorsprung in der Wertung klein und unsicher, und er
+  stirbt so früh wie Zufall. Gefahren und Ursachen hängen an
   einzelnen Feldern der Sicht; Raum aus der eigenen Bewegung (welches Feld neben welchem
   liegt) lernt er noch nicht. Seine Wahrnehmung ist geschenkt (Crafters Karte als Nummern,
   dazu das Feld vor ihm), nicht das Bild. Er spielt nur etwa 5000 Schritte; ein Vergleich
