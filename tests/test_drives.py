@@ -7,9 +7,11 @@ from pathlib import Path
 
 from hekmatki.general.agent import GeneralAgent
 from hekmatki.general.causes import Change, Event, Kind, Literal, cover
+from hekmatki.general.drives import Drives
 from hekmatki.general.env import Observation, Outcome, Transition
+from hekmatki.general.form import find_form
 from hekmatki.general.knowledge import Knowledge
-from hekmatki.general.programs import Becomes, Copy, fits, predict
+from hekmatki.general.programs import Becomes, Copy, Program, Shift, fits, predict
 from hekmatki.general.run import RandomAgent
 from hekmatki.general.subgoals import Target, achieve, imagine, model, search
 from hekmatki.general.synthesis import Example, synthesize
@@ -189,6 +191,33 @@ def test_a_quantity_that_sinks_by_itself_becomes_a_need() -> None:
 
 def test_without_own_goals_the_agent_is_unchanged() -> None:
     assert GeneralAgent(4).drives is None
+
+
+def test_each_map_keeps_its_own_steady_form() -> None:
+    """Wechselt der Agent die Karte, gilt deren Form, nicht die der alten Welt."""
+    drives = Drives(4)
+    first, second = Knowledge(), Knowledge()
+    line: dict[tuple[int, int], Program] = {(0, 0): Shift(1), (1, 0): Shift(-1)}
+    other: dict[tuple[int, int], Program] = {(2, 1): Shift(1), (3, 1): Shift(-1)}
+    drives.steady(first, find_form(line, line, 4, 2))
+    shown = drives.steady(second, find_form(other, other, 4, 2))
+    assert [axis.component for axis in shown.axes] == [1]
+    kept = drives.steady(first, find_form({}, {}, 4, 2))
+    assert [axis.component for axis in kept.axes] == [0]
+
+
+def test_harm_after_a_defence_is_counted_when_the_round_ends() -> None:
+    """Endet die Runde kurz nach einer Abwehr, zählt der Schaden bis zum Ende, nicht die
+    Gesundheit der nächsten Runde."""
+    drives = Drives(2)
+    danger = (Literal(1, 15),)
+    drives.observe(Transition((9, 15), 0, (9, 15), False))
+    drives._hurt_cache = [0]
+    drives._pending.append((drives.steps, danger, 1, 9))
+    drives.observe(Transition((9, 15), 1, (0, 15), False))  # Die Figur stirbt.
+    drives.new_place()
+    assert drives._harm[danger, 1] == 9
+    assert drives._tried_in[danger, 1] == 1
 
 
 # Trennung: Der Agent kennt keine Welt

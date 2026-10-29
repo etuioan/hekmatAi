@@ -112,7 +112,7 @@ def _learned(agent: GeneralAgent, components: list[str], actions: list[str]) -> 
     if not isinstance(drives, Drives):
         raise TypeError("Nur ein Agent mit eigenen Zielen hat Bedürfnisse.")
     knowledge = agent.knowledge
-    form = drives.steady(agent.form())
+    form = drives.steady(knowledge, agent.form())
     own = drives.owned(knowledge, form)
     body = drives.body(knowledge, form)
     harmed = drives.harmed(knowledge, form)

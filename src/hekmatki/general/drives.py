@@ -48,6 +48,7 @@ from collections import Counter, deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Final
+from weakref import WeakKeyDictionary
 
 from hekmatki.general.causes import Change, Event, Kind, Literal, Partial
 from hekmatki.general.env import Observation, Transition
@@ -154,7 +155,9 @@ class Drives:
         self._retry: dict[int, int] = {}
         self._operands: dict[int, set[int]] = {}
         """Taste → die Größen, an denen sie wirkt (aus ihren Ursachen, ab und zu neu gelernt)."""
-        self._form: Form | None = None
+        self._forms: WeakKeyDictionary[Knowledge, Form] = WeakKeyDictionary()
+        """Die stetige Form je Karte: Wechselt der Agent die Karte, gilt deren Form."""
+        self._last: Observation | None = None
         self._heading: tuple[int, int] = (-1, 0)
         """Erkunden: in welche Richtung er geht und wie viele Schritte noch."""
         self._last_point: Partial = ()
@@ -177,6 +180,8 @@ class Drives:
 
     def new_place(self) -> None:
         """Ein neuer Ort: Was hier selten war, zählt neu; das Ziel von eben gilt nicht mehr."""
+        if self._last is not None:
+            self._settle(self._last, everything=True)  # Die Runde ist vorbei: jetzt abrechnen.
         self.highest_here.clear()
         self._visits.clear()
         self._at.clear()
@@ -210,13 +215,14 @@ class Drives:
             self.highest_here[component] = max(self.highest_here.get(component, old), old, new)
         if self.pursuit is not None and self.pursuit.goal.holds(after):
             self.pursuit = None
+        self._last = after
         self._settle(after)
         if self.steps % REVIEW == 0:
             self._review()
 
-    def _settle(self, observation: Observation) -> None:
+    def _settle(self, observation: Observation, everything: bool = False) -> None:
         """Rechnet ab, wie viel nach einer Abwehr in `HARM_WINDOW` Schritten verloren ging."""
-        while self._pending and self._pending[0][0] <= self.steps - HARM_WINDOW:
+        while self._pending and (everything or self._pending[0][0] <= self.steps - HARM_WINDOW):
             _, danger, action, health = self._pending.popleft()
             now = sum(observation[c] for c in self._hurt_cache)
             self._harm[danger, action] += max(0, health - now)
@@ -231,7 +237,7 @@ class Drives:
         world = model(knowledge, self.actions)
         if not world:
             return None
-        form = self.steady(form)
+        form = self.steady(knowledge, form)
         body = self.body(knowledge, form)
         own = self.owned(knowledge, form)
         plan = _Plan(knowledge, world, form, self._where)
@@ -287,7 +293,7 @@ class Drives:
         Gesundheit): die Bedingungen der Ursachen von „sinkt“, egal nach welcher Taste. Nur
         Bedingungen über das, was er sieht; Bedingungen über seine Mengen (Durst ist 0) stillt
         er als Bedürfnis, nicht durch Abwehr."""
-        seen = frozenset(range(knowledge.rules.width)) - body - set(self._axes())
+        seen = frozenset(range(knowledge.rules.width)) - body - set(self._axes(knowledge))
         return [
             cause.literals
             for component in harmed
@@ -295,8 +301,9 @@ class Drives:
             if cause.hits >= DANGER_HITS
         ]
 
-    def _axes(self) -> list[int]:
-        return [] if self._form is None else [axis.component for axis in self._form.axes]
+    def _axes(self, knowledge: Knowledge) -> list[int]:
+        form = self._forms.get(knowledge)
+        return [] if form is None else [axis.component for axis in form.axes]
 
     def risky(self, knowledge: Knowledge, observation: Observation, harmed: list[int]) -> set[int]:
         """Tasten, nach denen hier meist Gesundheit sank: Ihre Ursache für „sinkt“ gilt gerade
@@ -362,7 +369,7 @@ class Drives:
 
     def harmed(self, knowledge: Knowledge, form: Form) -> list[int]:
         """Größen wie Gesundheit, auf die er achtet: Was ihnen schadet, ist Gefahr (`_hurt`)."""
-        form = self.steady(form)
+        form = self.steady(knowledge, form)
         own = self.owned(knowledge, form)
         return self._hurt(knowledge, self.body(knowledge, form), set(self.needs(knowledge, own)))
 
@@ -381,12 +388,13 @@ class Drives:
             and sum(self._falls[c, a] > 0 for a in frequent) >= HURT * len(frequent)
         )
 
-    def steady(self, form: Form) -> Form:
+    def steady(self, knowledge: Knowledge, form: Form) -> Form:
         """Die Form mit den meisten Achsen, die er bisher gefunden hat. Eine Karte verschwindet
         nicht, nur weil eine Regel gerade ein paar Ausnahmen mehr hat."""
-        if self._form is None or len(form.of_kind(*STEPPED)) > len(self._form.of_kind(*STEPPED)):
-            self._form = form
-        return self._form
+        known = self._forms.get(knowledge)
+        if known is None or len(form.of_kind(*STEPPED)) > len(known.of_kind(*STEPPED)):
+            self._forms[knowledge] = known = form
+        return known
 
     def body(self, knowledge: Knowledge, form: Form) -> set[int]:
         """Größen, die weder Ort (eine Achse) noch Blick sind: keine Regel „übernimmt“ oder
