@@ -1,4 +1,4 @@
-# HekmatKI Prototyp 0.16: Schema-Stapel, Weltmodell und ein allgemeiner Agent für fremde Welten
+# HekmatKI Prototyp 0.17: Schema-Stapel, Weltmodell und ein allgemeiner Agent für fremde Welten
 
 Dieser Prototyp prüft zwei Hypothesen aus dem Forschungsdossier, mit möglichst wenig Code:
 
@@ -237,7 +237,7 @@ Neue Kontexte starten aus allen Schemata zugleich (`schemas_or_flat_model`): Vor
 
 **Experiment Kontexterkennung.** In drei Welten (Pendeln wie H12; Lampen mit Arzt, U-Bahn, Gate; Lampen mit drei Wartesituationen und drei Gesprächen) wird gezählt, welcher Anteil der Übergänge im richtigen Kontext landet. Weil der Agent die wahren Situationen nicht kennt, bekommt jede Situation höchstens einen Kontext und umgekehrt, gierig nach Häufigkeit. 20 Zufallsstarts, Blöcke à 150 Schritte.
 
-## 9. Der allgemeine Agent (ab 0.16)
+## 9. Der allgemeine Agent (ab 0.16, erweitert in 0.17)
 
 Paket `general/`. Ein Agent, der keine Welt kennt. Er sieht nur ein Tupel ganzer Zahlen und
 wählt eine Taste aus `0 … n−1`. Jede Welt mischt Reihenfolge der Größen und Tasten neu
@@ -287,6 +287,83 @@ Unter `10^-5` ist das unerwartet. Dann drei Erklärungen in dieser Reihenfolge:
 **Experimente** (`experiments/general_worlds.py`, `library_transfer.py`, `new_world.py`,
 `general_replay.py`): Ergebnisse 17 bis 19 im README.
 
+### 9.1 Neu in 0.17: die Grenzen von 0.16 (H21 bis H24)
+
+**Mehr Welten** (`worlds.py`, `env.py`):
+- `Lattice(..., ice=True)`: Eis. Eine Taste lässt die Figur rutschen, bis die nächste Zelle
+  versperrt ist. Runden beginnen und enden im Spielgebiet: dem größten Gebiet von
+  Haltestellen, die alle voneinander aus erreichbar sind. `random_lattice` setzt auf Eis nur
+  Hindernisse, die keine Falle bauen und das Spielgebiet nicht verkleinern.
+- `Dials(count, size)`: Drehscheiben. Beobachtung: Stellung jeder Scheibe, Ziel. Tasten: je
+  Scheibe +1 und −1, nach `size − 1` kommt 0.
+- `Shuffle(tokens)`: Steine auf Plätzen. Beobachtung: Stein je Platz, Zielreihenfolge. Taste i
+  tauscht Platz i und i+1. Kürzester Weg = Zahl der Fehlstellungen.
+- `Padded(env, width, actions)`: füllt die Beobachtung mit Nullen auf `width` auf, Tasten ab
+  `env.actions` tun nichts. So erleben alle Welten dieselbe Schnittstelle.
+
+**Neue Bausteine** (`programs.py`): `Copy(q)` „übernimmt Größe q“ (Länge 1), `Cycle(k, m)`
+„+k im Ring aus m Werten“ und `Until(k, q, v)` „+k immer wieder, bis Größe q = v“ (je Länge
+2). `Until` ist die einzige Schleife; null Durchläufe sind erlaubt (Schalter schon gesetzt).
+Vorausgesagt wird bei `Until` nur „bleibt“; wie weit die Schleife läuft, sagt die Regel
+allein nicht.
+
+**Vorschläge aus den Daten** (`synthesis.py`): Die neuen Bausteine werden nicht blind
+aufgezählt. `Copy` nur für Größen, deren alter Wert bei jedem Wechsel der neue Wert war
+(höchstens 4), mit mindestens zwei verschiedenen neuen Werten und nur aus einer Quelle,
+die alle Werte der Größe schon gezeigt hat. Ein einzelner Beleg oder ein Schalter als Quelle
+passt sonst zu oft zufällig (im 3D-Würfel kostete das 13,7 statt 10,8 Schritte). `Cycle` nur aus einem häufigen Schritt und einem häufigen Sprung in die
+Gegenrichtung, mindestens 3 Werte, auf dem kürzeren Weg geschrieben (−11 im Ring aus 12 ist
++1). `Until` nur, wenn Sprünge über mehr als den gemeinsamen Grundschritt vorkommen. Reihenfolge
+der Suche: Länge 1 (Grundbausteine, `Copy`), Länge 2 (`Cycle`, `Until`), Bibliothek, Länge 3
+(Schalter-Regeln). `extended=False` schaltet alles Neue ab (Stand 0.16).
+
+**Form als Grammatik** (`form.py`, H21): Jede Achse hat eine Art, abgelesen aus den beiden
+Bausteinen, die sie bewegen: Kette (`Shift`), Ring (`Cycle` mit gleichem m), Rutschbahn
+(`Until`, auch gemischt mit `Shift`), sonst Ordnung. Der Name der Form wird zusammengesetzt,
+etwa „Ring × Ring × Ring“ oder „Raum mit 1 Dimension × Rutschbahn mit 1 Dimension“. Schalter
+(Größen mit genau zwei Werten) sind keine Achsen. Ohne Achse: „keine bekannte Form“.
+
+**Planen** (`planner.py`): Die A*-Suche kennt Ringe (Abstand auf dem kürzeren Weg) und
+Rutschpartien: Er rutscht im Kopf weiter, solange die Karte zeigt, dass es weitergeht, und
+hält an der ersten unbekannten Stelle. Dafür merkt sich die Karte (`Knowledge.passed`), über
+welche Strecken eine Schleife schon lief: Dort war der Schalter nicht gesetzt (`Passage`).
+Hat die Welt keine Achse, aber ein Ziel, sucht `plan_model` in vorgestellten Beobachtungen
+(Breitensuche, höchstens 5000), nur mit Regeln ohne Ausnahme und mit mindestens 3 Beispielen.
+
+**Bibliothek mit Vorprüfung** (`library.py`, H24): Ein Muster wird nur probiert, wenn seine
+Bausteine mindestens 90 % der beobachteten Änderungen überhaupt erzeugen können
+(`plausible`). Das liest nur die Häufigkeiten der Änderungen und prüft kein Programm.
+
+**Neue Welt per Bayes-Faktor** (`detector.py`, H23, `Strategy.BAYES`): Ausgelöst wie bei
+H18. Ab dann sammelt er alle Schritte, bis eine Erklärung klar gewinnt (sequentiell wie
+Walds Test, kein festes Fenster). Verglichen wird der Vorhersage-Verlust in Bits über alle
+Regeln, die zu diesen Schritten etwas sagen:
+1. dieselbe Karte: je Regel und Schritt `−log2 r` bei Treffer, `−log2 (1 − r)` bei Fehler,
+   r die bisherige Trefferquote (Laplace),
+2. eine alte Karte: genauso mit ihren Regeln, plus `CHANGE_BITS`,
+3. eine neue Karte: als Abwandlung der jetzigen. Für die k Regeln, die sich am meisten
+   lohnen, neue Regeln (4 Bit je Baustein) und ihr Verlust an Schritten, aus denen sie nicht
+   gelernt wurden (zweifach über Kreuz: aus jedem zweiten Schritt lernen, die anderen
+   vorhersagen, nach Dawid 1984), plus `log2 (J + 1) + log2 C(J, k)` für die Auswahl und
+   `CHANGE_BITS`.
+`CHANGE_BITS = log2 ((1 − h) / h)` mit Wechselrate h = 1/1000 je Schritt (ohne Grundlage).
+Ist die beste andere Erklärung um mindestens `5 / ln 2 ≈ 7,2` Bit besser als 1, wechselt er
+(`2 ln B ≥ 10`, „sehr starker“ Beleg nach Kass & Raftery 1995). Ist 1 um so viel besser,
+verfeinert er die auffälligen Regeln, falls das geht, oder hört auf zu sammeln, sobald keine
+Regel mehr unerwartet danebenliegt. Solange er sammelt, lernt die Karte nicht aus den
+zurückgehaltenen Schritten.
+
+**Keine Übernahme des Ziels**: Eine neue Karte beginnt ohne das Ziel der alten. In 0.16 wurde
+es übernommen; im Strom ganz verschiedener Welten führte das den Agenten in die Irre, weil
+das alte Ziel in einer anderen Welt nichts bedeutet (Suchbaum 194 statt 93 Schritte,
+Drehscheiben 223 statt 58). Neue Ursache, neues Wissen (Gershman 2017). Was die neue Karte
+selbst gesehen hat, lernt sie dagegen ganz: Wechselt der Agent, bekommt die Karte, die jetzt
+gilt, alle zurückgehaltenen Schritte mit Regeln, Orten und Ziel.
+
+**Experimente**: `experiments/new_forms.py` (Ergebnis 20, H21 und H22), `world_stream.py`
+(Ergebnis 21, H23); `library_transfer.py` hat die Bedingung „ohne Vorprüfung“ (H24),
+`new_world.py` den Umgang „Bayes-Faktor“.
+
 ## 10. Qualitätsregeln für den Code
 
 - Lesbarkeit und Einfachheit vor Cleverness (KISS, Zen of Python).
@@ -298,6 +375,18 @@ Unter `10^-5` ist das unerwartet. Dann drei Erklärungen in dieser Reihenfolge:
 - Bezeichner auf Englisch (Python-Konvention), Dokumentation und Ausgaben auf Deutsch.
 
 ## 11. Änderungen
+
+### Version 0.17
+
+- Neue Bausteine `Copy`, `Cycle`, `Until`, Form als Grammatik, Planen auf Ringen und
+  Rutschbahnen und im gelernten Modell, Bibliothek mit Vorprüfung, Erkennen per Bayes-Faktor
+  (Abschnitt 9.1).
+- Neue Welten Eis, Drehscheiben, Tauschen und die Hülle `Padded`.
+- Experimente `new_forms` und `world_stream` (Ergebnisse 20 und 21); Ergebnisse 18 und 19
+  haben je eine Bedingung mehr. Der allgemeine Agent nutzt die neuen Teile standardmäßig,
+  daher ändern sich auch die Zahlen von Ergebnis 17 bis 19 leicht. Ergebnisse 1 bis 16 sind
+  unverändert.
+- Eine neue Karte übernimmt nicht mehr das Ziel der alten.
 
 ### Version 0.16
 

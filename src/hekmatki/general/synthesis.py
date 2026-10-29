@@ -9,6 +9,11 @@ Ausnahme, kann keine längere sie schlagen, und die Suche hört dort auf.
 `tested` zählt die geprüften Programme. Das ist das Maß für Rechenaufwand, an dem die
 Bibliothek sich messen lassen muss (Berlot-Attwell 2026: Vergleich bei gleicher Rechenzeit).
 
+Ab 0.17 (`extended`) kommen Übernehmen, Ring und Schleife dazu. Auch sie werden aus den
+Daten vorgeschlagen, nicht blind aufgezählt: Übernehmen nur von Größen, die bei jedem
+Wechsel den neuen Wert hatten, eine Schleife nur, wenn Sprünge über mehr als einen Schritt
+vorkommen, ein Ring nur, wenn es Sprünge zurück an den Anfang gibt.
+
 Grundlage für die Suche nach Länge: Programm-Induktion bei Kindern und in DreamCoder
 (Rule 2024, Ellis 2021), datengesteuerte Grammatiksuche (Duvenaud 2013).
 """
@@ -17,17 +22,22 @@ import math
 from collections import Counter
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
+from functools import reduce
 from typing import Final
 
 from hekmatki.general.env import Observation
-from hekmatki.general.library import CALL_COST, Library, Vocabulary, instances
+from hekmatki.general.library import CALL_COST, Library, Vocabulary, instances, plausible
 from hekmatki.general.programs import (
+    LOOP_COST,
+    Copy,
+    Cycle,
     Falls,
     Keep,
     Leaf,
     Program,
     Rises,
     Shift,
+    Until,
     When,
     cost,
     fits,
@@ -41,6 +51,10 @@ MAX_ERROR_RATE: Final = 0.3
 """Liegt die beste Regel öfter daneben, gilt die Größe als unvorhersagbar (ohne Grundlage)."""
 MAX_SHIFTS: Final = 4
 """Höchstens so viele verschiedene Schritte kommen als `Shift` in Frage."""
+MAX_SOURCES: Final = 4
+"""Höchstens so viele Größen kommen als Quelle für `Copy` in Frage."""
+MIN_RING: Final = 3
+"""Ein Ring hat mindestens drei Werte (zwei wären ein Umschalter; ohne Grundlage)."""
 
 
 @dataclass(frozen=True)
@@ -83,14 +97,21 @@ class Found:
 
 
 def vocabulary(
-    examples: Sequence[Example], component: int, sensors: Mapping[int, tuple[int, int]]
+    examples: Sequence[Example],
+    component: int,
+    sensors: Mapping[int, tuple[int, int]],
+    extended: bool = True,
 ) -> Vocabulary:
     """Bausteine für diese Größe, mit den Schritten, die in den Daten vorkommen."""
     changes = Counter(e.after[component] - e.before[component] for e in examples)
-    changes.pop(0, None)
-    shifts = tuple(sorted(by for by, _ in changes.most_common(MAX_SHIFTS)))
+    moves = {by: n for by, n in changes.items() if by != 0}
+    shifts = tuple(sorted(by for by, _ in Counter(moves).most_common(MAX_SHIFTS)))
     leaves: tuple[Leaf, ...] = (Keep(), *(Shift(by) for by in shifts), Rises(), Falls())
-    return Vocabulary(leaves, dict(sensors), shifts)
+    if not extended:
+        return Vocabulary(leaves, dict(sensors), shifts, changes=changes)
+    extra = tuple(Copy(source) for source in _sources(examples, component))
+    loops: tuple[Leaf, ...] = (*_rings(shifts), *_loops(moves, sensors, component))
+    return Vocabulary(leaves, dict(sensors), shifts, extra, loops, changes)
 
 
 def candidates(
@@ -104,7 +125,9 @@ def candidates(
     borrowed = [] if library is None else _borrowed(words, component, library)
     for length in range(1, max_cost + 1):
         if length == 1:
-            yield from (Candidate(leaf, 1) for leaf in words.leaves)
+            yield from (Candidate(leaf, 1) for leaf in (*words.leaves, *words.extra))
+        if length == LOOP_COST:
+            yield from (Candidate(leaf, LOOP_COST) for leaf in words.loops)
         yield from (c for c in borrowed if c.cost == length)
         if length == 3:
             yield from (Candidate(rule, 3) for rule in _switch_rules(words, component))
@@ -116,11 +139,12 @@ def synthesize(
     sensors: Mapping[int, tuple[int, int]],
     library: Library | None = None,
     budget: int | None = None,
+    extended: bool = True,
 ) -> Found:
     """Sucht die Regel mit der kürzesten Beschreibung für Größe `component`."""
     if not examples:
         return Found(None, 0, 0, 0)
-    words = vocabulary(examples, component, sensors)
+    words = vocabulary(examples, component, sensors, extended)
     exception_bits = bits_per_exception(len(examples))
     best: tuple[Candidate, int] | None = None
     best_bits = math.inf
@@ -163,7 +187,68 @@ def _borrowed(words: Vocabulary, component: int, library: Library) -> list[Candi
     found = []
     for entry in library.ordered():
         for program, fill in instances(entry.pattern, words, component):
+            if library.recognition and not plausible(program, words.changes):
+                continue  # Vorbedingung verletzt: kann hier nicht passen (H24).
             found.append(Candidate(program, CALL_COST + fill, entry.name))
+    return found
+
+
+def _sources(examples: Sequence[Example], component: int) -> list[int]:
+    """Größen, deren alter Wert bei jedem echten Wechsel der neue Wert war.
+
+    Nur ein Wechsel als Beleg reicht nicht: Bei Schaltern mit zwei Werten passt dann fast
+    immer irgendeine Größe zufällig, und die Regel bricht beim nächsten Wechsel. Ebenso wenig
+    reicht es, wenn der neue Wert immer derselbe war: Dann passt jede Größe, die zufällig
+    diesen Wert hatte. Und die Quelle muss alle Werte gezeigt haben, die die Größe annimmt;
+    ein Schalter mit zwei Werten kann keine Position mit zehn Werten liefern.
+    """
+    changing = [e for e in examples if e.after[component] != e.before[component]]
+    if len({e.after[component] for e in changing}) < 2:
+        return []  # Ein fester neuer Wert ist kein Beleg fürs Übernehmen.
+    width = len(changing[0].before)
+    seen = [{value for e in examples for value in (e.before[i], e.after[i])} for i in range(width)]
+    found = [
+        source
+        for source in range(width)
+        if source != component
+        and seen[component] <= seen[source]
+        and all(e.after[component] == e.before[source] for e in changing)
+    ]
+    return found[:MAX_SOURCES]
+
+
+def _rings(shifts: Sequence[int]) -> list[Cycle]:
+    """Ringe: ein häufiger Schritt plus ein häufiger Sprung in die Gegenrichtung, zurück zum
+    Anfang."""
+    found = []
+    for by in shifts:
+        for jump in shifts:
+            if jump * by < 0 and (modulus := abs(by - jump)) >= MIN_RING and modulus > abs(by):
+                found.append(Cycle(_shortest(by, modulus), modulus))
+    return sorted(set(found), key=lambda c: (c.modulus, c.by))
+
+
+def _shortest(by: int, modulus: int) -> int:
+    """Derselbe Schritt im Ring, auf dem kürzeren Weg: −11 im Ring aus 12 ist +1."""
+    step = by % modulus
+    return step - modulus if step > modulus // 2 else step
+
+
+def _loops(
+    moves: Mapping[int, int], sensors: Mapping[int, tuple[int, int]], component: int
+) -> list[Until]:
+    """Schleifen: nur wenn Sprünge über mehr als einen Grundschritt vorkommen."""
+    found: list[Until] = []
+    for sign in (1, -1):
+        sizes = [abs(by) for by in moves if by * sign > 0]
+        if not sizes:
+            continue
+        step = reduce(math.gcd, sizes)
+        if max(sizes) == step:
+            continue  # Immer nur ein Schritt: keine Wiederholung zu sehen.
+        for sensor, values in sensors.items():
+            if sensor != component:
+                found.extend(Until(sign * step, sensor, value) for value in values)
     return found
 
 

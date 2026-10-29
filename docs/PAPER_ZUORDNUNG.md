@@ -1,11 +1,11 @@
 # Paper-Zuordnung: Welches Modul stützt sich auf welche Forschung?
 
-Stand: Prototyp 0.16, Dossier Runde 6 (29. Oktober 2026, 199 Paper).
+Stand: Prototyp 0.17, Dossier Runde 7 (29. Oktober 2026, 221 Paper).
 Dossier: https://claude.ai/artifact/Sghxz5AxhcHgCKY9dtGSM5, Abschnitt „Paper ↔ Prototyp“.
 
 **Regel:** Jede neue Version aktualisiert diese Datei. Ideen, die zuerst im Code entstehen,
 bekommen den Vermerk **ohne Grundlage**. Sie sind der Suchauftrag für die nächste Paper-Runde.
-P1–P8 sind die Prinzipien, H1–H20 die Hypothesen des Dossiers.
+P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers.
 
 ## Module und ihre Grundlagen
 
@@ -34,23 +34,41 @@ P1–P8 sind die Prinzipien, H1–H20 die Hypothesen des Dossiers.
 | `grid/model_agent.py` | Modell-Agent, ab 0.15 mit Teilprüfung | Tycho 2026, Kepler 2026; Zweifel-Stufen waren **ohne Grundlage**, jetzt OPINE-World 2026; Teilprüfung: Franklin & Frank 2018/2020, Bilalić 2008 | P2, P4, P5, H16 |
 | `grid/trust.py` | Vorwissen erst nach Bestätigung nutzen | ARC-Prize-Auswertung 2026, Kepler 2026, Gershman 2017; Schwelle von zwei Bestätigungen ist **ohne Grundlage** | H17 |
 | `grid/baseline.py` | Vergleich | Rudakov 2025 (Graph-Entdecker) | – |
-| `general/env.py`, `general/worlds.py` | Schnittstelle für jede Welt: nur Zahlen und Tasten, gemischt; Raum, Würfel, Suchbaum | Runde 6: Philipona 2003 (Raum aus Sensomotorik), Kemp & Tenenbaum 2008; Gegenprobe gegen „Welt und Agent aus einer Hand“: Runde 5 G4 | H18–H20 |
-| `general/programs.py`, `general/synthesis.py` | Regeln als Programme, kürzeste Beschreibung | Schema 2026, Rule 2020 und 2024, Evans 2021 (Apperception), MDL nach Rissanen 1978; Bausteine und Bit-Preise sind **ohne Grundlage** | P1, P4, H19 |
-| `general/library.py` | Hekmat-Bibliothek mit Wiederverwendungs-Zähler | DreamCoder 2021, Stitch 2023 (Anti-Unifikation), Berlot-Attwell 2026 (Zähler, gleiche Rechenzeit), TheoryCoder-2 2026 | P6, H20 |
-| `general/form.py`, `general/planner.py` | Form der Welt, Karte mit Bezugssystem | Kemp & Tenenbaum 2008, Duvenaud 2013, Constantinescu 2016, Bellmund 2018, Aronov 2017; feste Liste der Formen (Raum, Ordnung) ist **ohne Grundlage** | P2, H19 |
+| `general/env.py`, `general/worlds.py` | Schnittstelle für jede Welt: nur Zahlen und Tasten, gemischt; Raum, Würfel, Suchbaum, ab 0.17 Eis, Drehscheiben, Tauschen und `Padded` (eine Schnittstelle für alle) | Runde 6: Philipona 2003 (Raum aus Sensomotorik), Kemp & Tenenbaum 2008; Gegenprobe gegen „Welt und Agent aus einer Hand“: Runde 5 G4; Eis ohne Fallen zu erzeugen ist **ohne Grundlage** | H18–H23 |
+| `general/programs.py`, `general/synthesis.py` | Regeln als Programme, kürzeste Beschreibung; ab 0.17 Übernehmen, Ring, Schleife „bis Schalter“, aus den Daten vorgeschlagen | Schema 2026, Rule 2020 und 2024, Evans 2021 (Apperception), MDL nach Rissanen 1978; Runde 7: Sutton 1999 und Bacon 2017 (Optionen mit Abbruch), Ellis 2018, Cropper 2020 (Schleifen), Gulwani 2017 (Warnung: Schleifen sprengen die Suche); Bit-Preise sind **ohne Grundlage** | P1, P4, H19, H22 |
+| `general/library.py` | Hekmat-Bibliothek mit Wiederverwendungs-Zähler, ab 0.17 mit Vorprüfung | DreamCoder 2021, Stitch 2023 (Anti-Unifikation), Berlot-Attwell 2026 (Zähler, gleiche Rechenzeit), TheoryCoder-2 2026; Runde 7: DeepCoder (Balog 2017), LAPS (Wong 2021), AbstractBeam (Zenkner 2024) | P6, H20, H24 |
+| `general/form.py`, `general/planner.py` | Form der Welt als Grammatik (Kette, Ring, Rutschbahn, Ordnung), Karte mit Bezugssystem; ohne Form Suche im gelernten Modell | Kemp & Tenenbaum 2008, Duvenaud 2013, Grosse 2012, Constantinescu 2016, Bellmund 2018, Aronov 2017; Runde 7: Mahadevan & Maggioni 2007, Stachenfeld 2017, Mark 2020 | P2, H19, H21 |
 | `general/knowledge.py` | Regelbuch und Ziel je Karte | Collins & Frank 2013 (Kontext-Karten), Gershman 2010 | P7 |
-| `general/detector.py`, `general/agent.py` | Neue Umgebung erkennen: erwartete gegen unerwartete Unsicherheit | Yu & Dayan 2002, Sanders 2020, Heald 2021 (COIN), Stahl & Feigenson 2015; Binomial-Test je Regel und Fenster 20 sind **ohne Grundlage** | P7, H18 |
+| `general/detector.py`, `general/agent.py` | Neue Umgebung erkennen: erwartete gegen unerwartete Unsicherheit, ab 0.17 per Bayes-Faktor | Yu & Dayan 2002, Sanders 2020, Heald 2021 (COIN), Stahl & Feigenson 2015; Runde 7: Adams & MacKay 2007, Liakoni 2021, Wald 1945 (sequentieller Test), Kass & Raftery 1995 (Schwelle), Dawid 1984 (prequentielle Wertung); Fenster 20 und Wechselrate 1/1000 sind **ohne Grundlage** | P7, H18, H23 |
 | `experiments/` | Messung, ab 0.15 auch Schaden durch Vorwissen | Tastendrücke bis zum ersten Sieg; ARC-AGI-3 misst RHAE; negative Übertragung: Wang 2019; Vergleich Spielwelt–Alltagswelt: Runde 5 G4 | H11–H17 |
 
 ## Was aus der Architektur v0.3 noch fehlt
 
 | Baustein | Stand | Paper |
 |---|---|---|
-| Hekmat-Bibliothek (wachsend, Wiederverwendung gezählt) | erster Anfang in 0.16 (`general/library.py`), nur Muster aus einer Regel; noch keine Bibliothek über Pläne oder Formen | DreamCoder, LILO, Stitch, SAGE; Runde 6: Rule 2020 und 2024, Piantadosi 2012, Ullman 2012, Schema 2026, TheoryCoder-2 2026; Warnung: Berlot-Attwell 2026 (Bibliotheken oft nicht wiederverwendet) |
+| Hekmat-Bibliothek (wachsend, Wiederverwendung gezählt) | erster Anfang in 0.16 (`general/library.py`), nur Muster aus einer Regel, ab 0.17 mit Vorprüfung; noch keine Bibliothek über Pläne oder Formen, die Vorprüfung ist fest und nicht gelernt | DreamCoder, LILO, Stitch, SAGE; Runde 6: Rule 2020 und 2024, Piantadosi 2012, Ullman 2012, Schema 2026, TheoryCoder-2 2026; Warnung: Berlot-Attwell 2026 (Bibliotheken oft nicht wiederverwendet) |
 | Neuronales Weltmodell | bewusst weggelassen (nur Standardbibliothek) | Causal-JEPA, DreamerV3 |
 | Sprachorgan (LLM) | bewusst weggelassen | LILO; Tycho und Kepler zeigen, dass LLMs Weltmodelle als Code schreiben |
 | Lehrplan-Generator | fehlt | Absolute Zero, Oudeyer 2007, POET |
 | Kontext-Inferenz und Schlaf in der 2D-Welt | Kontext-Inferenz ab 0.16 im allgemeinen Agenten (`general/detector.py`), Schlaf fehlt | COIN, Bhattarai 2026; Runde 6: Sanders, Wilson, Gershman 2020, Yu & Dayan 2002 |
+
+## Umgesetzt in 0.17 (Test von H21 bis H24 nach Runde 7)
+
+| Vorschlag aus Runde 7 | Stand |
+|---|---|
+| H21: Form als Grammatik, Suche im Modell als Rückfall | **gestützt** (Ergebnis 20): „Ring × Ring × Ring“ bei den Drehscheiben und „Rutschbahn mit 2 Dimensionen“ auf Eis in 10 von 10 Läufen; 0.16 hielt beides für einen Raum oder eine Ordnung. Drehscheiben 9,6 statt 13,9 Schritte (bestenfalls 9,6). Tauschen hat keine Form: Mit Suche im Modell 7,7 Schritte (bestenfalls 7,5), ohne 762. Die Laplace-Koordinaten von Mahadevan 2007 wurden nicht gebaut, die Grammatik reichte |
+| H22: ein Schleifenbaustein „Schritt, bis Schalter“ | **gestützt** (Ergebnis 20): Eis 11,9 statt 98 Schritte (bestenfalls 5,0, Tabelle 86). Das ist noch mehr als das Doppelte des kürzesten Wegs: Wo er noch nicht war, weiß er nicht, wo das Rutschen endet |
+| H23: neue Welt per Bayes-Faktor | **teilweise** (Ergebnis 19 und 21): Ganz verschiedene Welten im selben Strom (Raum → Suchbaum → Drehscheiben → Raum) erkennt schon der Binomial-Test aus 0.16 meist (80 / 100 / 100 %), der Bayes-Faktor gleich oft. Er legt weniger überzählige Karten an (1,3 statt 1,7) und findet doppelt so oft die erste Karte wieder (80 statt 40 %), braucht aber mehr Schritte (Suchbaum 78 statt 61, Drehscheiben 90 statt 67). Bei vertauschten Tasten ist der Binomial-Test schneller (zurück in A 11 statt 41 Schritte). Schwelle nach Kass & Raftery, Wechselrate ohne Grundlage |
+| H24: Bibliothek mit Vorprüfung spart insgesamt | **teilweise** (Ergebnis 18): Über alle Suchen 8 bzw. 1 % weniger Programme als ohne Bibliothek; ohne Vorprüfung 6 % weniger bzw. 5 % mehr. Die Vorprüfung macht die Bibliothek also in beiden Reihenfolgen sparsam, aber nur knapp. Bei knappem Budget erreicht er das Ziel im 3D-Raum mit Bibliothek seltener (96 statt 100 %). Die Vorprüfung ist von Hand gebaut, nicht gelernt wie bei DeepCoder |
+| Gegenstimme Gulwani 2017: Schleifen sprengen die Suche | beachtet: genau eine Schleifenform, nur vorgeschlagen, wenn lange Sprünge vorkommen; Ergebnis 17 bleibt genau wie in 0.16 |
+| Ziel in eine neue Karte übernehmen (0.16) | **zurückgenommen**: Im Strom verschiedener Welten führte das alte Ziel in die Irre (Suchbaum 194 statt 93 Schritte). Neue Ursache, neues Wissen (Gershman 2017) |
+| Übernehmen nur mit Beleg | Ein „übernimmt G6“ aus wenigen Zufallstreffern machte den 3D-Würfel langsamer (13,7 statt 10,8 Schritte). Jetzt braucht Übernehmen jeden Wechsel als Beleg, mindestens zwei verschiedene neue Werte und eine Quelle, die alle Werte der Größe gezeigt hat. Danach ist Ergebnis 17 wieder genau wie in 0.16 |
+
+**Ohne Grundlage (neu in 0.17), Suchauftrag für Runde 8:**
+- Synthese: Anteil 90 % für die Vorprüfung (`COVERAGE`), Ring ab 3 Werten (`MIN_RING`), höchstens 4 Quellen für Übernehmen (`MAX_SOURCES`), Länge 2 für Ring und Schleife (`LOOP_COST`).
+- Planer: Suche im Modell nur mit Regeln aus mindestens 3 Beispielen (`MODEL_SUPPORT`), höchstens 5000 vorgestellte Zustände (`MODEL_LIMIT`); beim Rutschen im Kopf an der ersten unbekannten Stelle anhalten.
+- Erkennen: Wechselrate 1/1000 je Schritt (`HAZARD`), zweifache Kreuzprüfung für den Verlust neuer Regeln (statt voller prequentieller Wertung nach Dawid 1984).
+- Welt: Eis-Räume ohne Fallen, nur Hindernisse, die das Spielgebiet nicht verkleinern.
 
 ## Umgesetzt in 0.16 (Test von H18 bis H20 nach Runde 6)
 
@@ -115,6 +133,21 @@ Dossier-Abschnitt „Was gegen unsere Annahmen spricht“ (#runde5), 17 Arbeiten
 Neue Hypothesen: H16 (Teile statt Ganzes wiederverwenden), H17 (Vorwissen erst nach bestandener Vorhersage).
 Größte Schwäche laut Runde 5: Welt und Agent stammen aus derselben Hand (fünf Regelarten = fünf Feldarten).
 
+## Runde 7: Die Grenzen von 0.16 überwinden (29. Oktober 2026)
+
+Dossier-Abschnitt #runde7, 19 Arbeiten, dazu nach dem Bau von 0.17 drei Grundlagen für den Bayes-Faktor
+(Wald 1945, Kass & Raftery 1995, Dawid 1984).
+
+| Grenze von 0.16 | Lösung | Grundlage | Hypothese |
+|---|---|---|---|
+| Formen aus einer festen Liste | Grammatik aus Kette, Ring, Ordnung (und Rutschbahn), Welten als Produkt; ohne Form Suche im Modell | Grosse 2012, Kemp & Tenenbaum 2008, Mahadevan & Maggioni 2007, Stachenfeld 2017, Mark 2020 | H21 |
+| Kein Baustein „wiederholen“ (Eis) | eine Schleifenform „Schritt, bis Schalter“ | Sutton 1999, Bacon 2017, Ellis 2018, Cropper 2020; Warnung Gulwani 2017 | H22 |
+| Neue Welt nur mit vertauschten Tasten geprüft | Karten gegen ein frisches Modell abwägen, Strom ganz verschiedener Welten | Adams & MacKay 2007, Liakoni 2021, Sanders 2020 | H23 |
+| Bibliothek spart insgesamt nichts | billige Vorbedingung je Muster (Erkennungsmodell) | DeepCoder (Balog 2017), LAPS (Wong 2021), AbstractBeam (Zenkner 2024) | H24 |
+
+Gegenstimmen: Schleifen sprengen die Suche (Gulwani 2017); vom Gehirn auf Algorithmen zu schließen bleibt riskant
+(Schaeffer, Khona, Fiete 2022).
+
 ## Runde 6: Neue Umgebungen verstehen lernen (29. Oktober 2026)
 
 Dossier-Abschnitt #runde6, 27 Arbeiten aus KI, Hirnforschung, Entwicklungspsychologie und Kritik.
@@ -136,11 +169,11 @@ Algorithmen zu schließen ist riskant (Jonas & Kording 2017).
 Damit haben „Anteil 0,03 für einen neuen Kontext“ (Sanders 2020) und „neue Regelarten bilden“ (Rule 2024, Schema 2026)
 eine Grundlage. Weiter **ohne Grundlage**: die Schwelle von zwei Bestätigungen in `trust.py`.
 
-## Nächste Schritte aus den Papern (Vorschlag 0.17, nach Ergebnis 19)
+## Nächste Schritte aus den Papern (Vorschlag 0.18, nach Ergebnis 21)
 
-1. Formen aus einer Grammatik suchen statt aus einer Liste: Kemp & Tenenbaum 2008, Duvenaud 2013 (H19).
-2. Baustein „wiederholen, bis“ und das Eis im allgemeinen Agenten: Rule 2024, Schema 2026, Kepler 2026 (H20).
-3. Wechsel zwischen ganz verschiedenen Welten im selben Strom, Kartenwahl als Bayes-Inferenz: Sanders 2020, COIN (H18).
-4. Bibliothek nur dort mitprobieren, wo eine Größe vorhersagbar wirkt; Paper zu Kosten von Bibliotheken: Berlot-Attwell 2026, Stitch 2023.
-5. Die 2D-Spielwelt an die allgemeine Schnittstelle anschließen (ein Agent für Spiel und Raum).
+1. Die Vorprüfung der Bibliothek lernen statt von Hand bauen (DeepCoder, LAPS), Bibliothek auch über Formen und Pläne (H24).
+2. Eis: Wo er noch nicht war, erkunden statt raten; Neugier auf das Ende einer Rutschpartie (H22, OPINE-World 2026).
+3. Bayes-Faktor schneller entscheiden lassen, ohne mehr Fehlalarme (er sammelt oft zu lange); Wechselrate aus Erfahrung schätzen statt fest (Adams & MacKay 2007, Heald 2021) (H23).
+4. Die 2D-Spielwelt an die allgemeine Schnittstelle anschließen (ein Agent für Spiel und Raum).
+5. Kernwissen ergänzen: Objekte und Zahl (Spelke 2022); Tauschen zeigt, dass ohne Form nur rohe Suche bleibt.
 6. Aus 0.15 offen: Teilprüfung in Alltagswelt und Spielwelt mit gemeinsamem Mechanismus (H16), reicheres Aussehen (Silver 2023).

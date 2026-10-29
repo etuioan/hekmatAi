@@ -441,8 +441,8 @@ Schritte bis zum Ziel in der Prüfung, nicht erreicht zählt als 2000.
 
 Welt    |               Größe | Zufall | Tabelle | Regeln ohne Form | Form + Regeln | bestenfalls
 -------------------------------------------------------------------------------------------------
-2D-Raum |               25×25 | 1583.2 |  1415.9 |             52.4 |          23.2 |        17.8
-3D-Raum |            10×10×10 | 1082.5 |  1062.7 |             19.0 |          10.8 |         9.1
+2D-Raum |               25×25 | 1583.2 |  1415.9 |             50.7 |          23.2 |        17.8
+3D-Raum |            10×10×10 | 1082.5 |  1062.7 |             17.4 |          10.8 |         9.1
 Suche   | 1.048.575 Schlüssel | 2000.0 |  2000.0 |           2000.0 |          18.0 |        18.0
 
 Ziel erreicht (% der Prüfrunden):
@@ -468,36 +468,36 @@ Zufallsbibliothek = zwei Zufallsmuster gleicher Länge, die nie entfernt werden.
 
 Suchen mit Erfolg:
 
-Reihenfolge               |    Welt | ohne Bibliothek | mit Bibliothek | Zufallsbibliothek
-------------------------------------------------------------------------------------------
-2D-Raum → 3D-Raum → Suche | 2D-Raum |       421 (0.0) |      421 (0.0) |         688 (1.2)
-2D-Raum → 3D-Raum → Suche | 3D-Raum |       762 (0.0) |      364 (6.0) |        1279 (1.8)
-2D-Raum → 3D-Raum → Suche |   Suche |       211 (0.0) |      232 (0.1) |         311 (0.3)
-Suche → 2D-Raum → 3D-Raum |   Suche |       211 (0.0) |      211 (0.0) |         311 (0.3)
-Suche → 2D-Raum → 3D-Raum | 2D-Raum |       421 (0.0) |      321 (2.4) |         688 (1.2)
-Suche → 2D-Raum → 3D-Raum | 3D-Raum |       762 (0.0) |      416 (6.0) |        1279 (1.8)
+Reihenfolge               |    Welt | ohne Bibliothek | mit Bibliothek | ohne Vorprüfung | Zufallsbibliothek
+------------------------------------------------------------------------------------------------------------
+2D-Raum → 3D-Raum → Suche | 2D-Raum |       421 (0.0) |      421 (0.0) |       421 (0.0) |         465 (1.2)
+2D-Raum → 3D-Raum → Suche | 3D-Raum |       760 (0.0) |      364 (6.0) |       364 (6.0) |         830 (1.8)
+2D-Raum → 3D-Raum → Suche |   Suche |       231 (0.0) |      229 (0.1) |       251 (0.1) |         214 (0.3)
+Suche → 2D-Raum → 3D-Raum |   Suche |       231 (0.0) |      231 (0.0) |       231 (0.0) |         214 (0.3)
+Suche → 2D-Raum → 3D-Raum | 2D-Raum |       421 (0.0) |      309 (2.4) |       322 (2.4) |         465 (1.2)
+Suche → 2D-Raum → 3D-Raum | 3D-Raum |       760 (0.0) |      388 (6.0) |       416 (6.0) |         830 (1.8)
 
 Alle Suchen:
 
-Reihenfolge               |    Welt | ohne Bibliothek | mit Bibliothek | Zufallsbibliothek
-------------------------------------------------------------------------------------------
-2D-Raum → 3D-Raum → Suche | 2D-Raum |            2785 |           2785 |              4888
-2D-Raum → 3D-Raum → Suche | 3D-Raum |            6714 |           6204 |             12810
-2D-Raum → 3D-Raum → Suche |   Suche |             703 |            690 |               930
-Suche → 2D-Raum → 3D-Raum |   Suche |             703 |            703 |               930
-Suche → 2D-Raum → 3D-Raum | 2D-Raum |            2785 |           3006 |              4888
-Suche → 2D-Raum → 3D-Raum | 3D-Raum |            6714 |           7024 |             12810
+Reihenfolge               |    Welt | ohne Bibliothek | mit Bibliothek | ohne Vorprüfung | Zufallsbibliothek
+------------------------------------------------------------------------------------------------------------
+2D-Raum → 3D-Raum → Suche | 2D-Raum |            2757 |           2757 |            2757 |              3660
+2D-Raum → 3D-Raum → Suche | 3D-Raum |            6555 |           5803 |            5944 |              9140
+2D-Raum → 3D-Raum → Suche |   Suche |             744 |            734 |             725 |               721
+Suche → 2D-Raum → 3D-Raum |   Suche |             744 |            744 |             744 |               721
+Suche → 2D-Raum → 3D-Raum | 2D-Raum |            2757 |           2801 |            2956 |              3660
+Suche → 2D-Raum → 3D-Raum | 3D-Raum |            6555 |           6389 |            6816 |              9140
 
 Gleiches Budget: höchstens 20 Programme je Regelsuche. Ziel erreicht (%):
 
 Reihenfolge               |    Welt | ohne Bibliothek | mit Bibliothek
 ----------------------------------------------------------------------
 2D-Raum → 3D-Raum → Suche | 2D-Raum |              94 |             94
-2D-Raum → 3D-Raum → Suche | 3D-Raum |             100 |             98
-2D-Raum → 3D-Raum → Suche |   Suche |              90 |             92
+2D-Raum → 3D-Raum → Suche | 3D-Raum |             100 |             96
+2D-Raum → 3D-Raum → Suche |   Suche |              90 |             94
 Suche → 2D-Raum → 3D-Raum |   Suche |              90 |             90
 Suche → 2D-Raum → 3D-Raum | 2D-Raum |              94 |             94
-Suche → 2D-Raum → 3D-Raum | 3D-Raum |             100 |            100
+Suche → 2D-Raum → 3D-Raum | 3D-Raum |             100 |             96
 
 Einträge am Ende (erster Lauf jeder Reihenfolge):
 
@@ -511,19 +511,72 @@ dann B (Tasten vertauscht), dann wieder A. 15 Runden je Phase.
 
 Mittlere Schritte je Runde (in Klammern: die ersten drei Runden der Phase):
 
-Umgang                |         A |           B |    A wieder
--------------------------------------------------------------
-ohne Erkennung        | 21.8 (61) | 104.7 (104) | 134.5 (150)
-jede Überraschung     | 53.4 (89) |   53.0 (53) |   30.8 (32)
-nie neue Karte        | 17.6 (60) |   54.0 (68) |   23.6 (50)
-erwartet / unerwartet | 17.6 (60) |   53.1 (66) |   24.8 (18)
+Umgang                |         A |          B |    A wieder
+------------------------------------------------------------
+ohne Erkennung        | 20.3 (60) | 97.6 (107) | 140.4 (166)
+jede Überraschung     | 66.1 (99) | 76.0 (104) |   30.9 (24)
+nie neue Karte        | 18.7 (64) |  47.3 (88) |  38.0 (119)
+erwartet / unerwartet | 18.7 (64) |  45.4 (76) |   10.8 (26)
+Bayes-Faktor          | 17.7 (63) |  43.9 (84) |   41.3 (44)
 
 Umgang                | Karten | Fehlalarme in A | B erkannt | alte Karte wieder
 --------------------------------------------------------------------------------
 ohne Erkennung        |    1.0 |             0.0 |       0 % |               0 %
-jede Überraschung     |   21.6 |           416.4 |     100 % |              40 %
-nie neue Karte        |    1.0 |             0.1 |      80 % |               0 %
-erwartet / unerwartet |    2.1 |             0.1 |      80 % |              90 %
+jede Überraschung     |   25.4 |           533.9 |     100 % |               0 %
+nie neue Karte        |    1.0 |             0.1 |     100 % |               0 %
+erwartet / unerwartet |    2.2 |             0.1 |     100 % |             100 %
+Bayes-Faktor          |    2.1 |             0.0 |      90 % |             100 %
 
 B erkannt = Kartenwechsel in den ersten 30 Schritten von B. Alte Karte wieder =
-der erste Wechsel in „A wieder“ führt zur ersten Karte zurück. (4 Umgänge)
+der erste Wechsel in „A wieder“ führt zur ersten Karte zurück. (5 Umgänge)
+
+Neue Formen (H21, H22). Eis: rutschen bis zur Wand. Drehscheiben: nach dem
+letzten Wert kommt der erste. Tauschen: keine Achsen, also keine Form mit Namen.
+Schritte bis zum Ziel in der Prüfung, nicht erreicht zählt als 2000.
+
+Welt         |                           Größe | Zufall | Tabelle | Stand 0.16 | neue Bausteine | Stand 0.17 | bestenfalls
+--------------------------------------------------------------------------------------------------------------------------
+Eis-Raum     |                       12×12 Eis |  245.0 |    85.9 |       98.4 |           11.9 |       11.9 |         5.0
+Drehscheiben | 3 Scheiben mit je 12 Stellungen | 1328.1 |  1336.4 |       13.9 |            9.6 |        9.6 |         9.6
+Tauschen     |                        6 Steine |  786.4 |   674.4 |      761.8 |          761.8 |        7.7 |         7.5
+
+Ziel erreicht (% der Prüfrunden):
+
+Welt         | Zufall | Tabelle | Stand 0.16 | neue Bausteine | Stand 0.17
+--------------------------------------------------------------------------
+Eis-Raum     |     96 |     100 |        100 |            100 |        100
+Drehscheiben |     60 |      60 |        100 |            100 |        100
+Tauschen     |     86 |      90 |         96 |             96 |        100
+
+Gefundene Formen (je Lauf):
+
+Welt         |                     erwartet |                                           Stand 0.16 |                   neue Bausteine |                       Stand 0.17
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Eis-Raum     | Rutschbahn mit 2 Dimensionen |                             Ordnung mit 2 Achsen ×10 | Rutschbahn mit 2 Dimensionen ×10 | Rutschbahn mit 2 Dimensionen ×10
+Drehscheiben |           Ring × Ring × Ring | Raum mit 3 Dimensionen ×9, Raum mit 2 Dimensionen ×1 |           Ring × Ring × Ring ×10 |           Ring × Ring × Ring ×10
+Tauschen     |          keine bekannte Form |                              keine bekannte Form ×10 |          keine bekannte Form ×10 |          keine bekannte Form ×10
+
+Strom ganz verschiedener Welten (H23): rutschiger Raum, Suchbaum, Drehscheiben,
+wieder der Raum, ohne Ankündigung, alle als 8 Zahlen und 6 Tasten. 15 Runden je Phase.
+Mittlere Schritte je Runde:
+
+Umgang                | Raum | Suchbaum | Drehscheiben | Raum wieder
+--------------------------------------------------------------------
+ohne Erkennung        | 20.4 |    176.2 |        233.7 |       166.8
+jede Überraschung     | 78.0 |    126.0 |        116.2 |        48.0
+nie neue Karte        | 22.0 |     61.1 |         60.5 |        33.9
+erwartet / unerwartet | 22.0 |     61.1 |         67.2 |       103.8
+Bayes-Faktor          | 22.5 |     78.3 |         90.2 |       102.6
+
+Wechsel erkannt (Kartenwechsel in den ersten 30 Schritten der Phase):
+
+Umgang                | Suchbaum | Drehscheiben | Raum wieder | überzählige Wechsel | alte Karte wieder | Karten
+----------------------------------------------------------------------------------------------------------------
+ohne Erkennung        |      0 % |          0 % |         0 % |                 0.0 |               0 % |    1.0
+jede Überraschung     |    100 % |        100 % |       100 % |              1630.0 |              60 % |   20.9
+nie neue Karte        |     80 % |        100 % |       100 % |                 0.8 |               0 % |    1.0
+erwartet / unerwartet |     80 % |        100 % |       100 % |                 1.7 |              40 % |    3.6
+Bayes-Faktor          |     80 % |        100 % |       100 % |                 1.3 |              80 % |    3.7
+
+Überzählig = jeder Wechsel in der ersten Phase und jeder weitere nach dem ersten
+in den anderen Phasen.

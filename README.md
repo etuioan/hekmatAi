@@ -12,7 +12,7 @@ Bitte lies das zuerst, wenn du verstehen willst, worum es mir geht.
 - **Idee:** Ähnliche Situationen (beim Arzt warten, auf die Bahn warten) liegen wie
   „Scheiben“ übereinander. Der Agent lernt das Gemeinsame („Warten“) einmal und wechselt
   zwischen den Kontexten.
-- **Stand:** Forschungsprototyp in Python, nur Standardbibliothek, 217 Tests.
+- **Stand:** Forschungsprototyp in Python, nur Standardbibliothek, 241 Tests.
   Spielwelten (ähnlich ARC-AGI-3) sind das Testfeld, nicht das Ziel.
 - **Ehrlich:** Hier wird nichts behauptet, was nicht gemessen ist. Widerlegte Hypothesen
   stehen genauso im README wie gestützte (siehe [Grenzen](#grenzen)).
@@ -61,7 +61,7 @@ Quick start: `PYTHONPATH=src python -m hekmatki` (Python 3.12+). How to contribu
 
 ---
 
-## HekmatKI Prototyp 0.16: Schema-Stapel, Kontextwechsel, Weltmodell und ein Agent für ganz andere Welten
+## HekmatKI Prototyp 0.17: Schema-Stapel, Kontextwechsel, Weltmodell und ein Agent für ganz andere Welten
 
 Ein kleiner, vollständig nachvollziehbarer Test der Idee, ähnliche Alltagssituationen als
 übereinanderliegende „Scheiben“ zu modellieren und zwischen ihnen zu wechseln.
@@ -744,8 +744,8 @@ zählt als 2000):
 
 | Welt | Größe | Zufall | Tabelle | Regeln ohne Form | Form + Regeln | bestenfalls |
 |---|---|---:|---:|---:|---:|---:|
-| 2D-Raum | 25×25 | 1583,2 | 1415,9 | 52,4 | **23,2** | 17,8 |
-| 3D-Raum | 10×10×10 | 1082,5 | 1062,7 | 19,0 | **10,8** | 9,1 |
+| 2D-Raum | 25×25 | 1583,2 | 1415,9 | 50,7 | **23,2** | 17,8 |
+| 3D-Raum | 10×10×10 | 1082,5 | 1062,7 | 17,4 | **10,8** | 9,1 |
 | Suche | 1.048.575 Schlüssel | 2000 (nie) | 2000 (nie) | 2000 (nie) | **18,0** | 18,0 |
 
 - **Die Form findet er in allen 30 Läufen selbst:** „Raum mit 2 Dimensionen“, „Raum mit 3
@@ -753,13 +753,15 @@ zählt als 2000):
 - **Im Suchbaum ist er optimal.** Er findet einen von über einer Million Schlüsseln in so
   wenigen Schritten wie möglich (etwa 18), während alle anderen Agenten in 2000 Schritten
   nie ankommen. Er hat dafür nur kleine Bäume mit 7 bis 31 Schlüsseln gesehen.
-- **Ohne Form bleibt er im Raum stecken** (doppelt so viele Schritte) und in der Suche ganz.
+- **Ohne Form bleibt er im Raum stecken** (bis doppelt so viele Schritte) und in der Suche ganz.
   „Regeln ohne Form“ hat dieselben Regeln, plant aber nur einen Schritt voraus und hat
   keine Karte; der Abstand misst also Form und Karte zusammen.
 - Die Tabelle (Q-Lernen) kann nichts auf Neues übertragen und ist kaum besser als Zufall.
 - **Zum Anschauen:** [docs/welten.html](docs/welten.html) zeigt nebeneinander, was der Agent
-  sieht (nur Zahlen), was wirklich passiert (Raum, Würfel in Schichten, Suchbaum) und was er
-  herausgefunden hat, in seinen Worten und übersetzt.
+  sieht (nur Zahlen), was wirklich passiert (Raum, Würfel in Schichten, Suchbaum, ab 0.17
+  auch Eis, Drehscheiben, Steine) und was er herausgefunden hat, in seinen Worten und übersetzt.
+- Seit 0.17 nutzt er die neuen Bausteine auch hier. „Form + Regeln“ ist genau wie in 0.16;
+  die neuen Bausteine schaden also nicht, wo sie nicht gebraucht werden.
 
 ## Ergebnis 18: Eine Bibliothek, die nur behält, was wiederverwendet wird (neu in 0.16, H20)
 
@@ -770,26 +772,25 @@ lang nicht genutzt, fliegt es raus. Gemessen wird, wie Berlot-Attwell 2026 forde
 gleicher Rechenarbeit und gegen eine Zufallsbibliothek (zwei sinnlose Muster gleicher Länge).
 
 Geprüfte Programme bei der Regelsuche (`experiments/library_transfer.py`, 10 Läufe;
-Suchen mit Erfolg / alle Suchen):
+Suchen mit Erfolg / alle Suchen). Ab 0.17 mit Vorprüfung (H24): Ein Muster wird nur
+probiert, wenn seine Bausteine die beobachteten Änderungen überhaupt erzeugen können.
 
-| Reihenfolge | Welt | ohne Bibliothek | mit Bibliothek | Zufallsbibliothek |
-|---|---|---:|---:|---:|
-| 2D → 3D → Suche | 3D-Raum | 762 / 6714 | **364** / 6204 | 1279 / 12810 |
-| 2D → 3D → Suche | Suche | 211 / 703 | 232 / 690 | 311 / 930 |
-| Suche → 2D → 3D | 2D-Raum | 421 / 2785 | **321** / 3006 | 688 / 4888 |
-| Suche → 2D → 3D | 3D-Raum | 762 / 6714 | **416** / 7024 | 1279 / 12810 |
+| Reihenfolge | Welt | ohne Bibliothek | mit Bibliothek | ohne Vorprüfung | Zufallsbibliothek |
+|---|---|---:|---:|---:|---:|
+| 2D → 3D → Suche | 3D-Raum | 760 / 6555 | **364 / 5803** | 364 / 5944 | 830 / 9140 |
+| 2D → 3D → Suche | Suche | 231 / 744 | 229 / 734 | 251 / 725 | 214 / 721 |
+| Suche → 2D → 3D | 2D-Raum | 421 / 2757 | **309** / 2801 | 322 / 2956 | 465 / 3660 |
+| Suche → 2D → 3D | 3D-Raum | 760 / 6555 | **388 / 6389** | 416 / 6816 | 830 / 9140 |
 
 - **Das Muster aus dem 2D-Raum wird im 3D-Raum sechsmal wiederverwendet** und halbiert dort
   die Suche nach den Regeln, die es gibt. Im Suchbaum passt es nicht und wird nicht genutzt.
-- **Die Zufallsbibliothek schadet** (fast doppelt so viel Suche). Es kommt also auf den
+- **Die Zufallsbibliothek schadet** (über alle Suchen bis 40 % mehr). Es kommt also auf den
   Inhalt an, nicht darauf, dass es eine Bibliothek gibt.
-- **Über alle Suchen ist der Gewinn klein oder negativ** (−8 % bis +8 %), weil die Bibliothek
-  auch bei Zahlen mitprobiert wird, die sich nicht vorhersagen lassen (etwa die Wand am
-  nächsten Ort). Mit knappem Budget (20 Programme je Suche) erreicht er das Ziel im 3D-Raum
-  mit und ohne Bibliothek gleich oft (98 % und 100 %). H20 ist damit nur im ersten Teil
-  gestützt: Die Bibliothek lernt das Richtige und verwirft das Falsche; gesamt spart sie
-  noch nichts. Den zweiten Teil der Hypothese (Mechaniken wie das Eis finden) prüft diese
-  Version nicht: Die Bausteine kennen noch kein „wiederholen“.
+- **Mit Vorprüfung spart die Bibliothek jetzt in beiden Reihenfolgen insgesamt** (8 % und
+  1 % weniger Programme über alle drei Welten). Ohne Vorprüfung sind es 6 % weniger und 5 %
+  mehr, wie in 0.16. Der Gewinn ist aber klein, im 2D-Raum nach dem Suchbaum kostet sie noch
+  2 % mehr, und mit knappem Budget (20 Programme je Suche) erreicht er das Ziel im 3D-Raum
+  mit Bibliothek seltener (96 % statt 100 %). H24 ist damit teilweise gestützt.
 
 ## Ergebnis 19: Eine neue Umgebung erkennen (neu in 0.16, H18)
 
@@ -803,34 +804,113 @@ Versuch (`experiments/new_world.py`): rutschiger Raum A (jeder zehnte Schritt ge
 dann Raum B mit vertauschten Tasten, dann wieder A, je 15 Runden. 10 Läufe, mittlere
 Schritte je Runde (in Klammern: die ersten drei Runden der Phase):
 
-| Umgang mit Überraschung | A | B | A wieder | Karten | Fehlalarme | alte Karte wieder |
-|---|---:|---:|---:|---:|---:|---:|
-| ohne Erkennung | 21,8 (61) | 104,7 (104) | 134,5 (150) | 1 | – | – |
-| jede Überraschung | 53,4 (89) | 53,0 (53) | 30,8 (32) | 21,6 | 416,4 | 40 % |
-| nie neue Karte (nur umlernen) | 17,6 (60) | 54,0 (68) | 23,6 (50) | 1 | – | – |
-| erwartet / unerwartet | 17,6 (60) | 53,1 (66) | 24,8 (**18**) | 2,1 | 0,1 | **90 %** |
+| Umgang mit Überraschung | A | B | A wieder | Karten | Fehlalarme | B erkannt | alte Karte wieder |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| ohne Erkennung | 20,3 (60) | 97,6 (107) | 140,4 (166) | 1 | – | – | – |
+| jede Überraschung | 66,1 (99) | 76,0 (104) | 30,9 (24) | 25,4 | 533,9 | 100 % | 0 % |
+| nie neue Karte (nur umlernen) | 18,7 (64) | 47,3 (88) | 38,0 (119) | 1 | 0,1 | 100 % | – |
+| erwartet / unerwartet | 18,7 (64) | 45,4 (76) | **10,8** (26) | 2,2 | 0,1 | 100 % | **100 %** |
+| Bayes-Faktor (ab 0.17) | 17,7 (63) | 43,9 (84) | 41,3 (44) | 2,1 | 0,0 | 90 % | **100 %** |
 
-- **Rauschen löst fast nie eine neue Karte aus** (0,1 Fehlalarme gegen 416, wenn jede
+- **Rauschen löst fast nie eine neue Karte aus** (0,1 Fehlalarme gegen 534, wenn jede
   Überraschung zählt), und Raum A lernt er dabei genauso gut wie ohne Erkennung.
-- **Bei der Rückkehr nimmt er in 90 % der Läufe seine alte Karte wieder** und ist in den
-  ersten drei Runden sofort schnell (18 Schritte statt 50 beim Umlernen und 150 ohne
-  Erkennung). Das ist der Nutzen getrennter Karten: Das alte Wissen bleibt erhalten.
-- **B erkennt er in 80 % der Läufe** in den ersten 30 Schritten. Sonst lernt er um, was
-  hier nicht schadet. In B selbst ist er nicht schneller als beim Umlernen.
-- Bisher wechseln nur die Tasten. Ein Wechsel zwischen ganz verschiedenen Welten (Raum zu
-  Suchbaum) im selben Strom ist noch nicht geprüft.
+- **Bei der Rückkehr nimmt er in allen Läufen seine alte Karte wieder** und braucht 11
+  Schritte je Runde statt 38 beim Umlernen und 140 ohne Erkennung. Das ist der Nutzen
+  getrennter Karten: Das alte Wissen bleibt erhalten. In 0.16 waren es 90 %; geholfen hat,
+  dass eine neue Karte nicht mehr das alte Ziel übernimmt, sondern nur lernt, was sie selbst
+  gesehen hat (auch aus den Schritten, die er bis zur Entscheidung zurückhielt).
+- **Der Bayes-Faktor (H23) ist hier nicht besser:** keine Fehlalarme und die alte Karte in
+  allen Läufen, aber B nur in 90 % erkannt und zurück in A langsamer (41 statt 11 Schritte),
+  weil er länger sammelt, bevor er entscheidet. Mehr dazu in Ergebnis 21.
+
+## Ergebnis 20: Neue Formen, ein Baustein „wiederholen“ und Planen ohne Form (neu in 0.17, H21, H22)
+
+In 0.16 kannte der Agent zwei Formen aus einer festen Liste und hatte keinen Baustein
+„wiederholen“. Runde 7 des Dossiers hat für beide Grenzen Lösungen gesucht. Umgesetzt:
+
+1. **Drei neue Bausteine**, aus den Daten vorgeschlagen statt blind aufgezählt: „übernimmt
+   Größe q“, „+k im Ring aus m Werten“ und eine einzige Schleife „+k immer wieder, bis
+   Größe q = v“ (Optionen mit Abbruch nach Sutton 1999, Schleifen in Programmen nach Ellis
+   2018; nur eine Schleifenform, weil Schleifen sonst die Suche sprengen, Gulwani 2017).
+2. **Form als Grammatik:** Jede Achse ist eine Kette, ein Ring, eine Rutschbahn oder eine
+   Ordnung, die Welt ein Produkt davon (Grosse 2012, Kemp & Tenenbaum 2008). Der Name wird
+   zusammengesetzt, etwa „Ring × Ring × Ring“.
+3. **Planen ohne Form:** Hat die Welt keine Achse, sucht er im gelernten Modell nach einem
+   Weg (Breitensuche in vorgestellten Beobachtungen, Mahadevan & Maggioni 2007).
+
+Versuch (`experiments/new_forms.py`): drei Welten, die 0.16 nicht kannte, gleicher Lehrplan
+wie in Ergebnis 17, 10 Läufe, mittlere Schritte bis zum Ziel in der Prüfung:
+
+| Welt | Größe | Zufall | Tabelle | Stand 0.16 | neue Bausteine | Stand 0.17 | bestenfalls |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Eis-Raum | 12×12 | 245,0 | 85,9 | 98,4 | 11,9 | **11,9** | 5,0 |
+| Drehscheiben | 3 × 12 Stellungen | 1328,1 | 1336,4 | 13,9 | 9,6 | **9,6** | 9,6 |
+| Tauschen | 6 Steine | 786,4 | 674,4 | 761,8 | 761,8 | **7,7** | 7,5 |
+
+„Neue Bausteine“ hat Bausteine und Grammatik, aber keine Suche im Modell.
+
+- **Auf Eis lernt er das Rutschen als eine Regel** („+1 immer wieder, bis die Wand kommt“)
+  und erkennt in 10 von 10 Läufen „Rutschbahn mit 2 Dimensionen“. 0.16 hielt das Eis für
+  eine Ordnung und brauchte 98 Schritte. Bestwert erreicht er noch nicht: Wo er noch nicht
+  war, weiß er nicht, wo das Rutschen endet.
+- **Die Drehscheiben erkennt er als „Ring × Ring × Ring“** (10 von 10) und dreht jede Scheibe
+  auf dem kürzeren Weg, so schnell wie möglich. 0.16 hielt sie für einen Raum.
+- **Tauschen hat keine Form**, und er sagt das auch: „keine bekannte Form“. Mit der Suche im
+  Modell findet er trotzdem fast den kürzesten Weg (7,7 statt 762 Schritte). Ohne sie hilft
+  ihm keine noch so gute Regel.
+
+## Ergebnis 21: Ein Strom ganz verschiedener Welten (neu in 0.17, H23)
+
+In 0.16 war eine neue Welt nur derselbe Raum mit vertauschten Tasten. Jetzt erlebt ein Agent
+ohne Ankündigung Welten, die nichts miteinander zu tun haben, hinter derselben Schnittstelle
+(8 Zahlen, 6 Tasten): einen rutschigen Raum, einen Suchbaum, drei Drehscheiben und wieder den
+Raum, je 15 Runden (`experiments/world_stream.py`, 10 Läufe).
+
+Neu ist der Umgang **Bayes-Faktor** (H23): Ab der ersten unerwarteten Überraschung sammelt
+er alle Schritte, bis eine Erklärung klar gewinnt (Wald 1945). Verglichen wird, wie gut die
+jetzige Karte, eine alte oder eine frische Karte diese Schritte vorausgesagt hätte, in Bits
+(Liakoni 2021, Adams & MacKay 2007). Gewechselt wird erst bei „sehr starkem“ Beleg (Bayes-
+Faktor 150, Kass & Raftery 1995).
+
+| Umgang | Raum | Suchbaum | Drehscheiben | Raum wieder | erkannt (S / D / R) | überzählig | erste Karte wieder |
+|---|---:|---:|---:|---:|---|---:|---:|
+| ohne Erkennung | 20,4 | 176,2 | 233,7 | 166,8 | 0 / 0 / 0 % | 0 | – |
+| jede Überraschung | 78,0 | 126,0 | 116,2 | 48,0 | 100 / 100 / 100 % | 1630 | 60 % |
+| nie neue Karte | 22,0 | 61,1 | 60,5 | 33,9 | 80 / 100 / 100 % | 0,8 | – |
+| erwartet / unerwartet | 22,0 | 61,1 | 67,2 | 103,8 | 80 / 100 / 100 % | 1,7 | 40 % |
+| Bayes-Faktor | 22,5 | 78,3 | 90,2 | 102,6 | 80 / 100 / 100 % | **1,3** | **80 %** |
+
+Schritte je Runde; erkannt = Kartenwechsel in den ersten 30 Schritten der Phase.
+
+- **Ganz verschiedene Welten erkennt schon der Test aus 0.16 meist** (80 bis 100 %). Die
+  Grenze „nur vertauschte Tasten geprüft“ ist damit geprüft und hält.
+- **Der Bayes-Faktor wechselt seltener grundlos (1,3 statt 1,7 überzählige Wechsel) und
+  findet doppelt so oft seine erste Karte wieder (80 statt 40 %).** Er erkennt aber nicht
+  öfter, und er braucht im Suchbaum und an den Drehscheiben mehr Schritte, weil er oft lange
+  sammelt, bevor er entscheidet. H23 ist damit nur teilweise gestützt.
+- **Am schnellsten ist hier „nie neue Karte“**: Bei so verschiedenen Welten passt eine alte
+  Karte ohnehin kaum, und Umlernen kostet wenig. Getrennte Karten lohnen sich erst, wenn eine
+  Welt wiederkommt; im letzten Abschnitt ist Umlernen trotzdem schneller, weil der Agent die
+  erste Karte nicht immer wiederfindet.
 
 ## Grenzen
 
-- Der allgemeine Agent (Ergebnisse 17 bis 19) kennt nur zwei Formen aus einer festen Liste
-  (Raum, Ordnung). Eine Welt mit anderer Form (Kreis, Graph, Zählwerk) erkennt er nicht und
-  fällt auf „Regeln ohne Form“ zurück. Die Bausteine kennen kein „wiederholen“; das Eis aus
-  Ergebnis 16 kann er so noch nicht ausdrücken.
+- Der allgemeine Agent (Ergebnisse 17 bis 21) setzt Formen aus vier Achsenarten zusammen
+  (Kette, Ring, Rutschbahn, Ordnung). Bäume, Graphen mit Türen oder Objekte kennt er nicht;
+  dort bleibt ihm nur die rohe Suche im Modell, die bei großen Welten an ihre Grenze kommt
+  (höchstens 5000 vorgestellte Zustände). Es gibt genau eine Schleifenform („bis Schalter“).
+- Auf Eis braucht er noch mehr als doppelt so viele Schritte wie nötig: Wo er noch nicht
+  war, weiß er nicht, wo das Rutschen endet, und er erkundet das nicht gezielt.
+- Beim Wechsel zwischen ganz verschiedenen Welten findet er seine erste Karte nicht immer
+  wieder, und der Bayes-Faktor entscheidet zu langsam (Ergebnis 21).
+- Die Vorprüfung der Bibliothek ist von Hand gebaut, nicht gelernt; insgesamt spart die
+  Bibliothek nur wenige Prozent (Ergebnis 18).
 - Seine Wahrnehmung ist geschenkt: Er bekommt saubere Zahlen, keine Bilder. Wände und Ziel
   sind eigene Zahlen.
 - Viele Werte im allgemeinen Agenten sind von Hand gewählt (4 Bit je Baustein, 30 %
   Fehlergrenze, Fenster 20, Grenze 10⁻⁵, Zweifel 0,85, zwei Welten Geduld, drei Versuche bis
-  zum Ausweichen). Sie stehen als „ohne Grundlage“ in der Paper-Zuordnung.
+  zum Ausweichen, Wechselrate 1/1000, 90 % für die Vorprüfung). Sie stehen als „ohne
+  Grundlage“ in der Paper-Zuordnung.
 - Die Welt ist absichtlich winzig: vier Symbole pro Situation, Markov-Modelle erster Ordnung.
 - Verschmelzen funktioniert nur bei gleich vielen Symbolen; für Teile gibt es die
   Schnittmenge.
@@ -881,7 +961,7 @@ PYTHONPATH=src python -m hekmatki
 Qualitätsprüfungen (einmalig `pip install -e ".[dev]"`):
 
 ```bash
-pytest            # 217 Tests
+pytest            # 241 Tests
 mypy              # strikte Typprüfung
 ruff check .      # Linter
 ruff format --check .
@@ -913,15 +993,29 @@ Ein Modul, eine Aufgabe:
 | `player.py` | Spieler für das Ampelspiel, nutzt Schnittmengen als Vorwissen |
 | `online.py` | Protokolle `LearningPredictor`/`OnlineLearner`, Vergleichsagent mit einem Modell |
 | `evaluation.py` | Gemeinsame Schnittstelle `Predictor` und ehrliche Bewertung |
-| `experiments/` | Ein Modul pro Experiment: `schema_learning` (H11, Härtetest), `forgetting` (H12), `sleep` (Kontextwechsel, Wach-Schlaf, mehrere Schemata), `traffic_light` (Ampelspiel), `recognition` (Kontexterkennung), `meta_schema` (dritte Ebene, H13), `discovery` (Spielefamilie), `exploration` (Neugier), `rule_transfer` (Regeln statt Zustände), `grid_transfer` (2D-Welt), `grid_mechanics` (Weltmodell), `grid_roles` (Rollen-Weltmodell), `grid_foreign` (Gegenprobe mit fremder Mechanik), `cross_world` (Spielwelt gegen Alltagswelt), `grid_replay` (Wiedergabe-Seite), `general_worlds`, `library_transfer`, `new_world`, `general_replay` (allgemeiner Agent, Seite „Ein Agent, drei Welten“), dazu `blocks` mit gemeinsamen Werkzeugen |
-| `general/` | Allgemeiner Agent ab 0.16: `env` (Schnittstelle, Mischung), `worlds` (Raum, Würfel, Suchbaum), `programs` (Bausteine), `synthesis` (kürzestes Programm), `library` (Bibliothek), `knowledge` (Regelbuch, Ziel), `form` (Form der Welt), `planner` (Wege, Eingrenzen), `detector` (neue Umgebung), `agent` (der Agent), `run` (Runden, Vergleichsagenten) |
-| `general_report.py` | Ausgabe der Ergebnisse 17 bis 19 |
+| `experiments/` | Ein Modul pro Experiment: `schema_learning` (H11, Härtetest), `forgetting` (H12), `sleep` (Kontextwechsel, Wach-Schlaf, mehrere Schemata), `traffic_light` (Ampelspiel), `recognition` (Kontexterkennung), `meta_schema` (dritte Ebene, H13), `discovery` (Spielefamilie), `exploration` (Neugier), `rule_transfer` (Regeln statt Zustände), `grid_transfer` (2D-Welt), `grid_mechanics` (Weltmodell), `grid_roles` (Rollen-Weltmodell), `grid_foreign` (Gegenprobe mit fremder Mechanik), `cross_world` (Spielwelt gegen Alltagswelt), `grid_replay` (Wiedergabe-Seite), `general_worlds`, `library_transfer`, `new_world`, `new_forms`, `world_stream`, `general_replay` (allgemeiner Agent, Seite „Ein Agent, sechs Welten“), dazu `blocks` mit gemeinsamen Werkzeugen |
+| `general/` | Allgemeiner Agent ab 0.16: `env` (Schnittstelle, Mischung, Auffüllen), `worlds` (Raum, Würfel, Suchbaum, Eis, Drehscheiben, Tauschen), `programs` (Bausteine), `synthesis` (kürzestes Programm), `library` (Bibliothek), `knowledge` (Regelbuch, Ziel), `form` (Form der Welt), `planner` (Wege auf Achsen, Ringen und Rutschbahnen, Eingrenzen, Suche im Modell), `detector` (neue Umgebung), `agent` (der Agent), `run` (Runden, Vergleichsagenten) |
+| `general_report.py` | Ausgabe der Ergebnisse 17 bis 21 |
 | `__main__.py` | Ausgabe der Ergebnisse |
 
 Grundsätze: Lesbarkeit vor Cleverness, nur Standardbibliothek, vollständige
 Typannotationen (`mypy --strict`), ungültige Eingaben lösen immer einen `ValueError` mit
 verständlicher Meldung aus, Zufall nur über einen übergebenen `random.Random`.
 Bezeichner sind englisch (Python-Konvention), Dokumentation und Ausgaben deutsch.
+
+## Änderungen in 0.17
+
+- Die vier Grenzen von 0.16 angegangen, nach Runde 7 des Dossiers (H21 bis H24):
+  neue Bausteine Übernehmen, Ring und Schleife „bis Schalter“; Form als Grammatik statt
+  Liste; Planen auf Ringen und Rutschbahnen und, ohne Form, im gelernten Modell; Bibliothek
+  mit Vorprüfung; neue Welt per Bayes-Faktor.
+- Neue Welten Eis, Drehscheiben, Tauschen und die Hülle `Padded`, damit ganz verschiedene
+  Welten hinter derselben Schnittstelle nacheinander kommen können.
+- Experimente `new_forms` (Ergebnis 20) und `world_stream` (Ergebnis 21); Ergebnis 18 hat die
+  Bedingung „ohne Vorprüfung“, Ergebnis 19 den Umgang „Bayes-Faktor“.
+- Eine neue Karte übernimmt nicht mehr das Ziel der alten. Dafür lernt sie Ziel und Orte auch
+  aus den Schritten, die der Agent bis zur Entscheidung zurückgehalten hat.
+- Die Seite [docs/welten.html](docs/welten.html) zeigt jetzt sechs Welten.
 
 ## Änderungen in 0.16
 
@@ -1069,15 +1163,15 @@ Bezeichner sind englisch (Python-Konvention), Dokumentation und Ausgaben deutsch
 
 ## Nächste Schritte
 
-1. Formen nicht aus einer Liste wählen, sondern aus einer kleinen Grammatik suchen (Kette,
-   Ring, Baum, Gitter, Produkt davon), wie Kemp & Tenenbaum 2008 (H19 ohne feste Liste).
-2. Den Baustein „wiederholen, bis“ ergänzen und damit das Eis aus Ergebnis 16 im
-   allgemeinen Agenten testen (zweiter Teil von H20).
-3. Ein Strom, der zwischen ganz verschiedenen Welten wechselt (Raum, Suchbaum, Alltagswelt),
-   damit H18 nicht nur vertauschte Tasten erkennt.
-4. Die Bibliothek nur bei Größen mitprobieren, die vorhersagbar wirken, damit sie auch über
-   alle Suchen spart (H20).
-5. Die 2D-Spielwelt aus 0.12 bis 0.15 an die allgemeine Schnittstelle anschließen: derselbe
+1. Die Vorprüfung der Bibliothek lernen statt von Hand bauen (wie DeepCoder), und die
+   Bibliothek auch über Formen und Pläne führen (H24).
+2. Auf Eis gezielt erkunden, wo eine Rutschpartie endet, statt an der ersten unbekannten
+   Stelle anzuhalten (H22).
+3. Den Bayes-Faktor schneller entscheiden lassen, ohne mehr Fehlalarme, und die Wechselrate
+   aus Erfahrung schätzen statt fest (H23).
+4. Die 2D-Spielwelt aus 0.12 bis 0.15 an die allgemeine Schnittstelle anschließen: derselbe
    Agent für Spiel und Raum.
+5. Kernwissen über Objekte und Zahl ergänzen (Spelke 2022). Tauschen zeigt: Ohne passende
+   Form bleibt nur rohe Suche.
 6. Aus 0.15 offen: Teilprüfung früher auslösen (H16), gemeinsamer Mechanismus für Alltagswelt
    und Spielwelt, Neustart-Taste lernen, dritte Ebene im Wach-Schlaf-Agenten.

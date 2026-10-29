@@ -4,9 +4,13 @@ Er bekommt nur die Zahl der Tasten. Nach jedem Schritt sucht er Regeln (`knowled
 daraus die Form der Umgebung ab (`form`) und plant danach (`planner`). Weiß er keinen Rat,
 erkundet er: Er drückt die Taste, die er hier am seltensten probiert hat.
 
+Ab 0.17 kennt er mehr Bausteine (Übernehmen, Ring, Schleife) und sucht, wo keine Form passt,
+direkt in seinem Modell (`extended`, `search_model`; beide aus für den Stand von 0.16).
+
 Mit einem `Detector` hält er mehrere Karten und erkennt, wann er in einer anderen Umgebung
-ist (H18). Eine neue Karte beginnt ohne Regeln, übernimmt aber das gelernte Ziel als
-Vermutung.
+ist (H18). Eine neue Karte beginnt leer, ab 0.17 auch ohne das alte Ziel: In einer ganz
+anderen Welt führte das alte Ziel in die Irre (Ergebnis 21), und eine neue Welt ist eine neue
+verborgene Ursache (Gershman 2017).
 
 Grundlage: dieselbe Routine für jede Art von Raum (Constantinescu 2016, Aronov 2017,
 Thousand-Brains-Systeme 2025), Kernwissen als wenige allgemeine Bausteine (Spelke 2022).
@@ -59,12 +63,15 @@ class GeneralAgent:
         library: Library | None = None,
         budget: int | None = None,
         detector: Detector | None = None,
+        extended: bool = True,
+        search_model: bool = True,
     ) -> None:
         if actions < 1:
             raise ValueError("Der Agent braucht mindestens eine Taste.")
         self.actions, self.planning = actions, planning
         self.library, self.budget, self.detector = library, budget, detector
-        self.maps = [Knowledge(library, budget)]
+        self.extended, self.search_model = extended, search_model
+        self.maps = [self._fresh_map()]
         self.current = 0
         self.events: list[MapEvent] = []
         self.steps = 0
@@ -86,13 +93,14 @@ class GeneralAgent:
         rules = self.knowledge.rules
         tolerance = 2.0 * rules.noise_floor() + NOISE_MARGIN
         reliable = rules.programs(max_error_rate=tolerance)
-        return find_form(reliable, rules.programs(max_error_rate=0.0), self.actions, rules.width)
+        exact = rules.programs(max_error_rate=0.0)
+        return find_form(reliable, exact, self.actions, rules.width, set(rules.sensors()))
 
     def new_place(self) -> None:
         """Eine neue Umgebung derselben Art (zum Beispiel größer): Regeln bleiben, Karte nicht."""
         self._tried.clear()
         for knowledge in self.maps:
-            knowledge.seen.clear()
+            knowledge.forget_place()
 
     def begin(self, observation: Observation) -> None:
         """Beginn einer Runde."""
@@ -102,7 +110,7 @@ class GeneralAgent:
     def act(self, observation: Observation, rng: random.Random) -> int:
         """Wählt eine Taste."""
         if self.planning is Planning.FORM:
-            choice = plan(self.form(), self.knowledge, observation)
+            choice = plan(self.form(), self.knowledge, observation, self.actions, self.search_model)
         else:
             choice = plan_greedy(self.knowledge, observation, self.actions, rng)
         if choice is None or self._this_round[observation, choice] >= STUCK:
@@ -122,9 +130,13 @@ class GeneralAgent:
             self._apply(decision, transition)
             held = [*(t for _, t in self._held), transition]
             self._held.clear()
-            self.knowledge.notice(transition)
+            # Die Karte, die jetzt gilt, lernt die zurückgehaltenen Schritte. Ist es eine
+            # andere Karte, erfährt sie auch, wohin sie führten und ob das Ziel erreicht war.
+            seen = [transition] if decision.kind == "verfeinern" else held
+            for step in seen:
+                self.knowledge.notice(step)
             for step in held:
-                self.knowledge.learn_rules(step)  # Die Karte, die jetzt gilt, lernt sie.
+                self.knowledge.learn_rules(step)
             return
         self.knowledge.notice(transition)
         if self._trial is not None and self._trial[2] <= self.steps - self.detector.window:
@@ -133,7 +145,11 @@ class GeneralAgent:
             self._held.append((self.steps, transition))
         else:
             self.knowledge.learn_rules(transition)
-        while self._held and self._held[0][0] <= self.steps - self.detector.window:
+        while (
+            self._held
+            and not self.detector.deciding
+            and self._held[0][0] <= self.steps - self.detector.window
+        ):
             self.knowledge.learn_rules(self._held.popleft()[1])  # Doch nur Rauschen.
 
     def _apply(self, decision: Decision, transition: Transition) -> None:
@@ -151,8 +167,7 @@ class GeneralAgent:
         if decision.kind == "zurück":
             self.current = decision.target
         else:
-            fresh = Knowledge(self.library, self.budget)
-            fresh.goal.adopt(self.knowledge.goal)
+            fresh = self._fresh_map()
             fresh.start(transition.before)
             if decision.kind == "neu":
                 self.maps.append(fresh)
@@ -160,6 +175,9 @@ class GeneralAgent:
                 self.maps[decision.target] = fresh
             self.current = decision.target
         self.events.append(MapEvent(self.steps, decision.kind, self.current))
+
+    def _fresh_map(self) -> Knowledge:
+        return Knowledge(self.library, self.budget, self.extended)
 
     def _explore(self, observation: Observation, rng: random.Random) -> int:
         counts = [self._tried[observation, action] for action in range(self.actions)]

@@ -1,33 +1,45 @@
-"""Erst die Form der Umgebung, dann die Regeln darin (ab 0.16, H19).
+"""Erst die Form der Umgebung, dann die Regeln darin (ab 0.16, H19; Grammatik ab 0.17, H21).
 
-Aus seinen Regeln liest der Agent ab, welche Form die Umgebung hat:
-- Eine Größe, die eine Taste um einen festen Schritt erhöht und eine andere um denselben
-  Schritt senkt, ist eine **Raum-Achse**. Die beiden Tasten sind Gegenteile. So viele
-  unabhängige Tastenpaare es gibt, so viele Dimensionen hat der Raum (Philipona, O'Regan und
-  Nadal 2003: Dimension aus den Folgen eigener Bewegungen).
-- Eine Größe, die eine Taste erhöht und eine andere senkt, ohne festen Schritt, ist eine
-  **Ordnung**: Man weiß, in welche Richtung es geht, aber nicht, wie weit (Suchbaum, Liste).
-- Eine Größe, die keine Taste ändert, ist **fest** (zum Beispiel ein Ziel).
+Aus seinen Regeln liest der Agent ab, welche Form die Umgebung hat. Eine Form ist keine
+Auswahl aus einer Liste, sondern wird aus Achsen zusammengesetzt (eine kleine Grammatik wie
+bei Grosse 2012 und Kemp und Tenenbaum 2008). Jede Größe, die zwei Tasten in
+entgegengesetzte Richtungen ändern, während alle anderen Tasten sie sicher gleich lassen,
+ist eine Achse. Welche Art, folgt aus dem Baustein, der sie bewegt:
 
-Die Form entscheidet, wie der Agent plant (siehe `planner`): im Raum mit einer Karte, in einer
-Ordnung durch Eingrenzen. Die Formen kommen aus einer kleinen festen Liste, wie bei Kemp und
-Tenenbaum 2008; der Agent wählt sie, er erfindet keine neuen.
+- **Kette** (`Shift`): fester Schritt vor und zurück, wie eine Raum-Dimension. So viele
+  unabhängige Tastenpaare, so viele Dimensionen (Philipona, O'Regan und Nadal 2003).
+- **Ring** (`Cycle`): fester Schritt, aber nach dem letzten Wert kommt der erste.
+- **Rutschbahn** (`Until`): Schritte in eine Richtung, bis ein Schalter (eine Wand) stoppt.
+- **Ordnung** (`Rises` / `Falls`): Man weiß die Richtung, nicht die Weite (Suchbaum).
+
+Eine Welt ist das Produkt ihrer Achsen, zum Beispiel „Ring × Ring × Ring“. Größen, die keine
+Taste ändert, sind fest (zum Beispiel ein Ziel). Schalter (Größen mit nur zwei Werten, etwa
+„Wand voraus?“) sind keine Achsen, auch wenn eine Taste sie setzt und eine andere löscht.
+Passt keine Achse, heißt die Form „keine bekannte Form“, und der Agent plant direkt in seinem
+Modell (siehe `planner`).
 """
 
-from collections.abc import Mapping
+from collections import Counter
+from collections.abc import Mapping, Set
 from dataclasses import dataclass
 from enum import StrEnum
 
-from hekmatki.general.programs import Falls, Keep, Leaf, Program, Rises, Shift, core
+from hekmatki.general.programs import Cycle, Falls, Keep, Leaf, Program, Rises, Shift, Until, core
 
 type Slot = tuple[int, int]
 
 
 class AxisKind(StrEnum):
-    """Raum-Achse oder Ordnung."""
+    """Die Arten von Achsen, aus denen Formen zusammengesetzt werden."""
 
-    SPACE = "Raum"
+    SPACE = "Kette"
+    RING = "Ring"
+    SLIDE = "Rutschbahn"
     ORDER = "Ordnung"
+
+
+STEPPED = (AxisKind.SPACE, AxisKind.RING, AxisKind.SLIDE)
+"""Achsen mit festem Schritt: Auf ihnen plant der Agent Wege."""
 
 
 @dataclass(frozen=True)
@@ -47,21 +59,29 @@ class Form:
     axes: tuple[Axis, ...]
     fixed: tuple[int, ...]
 
-    def of_kind(self, kind: AxisKind) -> tuple[Axis, ...]:
-        """Nur die Achsen einer Art."""
-        return tuple(axis for axis in self.axes if axis.kind is kind)
+    def of_kind(self, *kinds: AxisKind) -> tuple[Axis, ...]:
+        """Nur die Achsen dieser Arten."""
+        return tuple(axis for axis in self.axes if axis.kind in kinds)
 
     @property
     def name(self) -> str:
-        """Die Form in Worten."""
-        space, order = len(self.of_kind(AxisKind.SPACE)), len(self.of_kind(AxisKind.ORDER))
-        if space and order:
-            return f"gemischt (Raum mit {space}, Ordnung mit {order} Achsen)"
-        if space:
-            return f"Raum mit {space} Dimension{'en' if space > 1 else ''}"
-        if order:
-            return "Ordnung" if order == 1 else f"Ordnung mit {order} Achsen"
-        return "unbekannt"
+        """Die Form in Worten, aus ihren Achsen zusammengesetzt."""
+        counts = Counter(axis.kind for axis in self.axes)
+        parts = [_part(kind, counts[kind]) for kind in AxisKind if counts[kind]]
+        return " × ".join(parts) if parts else "keine bekannte Form"
+
+
+def _part(kind: AxisKind, count: int) -> str:
+    dimensions = f"{count} Dimension{'en' if count > 1 else ''}"
+    match kind:
+        case AxisKind.SPACE:
+            return f"Raum mit {dimensions}"
+        case AxisKind.SLIDE:
+            return f"Rutschbahn mit {dimensions}"
+        case AxisKind.RING:
+            return " × ".join(["Ring"] * count)
+        case AxisKind.ORDER:
+            return "Ordnung" if count == 1 else f"Ordnung mit {count} Achsen"
 
 
 def find_form(
@@ -69,6 +89,7 @@ def find_form(
     exact: Mapping[Slot, Program],
     actions: int,
     components: int,
+    switches: Set[int] = frozenset(),
 ) -> Form:
     """Liest die Form aus den Regeln ab.
 
@@ -81,6 +102,8 @@ def find_form(
         kept = [a for a in range(actions) if isinstance(exact.get((a, component)), Keep)]
         if len(kept) == actions:
             fixed.append(component)
+            continue
+        if component in switches:
             continue
         moves = {
             a: core(reliable[a, component]) for a in range(actions) if (a, component) in reliable
@@ -98,9 +121,27 @@ def _axis(component: int, moves: Mapping[int, Leaf | None], kept: set[int]) -> A
     if not ups or not downs or not all(a in kept for a in others):
         return None
     up, down = ups[0], downs[0]
-    inverse = _step(moves[up]) == -_step(moves[down]) != 0
-    return Axis(component, AxisKind.SPACE if inverse else AxisKind.ORDER, up, down)
+    kind = _kind(moves[up], moves[down])
+    return None if kind is None else Axis(component, kind, up, down)
+
+
+def _kind(up: Leaf | None, down: Leaf | None) -> AxisKind | None:
+    """Welche Art von Achse zwei entgegengesetzte Bausteine bilden."""
+    inverse = _step(up) == -_step(down) != 0
+    match up, down:
+        case (Shift(), Shift()) if inverse:
+            return AxisKind.SPACE
+        case (Cycle(_, m), Cycle(_, n)) if inverse and m == n:
+            return AxisKind.RING
+        case (Until(), Until()) | (Until(), Shift()) | (Shift(), Until()) if inverse:
+            return AxisKind.SLIDE
+        case _:
+            return AxisKind.ORDER
 
 
 def _step(effect: Leaf | None) -> int:
-    return effect.by if isinstance(effect, Shift) else 0
+    match effect:
+        case Shift(by) | Cycle(by, _) | Until(by, _, _):
+            return by
+        case _:
+            return 0

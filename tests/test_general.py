@@ -109,7 +109,7 @@ def test_programs_predict_check_and_describe() -> None:
     assert not fits(BLOCKED_STEP, (5, 0, 1), (6, 0, 1), 0)
     assert predict(BLOCKED_STEP, before, 0) == 6
     assert predict(Rises(), before, 0) is None
-    assert direction(Falls(), before) == -1
+    assert direction(Falls(), before, 0) == -1
     assert cost(BLOCKED_STEP) == 3
     assert core(BLOCKED_STEP) == Shift(1)
     assert core(When(2, 1, Rises(), Falls())) is None
@@ -215,7 +215,7 @@ def test_form_from_rules_space_and_order() -> None:
         (1, 1): Keep(),
     }
     assert find_form(order, order, 2, 2).name == "Ordnung"
-    assert find_form({}, {}, 2, 2).name == "unbekannt"
+    assert find_form({}, {}, 2, 2).name == "keine bekannte Form"
 
 
 def test_rulebook_relearns_when_an_exact_rule_breaks() -> None:

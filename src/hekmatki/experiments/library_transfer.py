@@ -12,6 +12,9 @@ Gemessen wird, was Berlot-Attwell 2026 fordert:
   der Agent dann in der Prüfung sein Ziel?
 - **Kontrolle**: eine Bibliothek aus Zufallsmustern gleicher Länge, die nie entfernt wird.
   Sie zeigt, was eine Bibliothek kostet, die nicht passt.
+- **Vorprüfung** (ab 0.17, H24): Mit Vorprüfung probiert der Agent ein Muster nur, wenn
+  seine Bausteine die beobachteten Änderungen überhaupt erzeugen können (DeepCoder 2017).
+  „ohne Vorprüfung“ ist die Bibliothek wie in 0.16.
 
 Zwei Reihenfolgen: Raum zuerst (2D → 3D → Suche) und Suche zuerst (Suche → 2D → 3D).
 """
@@ -39,8 +42,15 @@ BUDGET: Final = 20
 """Programme je Regelsuche im Versuch mit gleichem Budget (von Hand gewählt)."""
 RANDOM_PATTERNS: Final = 2
 
-Condition = Literal["ohne Bibliothek", "mit Bibliothek", "Zufallsbibliothek"]
-CONDITIONS: tuple[Condition, ...] = ("ohne Bibliothek", "mit Bibliothek", "Zufallsbibliothek")
+Condition = Literal["ohne Bibliothek", "mit Bibliothek", "ohne Vorprüfung", "Zufallsbibliothek"]
+CONDITIONS: tuple[Condition, ...] = (
+    "ohne Bibliothek",
+    "mit Bibliothek",
+    "ohne Vorprüfung",
+    "Zufallsbibliothek",
+)
+LEARNING: tuple[Condition, ...] = ("mit Bibliothek", "ohne Vorprüfung")
+"""Die Bedingungen, deren Bibliothek aus den gelernten Regeln wächst."""
 Budgeted = Literal["ohne Bibliothek", "mit Bibliothek"]
 BUDGETED: tuple[Budgeted, ...] = ("ohne Bibliothek", "mit Bibliothek")
 
@@ -127,6 +137,7 @@ def _pass(order: Sequence[str], condition: Condition, seed: int, budget: int | N
     library = {
         "ohne Bibliothek": None,
         "mit Bibliothek": Library(),
+        "ohne Vorprüfung": Library(recognition=False),
         "Zufallsbibliothek": random_library(random.Random(seed)),
     }[condition]
     result = _Pass([], [], [], [], [], library)
@@ -135,7 +146,7 @@ def _pass(order: Sequence[str], condition: Condition, seed: int, budget: int | N
         agent = GeneralAgent(spec.actions, Planning.FORM, library, budget)
         run = run_world(spec, agent, seed)
         _measure(result, run, agent)
-        if library is not None and condition == "mit Bibliothek":
+        if library is not None and condition in LEARNING:
             found = agent.knowledge.rules.found.values()
             exact = [f for f in found if f.exact and f.program is not None]
             library.close_world(world, [f.entry for f in exact if f.entry is not None])
