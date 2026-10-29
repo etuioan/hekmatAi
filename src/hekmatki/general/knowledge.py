@@ -7,7 +7,10 @@
   klein: Bestimmte Größen stimmen paarweise überein (Position = Zielposition,
   Schlüssel = gesuchter Schlüssel). Ohne Grundlage, siehe docs/PAPER_ZUORDNUNG.md.
 - `Knowledge`: beides zusammen, dazu die besuchten Beobachtungen (die Karte) und welche Regeln
-  einen Schritt richtig vorausgesagt haben (für H18, siehe `detector`).
+  einen Schritt richtig vorausgesagt haben (für H18, siehe `detector`). Ab 0.17 auch die
+  Stellen, über die eine Schleife hinweggelaufen ist: Lief „+1 bis Schalter“ fünfmal, war der
+  Schalter an den vier Zwischenstellen nicht gesetzt. Das folgt aus der Bedeutung der Schleife,
+  nicht aus der Welt (Programmspur wie bei Ellis 2018 und Cropper 2020).
 """
 
 import math
@@ -20,7 +23,7 @@ from typing import Final
 
 from hekmatki.general.env import Observation, Transition
 from hekmatki.general.library import Library
-from hekmatki.general.programs import Keep, Program, core, fits
+from hekmatki.general.programs import Keep, Program, Until, core, fits
 from hekmatki.general.synthesis import Example, Found, description_bits, synthesize
 
 MAX_EXAMPLES: Final = 300
@@ -37,8 +40,10 @@ type Pair = tuple[int, int]
 class RuleBook:
     """Die Regeln einer Umgebung, eine je Taste und Größe."""
 
-    def __init__(self, library: Library | None = None, budget: int | None = None) -> None:
-        self.library, self.budget = library, budget
+    def __init__(
+        self, library: Library | None = None, budget: int | None = None, extended: bool = True
+    ) -> None:
+        self.library, self.budget, self.extended = library, budget, extended
         self.examples: dict[int, deque[Example]] = {}
         self.found: dict[Slot, Found] = {}
         self.searches: list[tuple[Slot, Found]] = []
@@ -67,9 +72,7 @@ class RuleBook:
             for component in range(len(examples[0].before)):
                 slot = (action, component)
                 if self._stale(slot):
-                    found = synthesize(
-                        examples, component, self.sensors(), self.library, self.budget
-                    )
+                    found = self.search(examples, component)
                     self.found[slot] = found
                     self.searches.append((slot, found))
                     self._searched_at[slot] = self._seen[action]
@@ -124,7 +127,7 @@ class RuleBook:
         if current is None:
             return None
         old = list(self.examples.get(slot[0], ()))
-        trial = synthesize([*old, *extra], slot[1], self.sensors(), self.library, self.budget)
+        trial = self.search([*old, *extra], slot[1])
         rate = current.errors / max(current.examples, 1)
         if explains(trial.program, old, slot[1], rate) and explains(
             trial.program, extra, slot[1], rate
@@ -139,7 +142,7 @@ class RuleBook:
         current = self.found.get(slot)
         if current is None or current.program is None:
             return None
-        trial = synthesize(extra, slot[1], self.sensors(), self.library, self.budget)
+        trial = self.search(extra, slot[1])
         rate = current.errors / max(current.examples, 1)
         old_errors = sum(not fits(current.program, e.before, e.after, slot[1]) for e in extra)
         shorter = description_bits(trial.program, trial.errors, len(extra)) < description_bits(
@@ -149,7 +152,7 @@ class RuleBook:
 
     def snapshot(self) -> "RuleBook":
         """Eine Kopie des jetzigen Stands (die Bibliothek wird geteilt, nicht kopiert)."""
-        copy = RuleBook(self.library, self.budget)
+        copy = RuleBook(self.library, self.budget, self.extended)
         copy.examples = {a: deque(e, maxlen=MAX_EXAMPLES) for a, e in self.examples.items()}
         copy.found, copy.searches = dict(self.found), list(self.searches)
         copy._seen, copy._searched_at = dict(self._seen), dict(self._searched_at)
@@ -162,6 +165,12 @@ class RuleBook:
         self.found[slot] = found
         self.searches.append((slot, found))
         self._searched_at[slot] = self._seen.get(slot[0], 0)
+
+    def search(self, examples: Sequence[Example], component: int) -> Found:
+        """Sucht eine Regel für diese Beispiele, mit dem Wissen dieser Karte."""
+        return synthesize(
+            examples, component, self.sensors(), self.library, self.budget, self.extended
+        )
 
     def _stale(self, slot: Slot) -> bool:
         action, component = slot
@@ -237,16 +246,24 @@ class GoalBook:
         if reached or self.holds(observation):
             self.pairs = learn_goal(self.reached, self.missed)
 
-    def adopt(self, other: "GoalBook") -> None:
-        """Übernimmt das Ziel einer anderen Karte als Vermutung (ohne deren Misserfolge)."""
-        self.reached = list(other.reached)
-        self.pairs = other.pairs
-
     def holds(self, observation: Observation) -> bool:
         """Sagt das gelernte Ziel „erreicht“?"""
         if self.pairs is None:
             return False
         return all(observation[i] == observation[j] for i, j in self.pairs)
+
+
+@dataclass(frozen=True)
+class Passage:
+    """Eine Schleife lief von `start` aus über Größe `component` bis zum Wert `end`. An allen
+    Stellen echt dazwischen war der Schalter `sensor` nicht gesetzt, sonst hätte sie dort
+    gehalten. Von diesen Stellen weiß der Agent nur das: Die übrigen Größen sind die von
+    `start`, ihre Schalter hat er nie gesehen."""
+
+    sensor: int
+    component: int
+    start: Observation
+    end: int
 
 
 @dataclass(frozen=True)
@@ -261,10 +278,19 @@ class Check:
 class Knowledge:
     """Regeln, Ziel und Karte einer Umgebung."""
 
-    def __init__(self, library: Library | None = None, budget: int | None = None) -> None:
-        self.rules = RuleBook(library, budget)
+    def __init__(
+        self, library: Library | None = None, budget: int | None = None, extended: bool = True
+    ) -> None:
+        self.rules = RuleBook(library, budget, extended)
         self.goal = GoalBook()
         self.seen: set[Observation] = set()
+        self.passed: set[Passage] = set()
+        """Strecken, über die eine Schleife hinweglief (siehe `Passage`)."""
+
+    def forget_place(self) -> None:
+        """Eine neue Umgebung: Die Karte gilt nicht mehr, Regeln und Ziel schon."""
+        self.seen.clear()
+        self.passed.clear()
 
     def start(self, observation: Observation) -> None:
         """Beginn einer Runde: die erste Beobachtung."""
@@ -280,6 +306,20 @@ class Knowledge:
         """Nur Ziel und Karte: wo der Schritt hinführte und ob das Ziel erreicht ist."""
         self.goal.add(transition.after, transition.reached)
         self.seen.add(transition.after)
+        self.passed.update(self._passed(transition))
+
+    def _passed(self, transition: Transition) -> list[Passage]:
+        """Die Strecken der Schleifen, die bei diesem Schritt mehr als einmal liefen."""
+        before, after = transition.before, transition.after
+        found = []
+        for component, (old, new) in enumerate(zip(before, after, strict=True)):
+            rule = self.rules.rule(transition.action, component)
+            loop = None if rule is None else core(rule)
+            if not isinstance(loop, Until) or abs(new - old) <= abs(loop.by):
+                continue  # Keine Schleife, oder sie lief nur einmal.
+            if fits(loop, before, after, component):
+                found.append(Passage(loop.sensor, component, before, new))
+        return found
 
     def learn_rules(self, transition: Transition) -> None:
         """Nur die Regeln."""

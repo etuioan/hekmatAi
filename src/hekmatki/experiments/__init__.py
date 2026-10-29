@@ -19,6 +19,8 @@
 - `library_transfer`: Bibliothek über Welten hinweg, bei gleicher Rechenzeit gemessen (H20)
 - `new_world`: Eine neue Umgebung an unerwarteter Unsicherheit erkennen (H18)
 - `general_replay`: Seite „Ein Agent, drei Welten“ zum Anschauen
+- `new_forms`: Eis, Drehscheiben und Tauschen: Formen, die 0.16 nicht kannte (H21, H22)
+- `world_stream`: ein Strom ganz verschiedener Welten ohne Ankündigung (H23)
 """
 
 from hekmatki.experiments.cross_world import CrossRow, compare_worlds

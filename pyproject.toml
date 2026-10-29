@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hekmatki"
-version = "0.16.0"
+version = "0.17.0"
 description = "HekmatKI Prototyp: Schema-Stapel, Kontextwechsel, 2D-Welt wie ARC-AGI-3 und ein Weltmodell über Rollen"
 requires-python = ">=3.12"
 dependencies = []

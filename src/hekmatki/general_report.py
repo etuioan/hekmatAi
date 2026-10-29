@@ -13,7 +13,11 @@ from hekmatki.experiments.library_transfer import (
     EntryRow,
     LibraryRow,
 )
+from hekmatki.experiments.new_forms import AGENTS as FORM_AGENTS
+from hekmatki.experiments.new_forms import GENERAL, FormRow
 from hekmatki.experiments.new_world import HANDLINGS, PHASES, NewWorldRow
+from hekmatki.experiments.world_stream import PHASES as STREAM_PHASES
+from hekmatki.experiments.world_stream import WITHIN, StreamRow
 
 
 def print_table(headers: Sequence[str], rows: Sequence[Sequence[str]]) -> None:
@@ -128,6 +132,57 @@ def report_new_world(rows: Sequence[NewWorldRow]) -> None:
     print(
         f"der erste Wechsel in „A wieder“ führt zur ersten Karte zurück. ({len(HANDLINGS)} Umgänge)"
     )
+
+
+def report_new_forms(rows: Sequence[FormRow]) -> None:
+    """Ergebnis 20: Welten mit Formen, die 0.16 nicht kannte."""
+    print("\nNeue Formen (H21, H22). Eis: rutschen bis zur Wand. Drehscheiben: nach dem")
+    print("letzten Wert kommt der erste. Tauschen: keine Achsen, also keine Form mit Namen.")
+    print(f"Schritte bis zum Ziel in der Prüfung, nicht erreicht zählt als {TEST_LIMIT}.\n")
+    print_table(
+        ["Welt", "Größe", *FORM_AGENTS, "bestenfalls"],
+        [
+            [r.world, r.size, *(f"{r.steps[a]:.1f}" for a in FORM_AGENTS), f"{r.best:.1f}"]
+            for r in rows
+        ],
+    )
+    print("Ziel erreicht (% der Prüfrunden):\n")
+    print_table(
+        ["Welt", *FORM_AGENTS],
+        [[r.world, *(f"{100 * r.reached[a]:.0f}" for a in FORM_AGENTS)] for r in rows],
+    )
+    print("Gefundene Formen (je Lauf):\n")
+    print_table(
+        ["Welt", "erwartet", *GENERAL],
+        [[r.world, r.expected, *(_counted(r.forms[a]) for a in GENERAL)] for r in rows],
+    )
+
+
+def report_world_stream(rows: Sequence[StreamRow]) -> None:
+    """Ergebnis 21: ein Strom ganz verschiedener Welten."""
+    print("Strom ganz verschiedener Welten (H23): rutschiger Raum, Suchbaum, Drehscheiben,")
+    print("wieder der Raum, ohne Ankündigung, alle als 8 Zahlen und 6 Tasten. 15 Runden je Phase.")
+    print("Mittlere Schritte je Runde:\n")
+    print_table(
+        ["Umgang", *STREAM_PHASES],
+        [[r.handling, *(f"{r.steps[p]:.1f}" for p in STREAM_PHASES)] for r in rows],
+    )
+    print(f"Wechsel erkannt (Kartenwechsel in den ersten {WITHIN} Schritten der Phase):\n")
+    print_table(
+        ["Umgang", *STREAM_PHASES[1:], "überzählige Wechsel", "alte Karte wieder", "Karten"],
+        [
+            [
+                r.handling,
+                *(f"{100 * r.detected[p]:.0f} %" for p in STREAM_PHASES[1:]),
+                f"{r.extra:.1f}",
+                f"{100 * r.returned:.0f} %",
+                f"{r.maps:.1f}",
+            ]
+            for r in rows
+        ],
+    )
+    print("Überzählig = jeder Wechsel in der ersten Phase und jeder weitere nach dem ersten")
+    print("in den anderen Phasen.")
 
 
 def _counted(forms: Sequence[str]) -> str:

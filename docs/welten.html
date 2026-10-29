@@ -1,12 +1,13 @@
 <meta charset="utf-8">
-<title>Ein Agent, drei Welten</title>
+<title>Ein Agent, sechs Welten</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: Kopf mit These, Welt-Auswahl, Wiedergabe in drei Spalten (sieht / passiert / weiß),
-   darunter die Zahlen aller Läufe, Bibliothek und das Erkennen einer neuen Umgebung. */
+/* Layout: Kopf mit These, vier Grenzen und Lösungen, Welt-Auswahl, Wiedergabe in drei Spalten
+   (sieht / passiert / weiß), darunter die Zahlen aller Läufe, Bibliothek, das Erkennen einer
+   neuen Umgebung und der Strom ganz verschiedener Welten. */
 :root {
   --bg: #eff2ee;
   --surface: #fafbf8;
@@ -21,6 +22,7 @@
   --wall: #2a3542;
   --cell: #f6f8f4;
   --phase-b: rgba(36, 72, 200, 0.08);
+  --ice: #dceef7;
   --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
   --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -30,6 +32,7 @@
     --bg: #0e1413; --surface: #151d1c; --sunk: #0b100f; --ink: #e5ece8; --muted: #93a39c;
     --line: #273331; --accent: #86a2ff; --agent: #ff62b0; --agent-soft: rgba(255, 98, 176, 0.25);
     --goal: #41d2bf; --wall: #5d6d72; --cell: #1b2524; --phase-b: rgba(134, 162, 255, 0.10);
+    --ice: #1c3440;
     color-scheme: dark;
   }
 }
@@ -37,6 +40,7 @@
   --bg: #0e1413; --surface: #151d1c; --sunk: #0b100f; --ink: #e5ece8; --muted: #93a39c;
   --line: #273331; --accent: #86a2ff; --agent: #ff62b0; --agent-soft: rgba(255, 98, 176, 0.25);
   --goal: #41d2bf; --wall: #5d6d72; --cell: #1b2524; --phase-b: rgba(134, 162, 255, 0.10);
+  --ice: #1c3440;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -150,20 +154,45 @@ td.fail { color: var(--muted); }
 .chart-wrap text { font-family: var(--font-data); font-size: 11px; fill: var(--muted); }
 .chart-wrap .phase-label { font-family: var(--font-body); font-size: 12px; font-weight: 600; fill: var(--ink); }
 
+.tabs .group { flex-basis: 100%; height: 0; }
+.limit { display: grid; gap: 8px; }
+.limit h3 { font-family: var(--font-display); font-size: 1.15rem; }
+.limit .then { font-size: 0.9rem; color: var(--muted); }
+.limit .now { font-size: 0.95rem; }
+.limit .now b { color: var(--accent); }
+.dials { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.dials svg { width: min(170px, 44%); height: auto; }
+.dials text { font-family: var(--font-data); fill: var(--ink); }
+.tokens { display: grid; gap: 14px; }
+.token-row { display: grid; gap: 6px; }
+.token-row .row { display: flex; flex-wrap: wrap; gap: 6px; }
+.token { width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; font: 600 1.05rem var(--font-data); color: var(--surface); }
+.token.moved { outline: 3px solid var(--agent); outline-offset: 2px; }
+.token.right { box-shadow: inset 0 -5px 0 var(--goal); }
 ul.plain { margin: 0; padding-left: 1.2em; display: grid; gap: 8px; max-width: 72ch; }
 footer { color: var(--muted); font-size: 0.86rem; }
 </style>
 
 <main>
   <header>
-    <div class="kicker">HekmatKI · Prototyp 0.16 · Gegenprobe zu H18, H19, H20</div>
-    <h1>Ein Agent, drei Welten</h1>
-    <p class="lede">Derselbe Code lernt einen Raum, einen Würfel und einen Suchbaum mit über einer Million
-      Schlüsseln. Er weiß nicht, was ein Raum oder ein Baum ist. Er sieht nur Zahlen in gemischter
-      Reihenfolge und drückt Tasten ohne Namen. Was er herausfindet, schreibt er als kleine Programme auf,
-      erkennt daraus die Form der Welt und plant damit.</p>
+    <div class="kicker">HekmatKI · Prototyp 0.17 · Prüfung von H18 bis H24</div>
+    <h1>Ein Agent, sechs Welten</h1>
+    <p class="lede">Derselbe Code lernt einen Raum, einen Würfel, einen Suchbaum mit über einer Million
+      Schlüsseln und seit 0.17 auch Eis, Drehscheiben und ein Tauschspiel. Er weiß nicht, was ein Raum oder
+      ein Ring ist. Er sieht nur Zahlen in gemischter Reihenfolge und drückt Tasten ohne Namen. Was er
+      herausfindet, schreibt er als kleine Programme auf, setzt daraus die Form der Welt zusammen und plant
+      damit.</p>
     <div class="cards" id="headline"></div>
   </header>
+
+  <section aria-labelledby="limits-solved-title">
+    <div class="section-head">
+      <h2 id="limits-solved-title">Vier Grenzen von 0.16, vier Lösungen aus den Papern</h2>
+      <p class="muted">Jede Lösung stammt aus Runde 7 des Dossiers. Die Zahlen darunter sind gemessen, nicht
+        geschätzt; was nicht geklappt hat, steht dabei.</p>
+    </div>
+    <div class="cards" id="solutions"></div>
+  </section>
 
   <section aria-labelledby="replay-title">
     <div class="section-head">
@@ -206,6 +235,11 @@ footer { color: var(--muted); font-size: 0.86rem; }
     <p class="caption">„Tabelle“ lernt für jede gesehene Beobachtung, welche Taste sich lohnt (Q-Lernen),
       kann aber nichts auf Neues übertragen. „Regeln ohne Form“ hat dieselben Regeln, plant aber nur einen
       Schritt voraus und hat keine Karte. „Bestenfalls“ ist der kürzeste mögliche Weg.</p>
+    <div class="table-wrap"><table id="new-forms-table"></table></div>
+    <p class="caption">„Stand 0.16“ ist derselbe Agent ohne die neuen Bausteine und ohne Suche im Modell.
+      „Neue Bausteine“ hat Übernehmen, Ring und Schleife, plant aber nur über eine Form. „Stand 0.17“ hat
+      alles. Ringgröße und Zahl der Steine sind in Lehrplan und Prüfung gleich, weil die Zahl der Tasten
+      für einen Agenten fest ist.</p>
   </section>
 
   <section aria-labelledby="lib-title">
@@ -232,6 +266,18 @@ footer { color: var(--muted); font-size: 0.86rem; }
     <div class="table-wrap"><table id="new-table"></table></div>
   </section>
 
+  <section aria-labelledby="stream-title">
+    <div class="section-head">
+      <h2 id="stream-title">Ein Strom ganz verschiedener Welten</h2>
+      <p class="muted">Ohne Ankündigung wechselt die Welt: rutschiger Raum, Suchbaum, Drehscheiben, wieder
+        der Raum. Alle kommen als 8 Zahlen und 6 Tasten an; wo eine Welt weniger braucht, sind die Zahlen 0
+        und die Tasten tun nichts. Der Agent soll jeden Wechsel bemerken, für jede Welt eine eigene Karte
+        anlegen und den Raum am Ende wiedererkennen.</p>
+    </div>
+    <div class="chart-wrap" id="stream-chart"></div>
+    <div class="table-wrap"><table id="stream-table"></table></div>
+  </section>
+
   <section aria-labelledby="limits-title">
     <h2 id="limits-title">Grenzen</h2>
     <ul class="plain" id="limits"></ul>
@@ -241,7 +287,7 @@ footer { color: var(--muted); font-size: 0.86rem; }
 </main>
 
 <script>
-const DATA = {"seeds":10,"agents":["Zufall","Tabelle","Regeln ohne Form","Form + Regeln"],"testLimit":2000,"worlds":[{"name":"2D-Raum","size":"25×25","round":3,"rounds":5,"steps":48,"least":10,"reached":true,"observations":[[0,6,1,0,20,0,0,22],[0,6,0,0,19,0,0,22],[0,5,0,1,19,0,0,22],[0,4,0,0,19,0,0,22],[0,3,0,0,19,0,0,22],[0,2,0,0,19,0,0,22],[0,1,0,1,19,0,0,22],[0,0,1,0,19,1,0,22],[1,0,1,1,20,0,0,22],[0,0,1,0,19,1,0,22],[0,1,0,1,19,0,0,22],[0,1,1,0,18,0,0,22],[0,1,0,0,17,0,0,22],[0,0,1,1,17,0,0,22],[0,0,1,0,16,0,0,22],[0,0,1,0,15,0,0,22],[1,0,1,0,14,0,0,22],[0,0,1,0,13,0,0,22],[1,0,1,0,12,0,0,22],[1,0,1,0,11,0,0,22],[1,0,1,0,10,0,0,22],[0,0,1,0,9,0,0,22],[0,0,1,0,8,0,0,22],[1,0,1,0,7,0,0,22],[1,0,1,0,6,0,0,22],[0,0,1,0,5,1,0,22],[1,0,1,0,6,0,0,22],[1,0,1,0,7,0,0,22],[0,0,1,0,8,0,0,22],[0,0,1,0,9,0,0,22],[1,0,1,0,10,0,0,22],[1,0,1,0,11,0,0,22],[1,0,1,0,12,0,0,22],[0,0,1,0,13,0,0,22],[1,0,1,0,14,0,0,22],[0,0,1,0,15,0,0,22],[0,0,1,0,16,0,0,22],[0,0,1,1,17,0,0,22],[0,1,0,0,17,0,0,22],[0,1,1,0,18,0,0,22],[0,1,0,1,19,0,0,22],[0,2,0,0,19,0,0,22],[0,2,1,0,20,0,0,22],[0,2,0,0,21,0,0,22],[0,2,1,0,22,0,0,22],[0,2,0,0,23,0,0,22],[0,1,0,0,23,1,0,22],[0,0,1,0,23,0,0,22],[1,0,1,0,22,1,0,22]],"pressed":[2,3,3,3,3,3,3,0,2,1,2,2,3,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,3,3,2],"componentNames":["Wand +y","Position y","Wand −y","Wand +x","Position x","Wand −x","Ziel y","Ziel x"],"actionNames":["+x","+y","−x","−y"],"form":{"name":"Raum mit 2 Dimensionen","axes":[{"component":1,"name":"Position y","kind":"Raum","up":1,"upName":"+y","down":3,"downName":"−y"},{"component":4,"name":"Position x","kind":"Raum","up":0,"upName":"+x","down":2,"downName":"−x"}],"fixed":[{"component":6,"name":"Ziel y"},{"component":7,"name":"Ziel x"}]},"goal":[{"pair":[1,6],"names":["Position y","Ziel y"]},{"pair":[4,7],"names":["Position x","Ziel x"]}],"rules":{"moving":[{"action":0,"component":4,"agent":"Taste 0: G4 +1, außer G3 = 1 (dann bleibt sie)","ours":"+x: Position x +1, außer Wand +x = 1 (dann bleibt sie)"},{"action":1,"component":1,"agent":"Taste 1: G1 +1, außer G0 = 1 (dann bleibt sie)","ours":"+y: Position y +1, außer Wand +y = 1 (dann bleibt sie)"},{"action":2,"component":4,"agent":"Taste 2: G4 -1, außer G5 = 1 (dann bleibt sie)","ours":"−x: Position x -1, außer Wand −x = 1 (dann bleibt sie)"},{"action":3,"component":1,"agent":"Taste 3: G1 -1, außer G2 = 1 (dann bleibt sie)","ours":"−y: Position y -1, außer Wand −y = 1 (dann bleibt sie)"}],"kept":12,"unpredictable":16},"kind":"lattice","dims":2,"edge":25,"blocked":[[0,6],[0,17],[1,1],[1,3],[1,4],[1,5],[1,9],[1,10],[1,20],[1,23],[1,24],[2,4],[2,14],[2,22],[3,3],[3,11],[3,13],[3,14],[3,17],[3,19],[4,0],[4,2],[4,7],[4,15],[4,16],[4,21],[4,24],[5,5],[5,11],[5,14],[5,16],[6,1],[6,10],[6,14],[6,19],[7,1],[7,3],[7,7],[7,21],[8,7],[8,17],[8,19],[9,5],[9,7],[9,8],[9,10],[9,11],[9,13],[10,1],[10,2],[10,5],[10,9],[10,11],[10,14],[10,18],[10,22],[11,1],[11,8],[11,11],[11,16],[11,17],[11,18],[11,19],[11,20],[11,21],[11,24],[12,1],[12,3],[12,5],[12,14],[12,15],[12,20],[13,3],[13,6],[13,13],[13,17],[14,1],[14,4],[14,18],[14,19],[14,24],[15,3],[15,12],[15,16],[15,21],[15,23],[16,2],[16,4],[16,7],[16,12],[16,13],[16,16],[16,17],[16,18],[17,7],[17,9],[17,13],[17,15],[17,16],[18,0],[18,8],[18,14],[19,16],[20,1],[20,5],[20,8],[20,17],[20,24],[21,0],[21,14],[21,16],[21,19],[22,1],[22,8],[22,10],[22,11],[22,12],[22,14],[22,21],[23,4],[23,8],[23,21],[24,3],[24,19],[24,20]],"positions":[[20,6],[19,6],[19,5],[19,4],[19,3],[19,2],[19,1],[19,0],[20,0],[19,0],[19,1],[18,1],[17,1],[17,0],[16,0],[15,0],[14,0],[13,0],[12,0],[11,0],[10,0],[9,0],[8,0],[7,0],[6,0],[5,0],[6,0],[7,0],[8,0],[9,0],[10,0],[11,0],[12,0],[13,0],[14,0],[15,0],[16,0],[17,0],[17,1],[18,1],[19,1],[19,2],[20,2],[21,2],[22,2],[23,2],[23,1],[23,0],[22,0]],"target":[22,0],"summary":{"steps":{"Zufall":1583.18,"Tabelle":1415.9,"Regeln ohne Form":52.38,"Form + Regeln":23.18},"reached":{"Zufall":0.44,"Tabelle":0.64,"Regeln ohne Form":1,"Form + Regeln":1},"best":17.82,"formFound":1}},{"name":"3D-Raum","size":"10×10×10","round":3,"rounds":5,"steps":11,"least":11,"reached":true,"observations":[[4,1,1,0,4,8,0,0,0,3,1,0],[4,1,0,1,4,8,0,1,0,2,1,0],[4,1,1,0,4,7,1,0,1,2,1,1],[5,1,0,0,4,7,0,1,0,2,1,0],[5,1,1,0,4,6,1,0,0,2,1,1],[5,1,0,0,4,6,0,0,0,1,1,1],[5,1,0,0,4,5,1,0,0,1,1,1],[5,1,0,0,4,4,0,0,1,1,1,1],[5,1,0,0,4,3,1,0,0,1,1,1],[5,1,0,0,4,2,1,0,0,1,1,1],[5,1,0,0,4,1,0,0,0,1,1,0],[4,1,1,0,4,1,0,1,0,1,1,1]],"pressed":[4,0,3,0,4,0,0,0,0,0,1],"componentNames":["Position y","Ziel x","Wand −z","Wand +y","Ziel y","Position z","Wand +x","Wand +z","Wand −x","Position x","Ziel z","Wand −y"],"actionNames":["−z","−y","+x","+y","−x","+z"],"form":{"name":"Raum mit 3 Dimensionen","axes":[{"component":0,"name":"Position y","kind":"Raum","up":3,"upName":"+y","down":1,"downName":"−y"},{"component":5,"name":"Position z","kind":"Raum","up":5,"upName":"+z","down":0,"downName":"−z"},{"component":9,"name":"Position x","kind":"Raum","up":2,"upName":"+x","down":4,"downName":"−x"}],"fixed":[{"component":1,"name":"Ziel x"},{"component":4,"name":"Ziel y"},{"component":10,"name":"Ziel z"}]},"goal":[{"pair":[0,4],"names":["Position y","Ziel y"]},{"pair":[1,9],"names":["Ziel x","Position x"]},{"pair":[5,10],"names":["Position z","Ziel z"]}],"rules":{"moving":[{"action":0,"component":5,"agent":"Taste 0: G5 -1, außer G2 = 1 (dann bleibt sie)","ours":"−z: Position z -1, außer Wand −z = 1 (dann bleibt sie)"},{"action":1,"component":0,"agent":"Taste 1: G0 -1, außer G11 = 1 (dann bleibt sie)","ours":"−y: Position y -1, außer Wand −y = 1 (dann bleibt sie)"},{"action":2,"component":9,"agent":"Taste 2: G9 +1, außer G6 = 1 (dann bleibt sie)","ours":"+x: Position x +1, außer Wand +x = 1 (dann bleibt sie)"},{"action":3,"component":0,"agent":"Taste 3: G0 +1, außer G3 = 1 (dann bleibt sie)","ours":"+y: Position y +1, außer Wand +y = 1 (dann bleibt sie)"},{"action":4,"component":9,"agent":"Taste 4: G9 -1, außer G8 = 1 (dann bleibt sie)","ours":"−x: Position x -1, außer Wand −x = 1 (dann bleibt sie)"},{"action":5,"component":5,"agent":"Taste 5: G5 +1, außer G7 = 1 (dann bleibt sie)","ours":"+z: Position z +1, außer Wand +z = 1 (dann bleibt sie)"}],"kept":30,"unpredictable":36},"kind":"lattice","dims":3,"edge":10,"blocked":[[0,0,6],[0,0,7],[0,1,1],[0,1,7],[0,2,5],[0,3,1],[0,3,3],[0,3,5],[0,4,5],[0,4,8],[0,5,4],[0,6,0],[0,6,1],[0,6,8],[0,7,0],[0,8,1],[0,8,8],[0,9,8],[1,0,5],[1,0,9],[1,1,2],[1,1,5],[1,1,6],[1,2,3],[1,2,5],[1,2,8],[1,3,1],[1,3,7],[1,4,0],[1,4,2],[1,4,3],[1,4,4],[1,4,5],[1,4,6],[1,4,7],[1,6,0],[1,6,8],[1,7,5],[2,0,5],[2,0,7],[2,1,7],[2,1,9],[2,3,1],[2,3,5],[2,3,7],[2,4,0],[2,4,3],[2,4,6],[2,4,9],[2,5,2],[2,5,3],[2,5,5],[2,5,8],[2,6,1],[2,6,9],[2,7,1],[2,7,2],[2,7,4],[2,7,5],[2,7,8],[2,7,9],[2,8,0],[2,8,8],[2,9,0],[2,9,5],[3,1,1],[3,2,0],[3,2,4],[3,2,6],[3,2,8],[3,3,1],[3,3,9],[3,4,7],[3,5,2],[3,5,6],[3,6,1],[3,6,2],[3,7,1],[3,7,3],[3,7,4],[3,7,8],[3,8,2],[3,8,3],[3,8,5],[3,8,6],[3,9,0],[3,9,5],[4,0,5],[4,1,3],[4,1,6],[4,2,0],[4,2,2],[4,2,3],[4,2,6],[4,3,0],[4,3,1],[4,3,2],[4,3,8],[4,3,9],[4,4,4],[4,4,9],[4,5,0],[4,5,3],[4,6,4],[4,7,4],[4,7,5],[4,7,6],[4,8,0],[4,8,3],[4,8,4],[4,9,4],[4,9,7],[5,1,1],[5,2,2],[5,3,6],[5,3,9],[5,4,3],[5,4,4],[5,5,4],[5,5,8],[5,6,3],[5,6,5],[5,6,6],[5,6,8],[5,7,3],[5,7,9],[5,8,6],[5,9,0],[5,9,1],[6,0,2],[6,0,9],[6,1,4],[6,1,5],[6,1,9],[6,2,8],[6,3,0],[6,3,1],[6,3,2],[6,3,9],[6,4,4],[6,5,3],[6,5,4],[6,6,1],[6,6,8],[6,8,2],[6,8,5],[6,8,7],[7,0,1],[7,1,2],[7,1,9],[7,2,0],[7,3,0],[7,3,3],[7,3,7],[7,5,1],[7,5,8],[7,6,2],[7,6,7],[7,7,9],[7,8,6],[7,8,8],[8,0,5],[8,0,9],[8,1,1],[8,1,8],[8,2,4],[8,2,8],[8,3,0],[8,3,7],[8,3,8],[8,4,0],[8,4,3],[8,5,1],[8,5,6],[8,6,4],[8,6,8],[8,7,3],[8,8,8],[8,9,2],[8,9,7],[9,1,0],[9,1,2],[9,1,4],[9,1,8],[9,2,1],[9,2,6],[9,2,8],[9,3,5],[9,5,2],[9,6,5],[9,6,7],[9,7,4],[9,7,7],[9,7,8],[9,8,5],[9,8,7],[9,8,9],[9,9,5],[9,9,9]],"positions":[[3,4,8],[2,4,8],[2,4,7],[2,5,7],[2,5,6],[1,5,6],[1,5,5],[1,5,4],[1,5,3],[1,5,2],[1,5,1],[1,4,1]],"target":[1,4,1],"summary":{"steps":{"Zufall":1082.46,"Tabelle":1062.66,"Regeln ohne Form":19.04,"Form + Regeln":10.84},"reached":{"Zufall":0.78,"Tabelle":0.8,"Regeln ohne Form":1,"Form + Regeln":1},"best":9.08,"formFound":1}},{"name":"Suche","size":"1.048.575 Schlüssel","round":2,"rounds":5,"steps":19,"least":19,"reached":true,"observations":[[0,524287570,239874277,1],[0,262143986,239874277,0],[0,131071194,239874277,0],[0,196607090,239874277,0],[0,229375538,239874277,0],[0,245759762,239874277,0],[0,237567650,239874277,0],[0,241663706,239874277,0],[0,239615178,239874277,0],[0,240639442,239874277,0],[0,240127810,239874277,0],[0,239871994,239874277,0],[0,239999402,239874277,0],[0,239935698,239874277,0],[0,239903346,239874277,0],[0,239887170,239874277,0],[0,239879082,239874277,0],[0,239875038,239874277,0],[0,239873516,239874277,0],[1,239874277,239874277,0]],"pressed":[0,0,2,2,2,0,2,0,2,0,0,2,0,0,0,0,0,0,2],"componentNames":["ganz unten","Schlüssel hier","gesuchter Schlüssel","ganz oben"],"actionNames":["links hinab","hinauf","rechts hinab"],"form":{"name":"Ordnung","axes":[{"component":1,"name":"Schlüssel hier","kind":"Ordnung","up":2,"upName":"rechts hinab","down":0,"downName":"links hinab"}],"fixed":[{"component":2,"name":"gesuchter Schlüssel"}]},"goal":[{"pair":[1,2],"names":["Schlüssel hier","gesuchter Schlüssel"]}],"rules":{"moving":[{"action":0,"component":1,"agent":"Taste 0: G1 fällt","ours":"links hinab: Schlüssel hier fällt"},{"action":2,"component":1,"agent":"Taste 2: G1 steigt","ours":"rechts hinab: Schlüssel hier steigt"}],"kept":3,"unpredictable":7},"kind":"search","count":1048575,"targetIndex":239874,"targetKey":239874277,"frames":[{"index":524287,"key":524287570,"low":0,"high":1048574},{"index":262143,"key":262143986,"low":0,"high":524286},{"index":131071,"key":131071194,"low":0,"high":262142},{"index":196607,"key":196607090,"low":131072,"high":262142},{"index":229375,"key":229375538,"low":196608,"high":262142},{"index":245759,"key":245759762,"low":229376,"high":262142},{"index":237567,"key":237567650,"low":229376,"high":245758},{"index":241663,"key":241663706,"low":237568,"high":245758},{"index":239615,"key":239615178,"low":237568,"high":241662},{"index":240639,"key":240639442,"low":239616,"high":241662},{"index":240127,"key":240127810,"low":239616,"high":240638},{"index":239871,"key":239871994,"low":239616,"high":240126},{"index":239999,"key":239999402,"low":239872,"high":240126},{"index":239935,"key":239935698,"low":239872,"high":239998},{"index":239903,"key":239903346,"low":239872,"high":239934},{"index":239887,"key":239887170,"low":239872,"high":239902},{"index":239879,"key":239879082,"low":239872,"high":239886},{"index":239875,"key":239875038,"low":239872,"high":239878},{"index":239873,"key":239873516,"low":239872,"high":239874},{"index":239874,"key":239874277,"low":239874,"high":239874}],"summary":{"steps":{"Zufall":2000,"Tabelle":2000,"Regeln ohne Form":2000,"Form + Regeln":17.98},"reached":{"Zufall":0,"Tabelle":0,"Regeln ohne Form":0,"Form + Regeln":1},"best":17.98,"formFound":1}}],"library":{"conditions":["ohne Bibliothek","mit Bibliothek","Zufallsbibliothek"],"budget":20,"rows":[{"order":"2D-Raum → 3D-Raum → Suche","world":"2D-Raum","tested":{"ohne Bibliothek":2784.8,"mit Bibliothek":2784.8,"Zufallsbibliothek":4888},"testedFound":{"ohne Bibliothek":420.7,"mit Bibliothek":420.7,"Zufallsbibliothek":687.5},"exact":{"ohne Bibliothek":16,"mit Bibliothek":16,"Zufallsbibliothek":16},"borrowed":{"ohne Bibliothek":0,"mit Bibliothek":0,"Zufallsbibliothek":1.2},"budgetReached":{"ohne Bibliothek":0.9400000000000001,"mit Bibliothek":0.9400000000000001}},{"order":"2D-Raum → 3D-Raum → Suche","world":"3D-Raum","tested":{"ohne Bibliothek":6713.9,"mit Bibliothek":6203.5,"Zufallsbibliothek":12809.6},"testedFound":{"ohne Bibliothek":761.5,"mit Bibliothek":363.6,"Zufallsbibliothek":1279.3},"exact":{"ohne Bibliothek":36.2,"mit Bibliothek":36.2,"Zufallsbibliothek":36.1},"borrowed":{"ohne Bibliothek":0,"mit Bibliothek":6,"Zufallsbibliothek":1.8},"budgetReached":{"ohne Bibliothek":1,"mit Bibliothek":0.98}},{"order":"2D-Raum → 3D-Raum → Suche","world":"Suche","tested":{"ohne Bibliothek":702.6,"mit Bibliothek":689.6,"Zufallsbibliothek":929.6},"testedFound":{"ohne Bibliothek":210.8,"mit Bibliothek":232.2,"Zufallsbibliothek":311.2},"exact":{"ohne Bibliothek":5.1,"mit Bibliothek":5.2,"Zufallsbibliothek":5.1},"borrowed":{"ohne Bibliothek":0,"mit Bibliothek":0.1,"Zufallsbibliothek":0.3},"budgetReached":{"ohne Bibliothek":0.9,"mit Bibliothek":0.92}},{"order":"Suche → 2D-Raum → 3D-Raum","world":"Suche","tested":{"ohne Bibliothek":702.6,"mit Bibliothek":702.6,"Zufallsbibliothek":929.6},"testedFound":{"ohne Bibliothek":210.8,"mit Bibliothek":210.8,"Zufallsbibliothek":311.2},"exact":{"ohne Bibliothek":5.1,"mit Bibliothek":5.1,"Zufallsbibliothek":5.1},"borrowed":{"ohne Bibliothek":0,"mit Bibliothek":0,"Zufallsbibliothek":0.3},"budgetReached":{"ohne Bibliothek":0.9,"mit Bibliothek":0.9}},{"order":"Suche → 2D-Raum → 3D-Raum","world":"2D-Raum","tested":{"ohne Bibliothek":2784.8,"mit Bibliothek":3006.2,"Zufallsbibliothek":4888},"testedFound":{"ohne Bibliothek":420.7,"mit Bibliothek":321,"Zufallsbibliothek":687.5},"exact":{"ohne Bibliothek":16,"mit Bibliothek":16,"Zufallsbibliothek":16},"borrowed":{"ohne Bibliothek":0,"mit Bibliothek":2.4,"Zufallsbibliothek":1.2},"budgetReached":{"ohne Bibliothek":0.9400000000000001,"mit Bibliothek":0.9400000000000001}},{"order":"Suche → 2D-Raum → 3D-Raum","world":"3D-Raum","tested":{"ohne Bibliothek":6713.9,"mit Bibliothek":7024.4,"Zufallsbibliothek":12809.6},"testedFound":{"ohne Bibliothek":761.5,"mit Bibliothek":415.8,"Zufallsbibliothek":1279.3},"exact":{"ohne Bibliothek":36.2,"mit Bibliothek":36.2,"Zufallsbibliothek":36.1},"borrowed":{"ohne Bibliothek":0,"mit Bibliothek":6,"Zufallsbibliothek":1.8},"budgetReached":{"ohne Bibliothek":1,"mit Bibliothek":1}}],"entries":[{"order":"2D-Raum → 3D-Raum → Suche","name":"B1","pattern":"fester Schritt, außer ein Schalter ist 1 (dann bleibt sie)","origin":"2D-Raum","reuses":{"3D-Raum":6},"removed":false},{"order":"Suche → 2D-Raum → 3D-Raum","name":"B1","pattern":"fester Schritt, außer ein Schalter ist 1 (dann bleibt sie)","origin":"2D-Raum","reuses":{"3D-Raum":6},"removed":false}]},"newWorld":{"phases":["A","B","A wieder"],"episodes":15,"rows":[{"handling":"ohne Erkennung","steps":{"A":21.813333333333333,"B":104.65333333333334,"A wieder":134.46},"firstSteps":{"A":60.733333333333334,"B":103.66666666666667,"A wieder":150.1},"maps":1,"falseAlarms":0,"detectedB":0,"returned":0},{"handling":"jede Überraschung","steps":{"A":53.38,"B":52.98,"A wieder":30.793333333333333},"firstSteps":{"A":89.33333333333333,"B":53.06666666666667,"A wieder":32.43333333333333},"maps":21.6,"falseAlarms":416.4,"detectedB":1,"returned":0.4},{"handling":"nie neue Karte","steps":{"A":17.593333333333334,"B":54.04666666666667,"A wieder":23.64666666666667},"firstSteps":{"A":60.233333333333334,"B":67.73333333333333,"A wieder":50.3},"maps":1,"falseAlarms":0.1,"detectedB":0.8,"returned":0},{"handling":"erwartet / unerwartet","steps":{"A":17.593333333333334,"B":53.086666666666666,"A wieder":24.766666666666666},"firstSteps":{"A":60.233333333333334,"B":66.46666666666667,"A wieder":18.366666666666667},"maps":2.1,"falseAlarms":0.1,"detectedB":0.8,"returned":0.9}],"life":{"surprise":[-0.0,-0.0,-0.0,0.26,0.26,-0.0,0.24,0.24,0.26,-0.0,-0.0,-0.0,0.24,0.1,0.26,0.18,0.1,0.11,0.21,0.21,0.21,0.24,0.24,0.28,0.38,0.3,0.73,0.73,0.73,0.82,0.94,0.82,0.82,0.82,0.82,1.59,1.8,2.07,1.28,0.94,0.94,0.94,0.94,0.94,0.94,1.2,0.89,0.89,0.73,0.6,0.6,0.81,0.57,0.57,0.57,0.57,0.98,0.72,0.72,0.72,0.72,0.51,0.51,0.53,0.58,0.53,0.53,1.03,0.79,0.79,0.79,0.53,0.69,0.69,0.93,0.93,0.55,0.55,0.6,0.67,0.67,0.62,0.89,0.89,0.89,0.89,0.89,1.61,2.0,2.0,2.0,1.61,1.12,1.12,1.12,1.44,1.44,1.44,1.44,1.12,1.44,1.44,1.44,1.44,1.44,1.44,1.44,1.12,1.12,1.13,1.13,0.9,1.32,1.32,1.32,1.32,1.32,1.32,1.78,2.12,2.12,2.12,2.12,1.61,2.12,0.53,0.9,0.88,0.67,0.67,0.54,0.48,0.45,0.41,0.71,0.71,0.55,0.55,0.55,0.54,0.49,0.61,0.61,0.61,0.61,0.68,0.68,0.7,0.7,0.75,0.9,1.21,1.21,1.21,1.21,1.21,1.21,1.21,1.21,1.69,2.18,1.75,1.75,2.18,2.18,1.31,0.91,0.91,0.9,0.9,0.7,0.54,0.51,0.67,0.58,0.98,1.17,0.98,0.84,0.84,1.05,1.05,0.7,0.7,0.7,0.7,1.05,1.31,1.69,1.69,1.69,1.69,2.18,2.18,2.18,2.18,2.18,1.31,0.84,0.7,0.54,0.54,1.04,1.04,1.04,0.92,1.04,1.19,1.38,1.38,1.19,1.38,1.38,1.95,1.95,1.95,1.95,1.66,1.38,1.38,1.38,1.19,0.7,0.71,0.83,0.83,1.01,1.01,1.62,1.78,1.62,1.78,1.78,1.78,1.78,2.85,3.14,3.53,3.53,3.53,2.28,2.28,2.28,2.28,1.99,1.99,1.99,1.99,1.74,1.95,1.95,2.22,1.95,1.74,1.74,1.74,1.74,1.56,0.78,0.84,0.84,0.84,0.84,1.23,1.23,1.23,1.23,1.08,1.23,1.23,1.23,2.22,1.68,1.68,1.68,1.68,1.68,1.68,1.35,0.9,0.9,0.71,0.71,0.71,0.64,0.87,0.88,0.87,0.87,0.87,0.87,0.59,0.64,0.64,0.7,0.7,0.7,0.58,0.58,0.82,0.88,1.0,1.0,1.13,1.13,1.13,1.13,1.13,1.13,1.13,1.13,1.27,2.01,2.01,2.01,1.66,2.01,2.01,2.01,2.77,2.01,2.77,2.77,2.34,2.34,2.03,2.03,2.03,2.03,2.92,2.92,2.36,2.36,2.36,2.36,2.36,2.0,1.68,1.68,1.68,1.68,1.73,2.0,2.8,3.24,3.24,3.24,3.24,3.24,3.24,2.8,2.8,2.8,2.0,2.0,2.0,2.0,1.35,1.5,1.5,1.5,1.35,1.52,1.35,1.33,1.24,1.15,1.79,1.79,1.45,1.21,1.24,1.51,1.51,1.51,2.05,2.05,2.05,2.05,2.34,2.34,2.34,1.75,1.75,1.75,2.02,2.02,2.02,2.02,2.7,2.7,2.7,2.02,3.13,2.02,1.73,1.73,1.42,2.04,2.04,2.0,1.73,2.47,2.21,1.99,1.8,1.99,1.99,2.93,3.69,3.69,4.47,4.47,4.47,4.47,4.47,4.47,3.69,2.93,2.93,2.93,3.24,2.47,2.8,3.24,3.9,3.9,3.9,2.92,1.95,1.95,1.32,1.33,1.33,1.73,2.74,2.74,2.74,2.74,3.47,5.41,1.12,2.24,3.36,3.36,2.78,2.78,2.78,2.78,3.8,3.8,3.8,3.35,3.35,3.35,4.17,4.17,4.33,5.21,-0.0,0.6,-0.0,0.26,0.31,0.36,0.59,0.46,0.33,0.33,0.33,0.48,0.36,0.33,0.39,0.68,0.68,0.68,0.68,0.68,1.0,0.98,0.98,0.98,0.98,1.29,1.29,1.29,1.29,1.29,1.29,0.98,0.77,0.77,0.44,0.33,0.23,0.23,0.33,0.24,0.23,0.4,0.4,0.23,0.33,0.39,0.39,0.51,0.57,0.82,0.82,0.82,0.94,0.94,0.82,1.4,2.3,2.3,2.3,2.3,2.3,2.11,2.3,2.11,2.11,1.27,1.59,1.59,1.59,1.59,1.13,1.13,1.12,1.61,1.61,1.12,1.13,1.44,1.44,1.13,1.13,1.12,1.12,1.12,1.3,1.47,1.47,1.47,0.87,0.64,0.67,0.67,0.85,1.12,0.89,0.89,1.12,1.44,1.44,1.44,2.3,1.94,1.94,1.94,1.28,1.28,1.09,0.94,1.01,1.59,2.13,2.13,2.13,1.47,2.39,2.39,2.39,2.39,2.39,2.39,1.67,1.71,1.71,1.94,1.71,1.71,1.53,2.06,2.06,1.37,1.26,1.26,1.26,1.26,1.26,1.26,1.26,1.26,1.41,1.29,1.59,1.59,1.59,1.59,1.59,2.23,1.94,1.94,1.92,1.92,1.92,2.01,2.01,2.01,2.01,2.01,2.01,2.01,2.01,1.68,2.14,2.14,2.14,2.14,2.14,2.62,1.84,2.14,2.52,2.01,1.52,1.29,1.29,1.05,1.05,1.05,1.05,1.05,1.05,1.37,0.66,0.81,0.92,1.84,2.76,3.68,4.6,5.52,0.74,1.48,1.06,0.81,0.65,0.65,0.76,0.7,1.13,1.59,1.59,1.59,1.59,1.59,1.59,1.22,0.97,0.87,0.87,0.87,0.87,0.87,0.87,0.93,1.11,1.11,1.11,1.11,1.11,1.11,1.65,2.25,2.25,2.25,2.25,2.45,2.67,1.99,2.21,2.47,2.21,2.21,2.21,1.99,1.99,1.5,1.5,1.5,1.23,1.21,1.04,1.04,1.04,0.56,0.56,0.89,1.27,1.27,1.27,1.27,1.43,1.5,1.63,1.63,1.63,1.63,1.18,1.68],"limit":5.0,"starts":{"A":0,"B":432,"A wieder":641},"events":[{"step":441,"kind":"verfeinern","target":0},{"step":459,"kind":"neu","target":1},{"step":647,"kind":"zurück","target":0}],"steps":{"A":[300,60,12,2,4,2,6,2,5,3,11,13,2,5,5],"B":[120,22,4,5,9,9,2,5,6,3,1,5,7,9,2],"A wieder":[17,2,5,2,3,4,6,3,4,1,7,3,7,9,1]}}}};
+const DATA = {"seeds":10,"testLimit":2000,"worlds":[{"name":"2D-Raum","size":"25×25","round":3,"rounds":5,"steps":48,"least":10,"reached":true,"observations":[[0,6,1,0,20,0,0,22],[0,6,0,0,19,0,0,22],[0,5,0,1,19,0,0,22],[0,4,0,0,19,0,0,22],[0,3,0,0,19,0,0,22],[0,2,0,0,19,0,0,22],[0,1,0,1,19,0,0,22],[0,0,1,0,19,1,0,22],[1,0,1,1,20,0,0,22],[0,0,1,0,19,1,0,22],[0,1,0,1,19,0,0,22],[0,1,1,0,18,0,0,22],[0,1,0,0,17,0,0,22],[0,0,1,1,17,0,0,22],[0,0,1,0,16,0,0,22],[0,0,1,0,15,0,0,22],[1,0,1,0,14,0,0,22],[0,0,1,0,13,0,0,22],[1,0,1,0,12,0,0,22],[1,0,1,0,11,0,0,22],[1,0,1,0,10,0,0,22],[0,0,1,0,9,0,0,22],[0,0,1,0,8,0,0,22],[1,0,1,0,7,0,0,22],[1,0,1,0,6,0,0,22],[0,0,1,0,5,1,0,22],[1,0,1,0,6,0,0,22],[1,0,1,0,7,0,0,22],[0,0,1,0,8,0,0,22],[0,0,1,0,9,0,0,22],[1,0,1,0,10,0,0,22],[1,0,1,0,11,0,0,22],[1,0,1,0,12,0,0,22],[0,0,1,0,13,0,0,22],[1,0,1,0,14,0,0,22],[0,0,1,0,15,0,0,22],[0,0,1,0,16,0,0,22],[0,0,1,1,17,0,0,22],[0,1,0,0,17,0,0,22],[0,1,1,0,18,0,0,22],[0,1,0,1,19,0,0,22],[0,2,0,0,19,0,0,22],[0,2,1,0,20,0,0,22],[0,2,0,0,21,0,0,22],[0,2,1,0,22,0,0,22],[0,2,0,0,23,0,0,22],[0,1,0,0,23,1,0,22],[0,0,1,0,23,0,0,22],[1,0,1,0,22,1,0,22]],"pressed":[2,3,3,3,3,3,3,0,2,1,2,2,3,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,3,3,2],"componentNames":["Wand +y","Position y","Wand −y","Wand +x","Position x","Wand −x","Ziel y","Ziel x"],"actionNames":["+x","+y","−x","−y"],"form":{"name":"Raum mit 2 Dimensionen","axes":[{"component":1,"name":"Position y","kind":"Kette","up":1,"upName":"+y","down":3,"downName":"−y"},{"component":4,"name":"Position x","kind":"Kette","up":0,"upName":"+x","down":2,"downName":"−x"}],"fixed":[{"component":6,"name":"Ziel y"},{"component":7,"name":"Ziel x"}]},"goal":[{"pair":[1,6],"names":["Position y","Ziel y"]},{"pair":[4,7],"names":["Position x","Ziel x"]}],"rules":{"moving":[{"action":0,"component":4,"agent":"Taste 0: G4 +1, außer G3 = 1 (dann bleibt sie)","ours":"+x: Position x +1, außer Wand +x = 1 (dann bleibt sie)"},{"action":1,"component":1,"agent":"Taste 1: G1 +1, außer G0 = 1 (dann bleibt sie)","ours":"+y: Position y +1, außer Wand +y = 1 (dann bleibt sie)"},{"action":2,"component":4,"agent":"Taste 2: G4 -1, außer G5 = 1 (dann bleibt sie)","ours":"−x: Position x -1, außer Wand −x = 1 (dann bleibt sie)"},{"action":3,"component":1,"agent":"Taste 3: G1 -1, außer G2 = 1 (dann bleibt sie)","ours":"−y: Position y -1, außer Wand −y = 1 (dann bleibt sie)"}],"kept":12,"unpredictable":16},"kind":"lattice","dims":2,"edge":25,"ice":false,"blocked":[[0,6],[0,17],[1,1],[1,3],[1,4],[1,5],[1,9],[1,10],[1,20],[1,23],[1,24],[2,4],[2,14],[2,22],[3,3],[3,11],[3,13],[3,14],[3,17],[3,19],[4,0],[4,2],[4,7],[4,15],[4,16],[4,21],[4,24],[5,5],[5,11],[5,14],[5,16],[6,1],[6,10],[6,14],[6,19],[7,1],[7,3],[7,7],[7,21],[8,7],[8,17],[8,19],[9,5],[9,7],[9,8],[9,10],[9,11],[9,13],[10,1],[10,2],[10,5],[10,9],[10,11],[10,14],[10,18],[10,22],[11,1],[11,8],[11,11],[11,16],[11,17],[11,18],[11,19],[11,20],[11,21],[11,24],[12,1],[12,3],[12,5],[12,14],[12,15],[12,20],[13,3],[13,6],[13,13],[13,17],[14,1],[14,4],[14,18],[14,19],[14,24],[15,3],[15,12],[15,16],[15,21],[15,23],[16,2],[16,4],[16,7],[16,12],[16,13],[16,16],[16,17],[16,18],[17,7],[17,9],[17,13],[17,15],[17,16],[18,0],[18,8],[18,14],[19,16],[20,1],[20,5],[20,8],[20,17],[20,24],[21,0],[21,14],[21,16],[21,19],[22,1],[22,8],[22,10],[22,11],[22,12],[22,14],[22,21],[23,4],[23,8],[23,21],[24,3],[24,19],[24,20]],"positions":[[20,6],[19,6],[19,5],[19,4],[19,3],[19,2],[19,1],[19,0],[20,0],[19,0],[19,1],[18,1],[17,1],[17,0],[16,0],[15,0],[14,0],[13,0],[12,0],[11,0],[10,0],[9,0],[8,0],[7,0],[6,0],[5,0],[6,0],[7,0],[8,0],[9,0],[10,0],[11,0],[12,0],[13,0],[14,0],[15,0],[16,0],[17,0],[17,1],[18,1],[19,1],[19,2],[20,2],[21,2],[22,2],[23,2],[23,1],[23,0],[22,0]],"target":[22,0],"summary":{"agents":["Zufall","Tabelle","Regeln ohne Form","Form + Regeln"],"main":"Form + Regeln","old":null,"steps":{"Zufall":1583.18,"Tabelle":1415.9,"Regeln ohne Form":50.72,"Form + Regeln":23.18},"reached":{"Zufall":0.44,"Tabelle":0.64,"Regeln ohne Form":1,"Form + Regeln":1},"best":17.82,"formFound":1,"result":17}},{"name":"3D-Raum","size":"10×10×10","round":3,"rounds":5,"steps":11,"least":11,"reached":true,"observations":[[4,1,1,0,4,8,0,0,0,3,1,0],[4,1,0,1,4,8,0,1,0,2,1,0],[4,1,1,0,4,7,1,0,1,2,1,1],[5,1,0,0,4,7,0,1,0,2,1,0],[5,1,1,0,4,6,1,0,0,2,1,1],[5,1,0,0,4,6,0,0,0,1,1,1],[5,1,0,0,4,5,1,0,0,1,1,1],[5,1,0,0,4,4,0,0,1,1,1,1],[5,1,0,0,4,3,1,0,0,1,1,1],[5,1,0,0,4,2,1,0,0,1,1,1],[5,1,0,0,4,1,0,0,0,1,1,0],[4,1,1,0,4,1,0,1,0,1,1,1]],"pressed":[4,0,3,0,4,0,0,0,0,0,1],"componentNames":["Position y","Ziel x","Wand −z","Wand +y","Ziel y","Position z","Wand +x","Wand +z","Wand −x","Position x","Ziel z","Wand −y"],"actionNames":["−z","−y","+x","+y","−x","+z"],"form":{"name":"Raum mit 3 Dimensionen","axes":[{"component":0,"name":"Position y","kind":"Kette","up":3,"upName":"+y","down":1,"downName":"−y"},{"component":5,"name":"Position z","kind":"Kette","up":5,"upName":"+z","down":0,"downName":"−z"},{"component":9,"name":"Position x","kind":"Kette","up":2,"upName":"+x","down":4,"downName":"−x"}],"fixed":[{"component":1,"name":"Ziel x"},{"component":4,"name":"Ziel y"},{"component":10,"name":"Ziel z"}]},"goal":[{"pair":[0,4],"names":["Position y","Ziel y"]},{"pair":[1,9],"names":["Ziel x","Position x"]},{"pair":[5,10],"names":["Position z","Ziel z"]}],"rules":{"moving":[{"action":0,"component":5,"agent":"Taste 0: G5 -1, außer G2 = 1 (dann bleibt sie)","ours":"−z: Position z -1, außer Wand −z = 1 (dann bleibt sie)"},{"action":1,"component":0,"agent":"Taste 1: G0 -1, außer G11 = 1 (dann bleibt sie)","ours":"−y: Position y -1, außer Wand −y = 1 (dann bleibt sie)"},{"action":2,"component":9,"agent":"Taste 2: G9 +1, außer G6 = 1 (dann bleibt sie)","ours":"+x: Position x +1, außer Wand +x = 1 (dann bleibt sie)"},{"action":3,"component":0,"agent":"Taste 3: G0 +1, außer G3 = 1 (dann bleibt sie)","ours":"+y: Position y +1, außer Wand +y = 1 (dann bleibt sie)"},{"action":4,"component":9,"agent":"Taste 4: G9 -1, außer G8 = 1 (dann bleibt sie)","ours":"−x: Position x -1, außer Wand −x = 1 (dann bleibt sie)"},{"action":5,"component":5,"agent":"Taste 5: G5 +1, außer G7 = 1 (dann bleibt sie)","ours":"+z: Position z +1, außer Wand +z = 1 (dann bleibt sie)"}],"kept":30,"unpredictable":36},"kind":"lattice","dims":3,"edge":10,"ice":false,"blocked":[[0,0,6],[0,0,7],[0,1,1],[0,1,7],[0,2,5],[0,3,1],[0,3,3],[0,3,5],[0,4,5],[0,4,8],[0,5,4],[0,6,0],[0,6,1],[0,6,8],[0,7,0],[0,8,1],[0,8,8],[0,9,8],[1,0,5],[1,0,9],[1,1,2],[1,1,5],[1,1,6],[1,2,3],[1,2,5],[1,2,8],[1,3,1],[1,3,7],[1,4,0],[1,4,2],[1,4,3],[1,4,4],[1,4,5],[1,4,6],[1,4,7],[1,6,0],[1,6,8],[1,7,5],[2,0,5],[2,0,7],[2,1,7],[2,1,9],[2,3,1],[2,3,5],[2,3,7],[2,4,0],[2,4,3],[2,4,6],[2,4,9],[2,5,2],[2,5,3],[2,5,5],[2,5,8],[2,6,1],[2,6,9],[2,7,1],[2,7,2],[2,7,4],[2,7,5],[2,7,8],[2,7,9],[2,8,0],[2,8,8],[2,9,0],[2,9,5],[3,1,1],[3,2,0],[3,2,4],[3,2,6],[3,2,8],[3,3,1],[3,3,9],[3,4,7],[3,5,2],[3,5,6],[3,6,1],[3,6,2],[3,7,1],[3,7,3],[3,7,4],[3,7,8],[3,8,2],[3,8,3],[3,8,5],[3,8,6],[3,9,0],[3,9,5],[4,0,5],[4,1,3],[4,1,6],[4,2,0],[4,2,2],[4,2,3],[4,2,6],[4,3,0],[4,3,1],[4,3,2],[4,3,8],[4,3,9],[4,4,4],[4,4,9],[4,5,0],[4,5,3],[4,6,4],[4,7,4],[4,7,5],[4,7,6],[4,8,0],[4,8,3],[4,8,4],[4,9,4],[4,9,7],[5,1,1],[5,2,2],[5,3,6],[5,3,9],[5,4,3],[5,4,4],[5,5,4],[5,5,8],[5,6,3],[5,6,5],[5,6,6],[5,6,8],[5,7,3],[5,7,9],[5,8,6],[5,9,0],[5,9,1],[6,0,2],[6,0,9],[6,1,4],[6,1,5],[6,1,9],[6,2,8],[6,3,0],[6,3,1],[6,3,2],[6,3,9],[6,4,4],[6,5,3],[6,5,4],[6,6,1],[6,6,8],[6,8,2],[6,8,5],[6,8,7],[7,0,1],[7,1,2],[7,1,9],[7,2,0],[7,3,0],[7,3,3],[7,3,7],[7,5,1],[7,5,8],[7,6,2],[7,6,7],[7,7,9],[7,8,6],[7,8,8],[8,0,5],[8,0,9],[8,1,1],[8,1,8],[8,2,4],[8,2,8],[8,3,0],[8,3,7],[8,3,8],[8,4,0],[8,4,3],[8,5,1],[8,5,6],[8,6,4],[8,6,8],[8,7,3],[8,8,8],[8,9,2],[8,9,7],[9,1,0],[9,1,2],[9,1,4],[9,1,8],[9,2,1],[9,2,6],[9,2,8],[9,3,5],[9,5,2],[9,6,5],[9,6,7],[9,7,4],[9,7,7],[9,7,8],[9,8,5],[9,8,7],[9,8,9],[9,9,5],[9,9,9]],"positions":[[3,4,8],[2,4,8],[2,4,7],[2,5,7],[2,5,6],[1,5,6],[1,5,5],[1,5,4],[1,5,3],[1,5,2],[1,5,1],[1,4,1]],"target":[1,4,1],"summary":{"agents":["Zufall","Tabelle","Regeln ohne Form","Form + Regeln"],"main":"Form + Regeln","old":null,"steps":{"Zufall":1082.46,"Tabelle":1062.66,"Regeln ohne Form":17.36,"Form + Regeln":10.84},"reached":{"Zufall":0.78,"Tabelle":0.8,"Regeln ohne Form":1,"Form + Regeln":1},"best":9.08,"formFound":1,"result":17}},{"name":"Suche","size":"1.048.575 Schlüssel","round":2,"rounds":5,"steps":19,"least":19,"reached":true,"observations":[[0,524287570,239874277,1],[0,262143986,239874277,0],[0,131071194,239874277,0],[0,196607090,239874277,0],[0,229375538,239874277,0],[0,245759762,239874277,0],[0,237567650,239874277,0],[0,241663706,239874277,0],[0,239615178,239874277,0],[0,240639442,239874277,0],[0,240127810,239874277,0],[0,239871994,239874277,0],[0,239999402,239874277,0],[0,239935698,239874277,0],[0,239903346,239874277,0],[0,239887170,239874277,0],[0,239879082,239874277,0],[0,239875038,239874277,0],[0,239873516,239874277,0],[1,239874277,239874277,0]],"pressed":[0,0,2,2,2,0,2,0,2,0,0,2,0,0,0,0,0,0,2],"componentNames":["ganz unten","Schlüssel hier","gesuchter Schlüssel","ganz oben"],"actionNames":["links hinab","hinauf","rechts hinab"],"form":{"name":"Ordnung","axes":[{"component":1,"name":"Schlüssel hier","kind":"Ordnung","up":2,"upName":"rechts hinab","down":0,"downName":"links hinab"}],"fixed":[{"component":2,"name":"gesuchter Schlüssel"}]},"goal":[{"pair":[1,2],"names":["Schlüssel hier","gesuchter Schlüssel"]}],"rules":{"moving":[{"action":0,"component":1,"agent":"Taste 0: G1 fällt","ours":"links hinab: Schlüssel hier fällt"},{"action":2,"component":1,"agent":"Taste 2: G1 steigt","ours":"rechts hinab: Schlüssel hier steigt"}],"kept":3,"unpredictable":7},"kind":"search","count":1048575,"targetIndex":239874,"targetKey":239874277,"frames":[{"index":524287,"key":524287570,"low":0,"high":1048574},{"index":262143,"key":262143986,"low":0,"high":524286},{"index":131071,"key":131071194,"low":0,"high":262142},{"index":196607,"key":196607090,"low":131072,"high":262142},{"index":229375,"key":229375538,"low":196608,"high":262142},{"index":245759,"key":245759762,"low":229376,"high":262142},{"index":237567,"key":237567650,"low":229376,"high":245758},{"index":241663,"key":241663706,"low":237568,"high":245758},{"index":239615,"key":239615178,"low":237568,"high":241662},{"index":240639,"key":240639442,"low":239616,"high":241662},{"index":240127,"key":240127810,"low":239616,"high":240638},{"index":239871,"key":239871994,"low":239616,"high":240126},{"index":239999,"key":239999402,"low":239872,"high":240126},{"index":239935,"key":239935698,"low":239872,"high":239998},{"index":239903,"key":239903346,"low":239872,"high":239934},{"index":239887,"key":239887170,"low":239872,"high":239902},{"index":239879,"key":239879082,"low":239872,"high":239886},{"index":239875,"key":239875038,"low":239872,"high":239878},{"index":239873,"key":239873516,"low":239872,"high":239874},{"index":239874,"key":239874277,"low":239874,"high":239874}],"summary":{"agents":["Zufall","Tabelle","Regeln ohne Form","Form + Regeln"],"main":"Form + Regeln","old":null,"steps":{"Zufall":2000,"Tabelle":2000,"Regeln ohne Form":2000,"Form + Regeln":17.98},"reached":{"Zufall":0,"Tabelle":0,"Regeln ohne Form":0,"Form + Regeln":1},"best":17.98,"formFound":1,"result":17}},{"name":"Eis-Raum","size":"12×12 Eis","round":4,"rounds":5,"steps":13,"least":7,"reached":true,"observations":[[0,7,0,1,11,0,0,5],[0,0,1,1,11,0,0,5],[0,0,1,0,7,1,0,5],[0,0,1,1,11,0,0,5],[1,11,0,1,11,0,0,5],[0,0,1,1,11,0,0,5],[0,0,1,0,7,1,0,5],[1,5,0,1,7,0,0,5],[0,0,1,0,7,1,0,5],[1,5,0,1,7,0,0,5],[1,5,0,0,0,1,0,5],[0,2,1,0,0,1,0,5],[0,2,0,1,5,0,0,5],[0,0,1,1,5,0,0,5]],"pressed":[3,2,0,1,3,2,1,3,1,2,3,0,3],"componentNames":["Wand +y","Position y","Wand −y","Wand +x","Position x","Wand −x","Ziel y","Ziel x"],"actionNames":["+x","+y","−x","−y"],"form":{"name":"Rutschbahn mit 2 Dimensionen","axes":[{"component":1,"name":"Position y","kind":"Rutschbahn","up":1,"upName":"+y","down":3,"downName":"−y"},{"component":4,"name":"Position x","kind":"Rutschbahn","up":0,"upName":"+x","down":2,"downName":"−x"}],"fixed":[{"component":6,"name":"Ziel y"},{"component":7,"name":"Ziel x"}]},"goal":[{"pair":[1,6],"names":["Position y","Ziel y"]},{"pair":[4,7],"names":["Position x","Ziel x"]}],"rules":{"moving":[{"action":0,"component":4,"agent":"Taste 0: G4 +1 immer wieder, bis G3 = 1","ours":"+x: Position x +1 immer wieder, bis Wand +x = 1"},{"action":1,"component":1,"agent":"Taste 1: G1 +1 immer wieder, bis G0 = 1","ours":"+y: Position y +1 immer wieder, bis Wand +y = 1"},{"action":2,"component":4,"agent":"Taste 2: G4 -1 immer wieder, bis G5 = 1","ours":"−x: Position x -1 immer wieder, bis Wand −x = 1"},{"action":3,"component":1,"agent":"Taste 3: G1 -1 immer wieder, bis G2 = 1","ours":"−y: Position y -1 immer wieder, bis Wand −y = 1"}],"kept":12,"unpredictable":16},"kind":"lattice","dims":2,"edge":12,"ice":true,"blocked":[[0,1],[0,6],[1,1],[2,3],[2,10],[3,1],[3,3],[3,4],[3,10],[4,1],[4,3],[4,9],[6,0],[6,2],[6,6],[7,6],[7,9],[8,3],[8,5],[8,6],[9,4],[9,9],[10,5],[10,6]],"positions":[[11,7],[11,0],[7,0],[11,0],[11,11],[11,0],[7,0],[7,5],[7,0],[7,5],[0,5],[0,2],[5,2],[5,0]],"target":[5,0],"summary":{"agents":["Zufall","Tabelle","Stand 0.16","neue Bausteine","Stand 0.17"],"main":"Stand 0.17","old":"Stand 0.16","steps":{"Zufall":245.02,"Tabelle":85.92,"Stand 0.16":98.44,"neue Bausteine":11.9,"Stand 0.17":11.9},"reached":{"Zufall":0.96,"Tabelle":1,"Stand 0.16":1,"neue Bausteine":1,"Stand 0.17":1},"best":4.96,"formFound":1,"oldForms":["Ordnung mit 2 Achsen","Ordnung mit 2 Achsen","Ordnung mit 2 Achsen","Ordnung mit 2 Achsen","Ordnung mit 2 Achsen","Ordnung mit 2 Achsen","Ordnung mit 2 Achsen","Ordnung mit 2 Achsen","Ordnung mit 2 Achsen","Ordnung mit 2 Achsen"],"result":20}},{"name":"Drehscheiben","size":"3 Scheiben mit je 12 Stellungen","round":3,"rounds":5,"steps":12,"least":12,"reached":true,"observations":[[4,11,8,9,3,1],[4,0,8,9,3,1],[4,0,7,9,3,1],[4,0,6,9,3,1],[4,0,5,9,3,1],[4,0,4,9,3,1],[4,0,4,10,3,1],[4,0,4,11,3,1],[4,0,4,0,3,1],[4,0,4,1,3,1],[4,1,4,1,3,1],[4,2,4,1,3,1],[4,3,4,1,3,1]],"pressed":[0,5,5,5,5,1,1,1,1,0,0,0],"componentNames":["Ziel 2","Scheibe 3","Scheibe 2","Scheibe 1","Ziel 3","Ziel 1"],"actionNames":["+1 Scheibe 3","+1 Scheibe 1","−1 Scheibe 1","−1 Scheibe 3","+1 Scheibe 2","−1 Scheibe 2"],"form":{"name":"Ring × Ring × Ring","axes":[{"component":1,"name":"Scheibe 3","kind":"Ring","up":0,"upName":"+1 Scheibe 3","down":3,"downName":"−1 Scheibe 3"},{"component":2,"name":"Scheibe 2","kind":"Ring","up":4,"upName":"+1 Scheibe 2","down":5,"downName":"−1 Scheibe 2"},{"component":3,"name":"Scheibe 1","kind":"Ring","up":1,"upName":"+1 Scheibe 1","down":2,"downName":"−1 Scheibe 1"}],"fixed":[{"component":0,"name":"Ziel 2"},{"component":4,"name":"Ziel 3"},{"component":5,"name":"Ziel 1"}]},"goal":[{"pair":[0,2],"names":["Ziel 2","Scheibe 2"]},{"pair":[1,4],"names":["Scheibe 3","Ziel 3"]},{"pair":[3,5],"names":["Scheibe 1","Ziel 1"]}],"rules":{"moving":[{"action":0,"component":1,"agent":"Taste 0: G1 +1 im Ring aus 12 Werten","ours":"+1 Scheibe 3: Scheibe 3 +1 im Ring aus 12 Werten"},{"action":1,"component":3,"agent":"Taste 1: G3 +1 im Ring aus 12 Werten","ours":"+1 Scheibe 1: Scheibe 1 +1 im Ring aus 12 Werten"},{"action":2,"component":3,"agent":"Taste 2: G3 -1 im Ring aus 12 Werten","ours":"−1 Scheibe 1: Scheibe 1 -1 im Ring aus 12 Werten"},{"action":3,"component":1,"agent":"Taste 3: G1 -1 im Ring aus 12 Werten","ours":"−1 Scheibe 3: Scheibe 3 -1 im Ring aus 12 Werten"},{"action":4,"component":2,"agent":"Taste 4: G2 +1 im Ring aus 12 Werten","ours":"+1 Scheibe 2: Scheibe 2 +1 im Ring aus 12 Werten"},{"action":5,"component":2,"agent":"Taste 5: G2 -1 im Ring aus 12 Werten","ours":"−1 Scheibe 2: Scheibe 2 -1 im Ring aus 12 Werten"}],"kept":30,"unpredictable":0},"kind":"dials","positions":12,"values":[[9,8,11],[9,8,0],[9,7,0],[9,6,0],[9,5,0],[9,4,0],[10,4,0],[11,4,0],[0,4,0],[1,4,0],[1,4,1],[1,4,2],[1,4,3]],"target":[1,4,3],"summary":{"agents":["Zufall","Tabelle","Stand 0.16","neue Bausteine","Stand 0.17"],"main":"Stand 0.17","old":"Stand 0.16","steps":{"Zufall":1328.08,"Tabelle":1336.4,"Stand 0.16":13.92,"neue Bausteine":9.6,"Stand 0.17":9.6},"reached":{"Zufall":0.6,"Tabelle":0.6,"Stand 0.16":1,"neue Bausteine":1,"Stand 0.17":1},"best":9.6,"formFound":1,"oldForms":["Raum mit 3 Dimensionen","Raum mit 2 Dimensionen","Raum mit 3 Dimensionen","Raum mit 3 Dimensionen","Raum mit 3 Dimensionen","Raum mit 3 Dimensionen","Raum mit 3 Dimensionen","Raum mit 3 Dimensionen","Raum mit 3 Dimensionen","Raum mit 3 Dimensionen"],"result":20}},{"name":"Tauschen","size":"6 Steine","round":5,"rounds":5,"steps":13,"least":9,"reached":true,"observations":[[0,5,2,5,0,4,3,3,2,1,1,4],[0,5,2,5,0,4,2,3,3,1,1,4],[4,5,2,5,0,0,2,3,3,1,1,4],[4,5,2,5,0,2,0,3,3,1,1,4],[1,5,2,5,0,2,0,3,3,4,1,4],[1,5,2,3,0,2,0,3,5,4,1,4],[1,5,2,3,0,2,5,3,0,4,1,4],[2,5,2,3,0,1,5,3,0,4,1,4],[2,5,2,3,0,5,1,3,0,4,1,4],[2,5,2,3,0,5,0,3,1,4,1,4],[2,5,2,1,0,5,0,3,3,4,1,4],[2,5,2,1,0,5,3,3,0,4,1,4],[2,5,2,1,0,3,5,3,0,4,1,4],[3,5,2,1,0,2,5,3,0,4,1,4]],"pressed":[2,3,0,1,4,2,3,0,2,4,2,0,3],"componentNames":["Platz 2","Ziel Platz 4","Ziel Platz 3","Platz 6","Ziel Platz 5","Platz 3","Platz 4","Ziel Platz 2","Platz 5","Platz 1","Ziel Platz 6","Ziel Platz 1"],"actionNames":["tausche 3↔4","tausche 1↔2","tausche 4↔5","tausche 2↔3","tausche 5↔6"],"form":{"name":"keine bekannte Form","axes":[],"fixed":[{"component":1,"name":"Ziel Platz 4"},{"component":2,"name":"Ziel Platz 3"},{"component":4,"name":"Ziel Platz 5"},{"component":7,"name":"Ziel Platz 2"},{"component":10,"name":"Ziel Platz 6"},{"component":11,"name":"Ziel Platz 1"}]},"goal":[{"pair":[0,7],"names":["Platz 2","Ziel Platz 2"]},{"pair":[1,6],"names":["Ziel Platz 4","Platz 4"]},{"pair":[2,5],"names":["Ziel Platz 3","Platz 3"]},{"pair":[4,8],"names":["Ziel Platz 5","Platz 5"]}],"rules":{"moving":[{"action":0,"component":5,"agent":"Taste 0: G5 übernimmt G6","ours":"tausche 3↔4: Platz 3 übernimmt Platz 4"},{"action":0,"component":6,"agent":"Taste 0: G6 übernimmt G5","ours":"tausche 3↔4: Platz 4 übernimmt Platz 3"},{"action":1,"component":0,"agent":"Taste 1: G0 übernimmt G9","ours":"tausche 1↔2: Platz 2 übernimmt Platz 1"},{"action":1,"component":9,"agent":"Taste 1: G9 übernimmt G0","ours":"tausche 1↔2: Platz 1 übernimmt Platz 2"},{"action":2,"component":6,"agent":"Taste 2: G6 übernimmt G8","ours":"tausche 4↔5: Platz 4 übernimmt Platz 5"},{"action":2,"component":8,"agent":"Taste 2: G8 übernimmt G6","ours":"tausche 4↔5: Platz 5 übernimmt Platz 4"},{"action":3,"component":0,"agent":"Taste 3: G0 übernimmt G5","ours":"tausche 2↔3: Platz 2 übernimmt Platz 3"},{"action":3,"component":5,"agent":"Taste 3: G5 übernimmt G0","ours":"tausche 2↔3: Platz 3 übernimmt Platz 2"},{"action":4,"component":3,"agent":"Taste 4: G3 übernimmt G8","ours":"tausche 5↔6: Platz 6 übernimmt Platz 5"},{"action":4,"component":8,"agent":"Taste 4: G8 übernimmt G3","ours":"tausche 5↔6: Platz 5 übernimmt Platz 6"}],"kept":50,"unpredictable":0},"kind":"shuffle","slots":[[1,0,4,3,2,5],[1,0,4,2,3,5],[1,4,0,2,3,5],[1,4,2,0,3,5],[4,1,2,0,3,5],[4,1,2,0,5,3],[4,1,2,5,0,3],[4,2,1,5,0,3],[4,2,5,1,0,3],[4,2,5,0,1,3],[4,2,5,0,3,1],[4,2,5,3,0,1],[4,2,3,5,0,1],[4,3,2,5,0,1]],"target":[4,3,2,5,0,1],"summary":{"agents":["Zufall","Tabelle","Stand 0.16","neue Bausteine","Stand 0.17"],"main":"Stand 0.17","old":"Stand 0.16","steps":{"Zufall":786.42,"Tabelle":674.44,"Stand 0.16":761.78,"neue Bausteine":761.78,"Stand 0.17":7.74},"reached":{"Zufall":0.86,"Tabelle":0.9,"Stand 0.16":0.96,"neue Bausteine":0.96,"Stand 0.17":1},"best":7.5,"formFound":1,"oldForms":["keine bekannte Form","keine bekannte Form","keine bekannte Form","keine bekannte Form","keine bekannte Form","keine bekannte Form","keine bekannte Form","keine bekannte Form","keine bekannte Form","keine bekannte Form"],"result":20}}],"library":{"conditions":["ohne Bibliothek","mit Bibliothek","ohne Vorprüfung","Zufallsbibliothek"],"budget":20,"rows":[{"order":"2D-Raum → 3D-Raum → Suche","world":"2D-Raum","tested":{"ohne Bibliothek":2756.9,"mit Bibliothek":2756.9,"ohne Vorprüfung":2756.9,"Zufallsbibliothek":3660},"testedFound":{"ohne Bibliothek":420.7,"mit Bibliothek":420.7,"ohne Vorprüfung":420.7,"Zufallsbibliothek":464.9},"exact":{"ohne Bibliothek":16,"mit Bibliothek":16,"ohne Vorprüfung":16,"Zufallsbibliothek":16},"borrowed":{"ohne Bibliothek":0,"mit Bibliothek":0,"ohne Vorprüfung":0,"Zufallsbibliothek":1.2},"budgetReached":{"ohne Bibliothek":0.9400000000000001,"mit Bibliothek":0.9400000000000001}},{"order":"2D-Raum → 3D-Raum → Suche","world":"3D-Raum","tested":{"ohne Bibliothek":6554.9,"mit Bibliothek":5803.3,"ohne Vorprüfung":5943.9,"Zufallsbibliothek":9140.5},"testedFound":{"ohne Bibliothek":760.3,"mit Bibliothek":363.9,"ohne Vorprüfung":363.9,"Zufallsbibliothek":830.1},"exact":{"ohne Bibliothek":36.2,"mit Bibliothek":36.2,"ohne Vorprüfung":36.2,"Zufallsbibliothek":36.1},"borrowed":{"ohne Bibliothek":0,"mit Bibliothek":6,"ohne Vorprüfung":6,"Zufallsbibliothek":1.8},"budgetReached":{"ohne Bibliothek":1,"mit Bibliothek":0.96}},{"order":"2D-Raum → 3D-Raum → Suche","world":"Suche","tested":{"ohne Bibliothek":743.7,"mit Bibliothek":734,"ohne Vorprüfung":725.2,"Zufallsbibliothek":720.9},"testedFound":{"ohne Bibliothek":230.8,"mit Bibliothek":228.9,"ohne Vorprüfung":250.8,"Zufallsbibliothek":213.6},"exact":{"ohne Bibliothek":5.1,"mit Bibliothek":5.2,"ohne Vorprüfung":5.2,"Zufallsbibliothek":5.1},"borrowed":{"ohne Bibliothek":0,"mit Bibliothek":0.1,"ohne Vorprüfung":0.1,"Zufallsbibliothek":0.3},"budgetReached":{"ohne Bibliothek":0.9,"mit Bibliothek":0.94}},{"order":"Suche → 2D-Raum → 3D-Raum","world":"Suche","tested":{"ohne Bibliothek":743.7,"mit Bibliothek":743.7,"ohne Vorprüfung":743.7,"Zufallsbibliothek":720.9},"testedFound":{"ohne Bibliothek":230.8,"mit Bibliothek":230.8,"ohne Vorprüfung":230.8,"Zufallsbibliothek":213.6},"exact":{"ohne Bibliothek":5.1,"mit Bibliothek":5.1,"ohne Vorprüfung":5.1,"Zufallsbibliothek":5.1},"borrowed":{"ohne Bibliothek":0,"mit Bibliothek":0,"ohne Vorprüfung":0,"Zufallsbibliothek":0.3},"budgetReached":{"ohne Bibliothek":0.9,"mit Bibliothek":0.9}},{"order":"Suche → 2D-Raum → 3D-Raum","world":"2D-Raum","tested":{"ohne Bibliothek":2756.9,"mit Bibliothek":2801,"ohne Vorprüfung":2956,"Zufallsbibliothek":3660},"testedFound":{"ohne Bibliothek":420.7,"mit Bibliothek":309.2,"ohne Vorprüfung":321.9,"Zufallsbibliothek":464.9},"exact":{"ohne Bibliothek":16,"mit Bibliothek":16,"ohne Vorprüfung":16,"Zufallsbibliothek":16},"borrowed":{"ohne Bibliothek":0,"mit Bibliothek":2.4,"ohne Vorprüfung":2.4,"Zufallsbibliothek":1.2},"budgetReached":{"ohne Bibliothek":0.9400000000000001,"mit Bibliothek":0.9400000000000001}},{"order":"Suche → 2D-Raum → 3D-Raum","world":"3D-Raum","tested":{"ohne Bibliothek":6554.9,"mit Bibliothek":6388.6,"ohne Vorprüfung":6816,"Zufallsbibliothek":9140.5},"testedFound":{"ohne Bibliothek":760.3,"mit Bibliothek":388,"ohne Vorprüfung":415.7,"Zufallsbibliothek":830.1},"exact":{"ohne Bibliothek":36.2,"mit Bibliothek":36.2,"ohne Vorprüfung":36.2,"Zufallsbibliothek":36.1},"borrowed":{"ohne Bibliothek":0,"mit Bibliothek":6,"ohne Vorprüfung":6,"Zufallsbibliothek":1.8},"budgetReached":{"ohne Bibliothek":1,"mit Bibliothek":0.96}}],"entries":[{"order":"2D-Raum → 3D-Raum → Suche","name":"B1","pattern":"fester Schritt, außer ein Schalter ist 1 (dann bleibt sie)","origin":"2D-Raum","reuses":{"3D-Raum":6},"removed":false},{"order":"Suche → 2D-Raum → 3D-Raum","name":"B1","pattern":"fester Schritt, außer ein Schalter ist 1 (dann bleibt sie)","origin":"2D-Raum","reuses":{"3D-Raum":6},"removed":false}]},"newWorld":{"phases":["A","B","A wieder"],"episodes":15,"rows":[{"handling":"ohne Erkennung","steps":{"A":20.273333333333333,"B":97.56666666666666,"A wieder":140.42666666666668},"firstSteps":{"A":59.733333333333334,"B":106.6,"A wieder":165.8},"maps":1,"falseAlarms":0,"detectedB":0,"returned":0},{"handling":"jede Überraschung","steps":{"A":66.07333333333334,"B":75.99333333333334,"A wieder":30.886666666666667},"firstSteps":{"A":98.9,"B":104.13333333333334,"A wieder":23.7},"maps":25.4,"falseAlarms":533.9,"detectedB":1,"returned":0},{"handling":"nie neue Karte","steps":{"A":18.74,"B":48.053333333333335,"A wieder":46.193333333333335},"firstSteps":{"A":63.56666666666667,"B":86.5,"A wieder":116.63333333333334},"maps":1,"falseAlarms":0.1,"detectedB":1,"returned":0},{"handling":"erwartet / unerwartet","steps":{"A":18.74,"B":46.153333333333336,"A wieder":17.32},"firstSteps":{"A":63.56666666666667,"B":74.9,"A wieder":38.233333333333334},"maps":2.3,"falseAlarms":0.1,"detectedB":1,"returned":1},{"handling":"Bayes-Faktor","steps":{"A":17.673333333333332,"B":51.153333333333336,"A wieder":39.973333333333336},"firstSteps":{"A":62.56666666666667,"B":85.33333333333333,"A wieder":40.666666666666664},"maps":2.5,"falseAlarms":0,"detectedB":0.9,"returned":0.9}],"life":{"surprise":[-0.0,-0.0,-0.0,0.26,0.26,-0.0,0.24,0.24,0.26,-0.0,-0.0,-0.0,0.24,0.1,0.26,0.18,0.1,0.11,0.21,0.21,0.21,0.24,0.24,0.28,0.38,0.3,0.73,0.73,0.73,0.82,0.94,0.82,0.82,0.82,0.82,1.59,1.8,2.07,1.28,0.94,0.94,0.94,0.94,0.94,0.94,1.2,0.89,0.89,0.73,0.6,0.6,0.81,0.57,0.57,0.57,0.57,0.98,0.72,0.72,0.72,0.72,0.51,0.51,0.53,0.53,0.75,0.75,1.03,0.86,1.01,1.2,1.2,1.2,2.3,1.94,1.94,1.94,1.94,1.94,2.3,2.3,1.94,2.72,2.72,1.94,1.94,1.94,1.94,2.0,2.72,2.72,2.72,2.72,1.94,3.16,3.16,4.04,4.04,4.04,4.04,4.04,4.77,4.77,4.77,4.77,3.82,3.82,3.82,3.82,2.86,2.86,2.3,2.3,2.3,2.3,3.16,2.3,2.3,2.3,2.3,3.16,4.04,3.16,3.16,3.16,4.04,4.04,4.04,4.04,4.04,4.04,4.77,5.73,-0.0,0.75,0.75,0.49,0.49,0.49,0.49,0.36,0.75,0.53,0.64,0.77,0.77,0.77,0.9,0.9,0.9,0.9,1.21,1.21,1.21,1.21,1.21,1.21,1.21,1.21,1.69,2.18,1.75,1.75,2.18,2.18,1.31,0.91,0.91,0.9,0.9,0.7,0.54,0.51,0.67,0.58,0.98,1.17,0.98,0.84,0.84,1.05,1.05,0.7,0.7,0.7,0.7,1.05,1.31,1.69,1.69,1.69,1.69,2.18,2.18,2.18,2.18,2.18,1.31,0.84,0.7,0.54,0.54,1.04,1.04,1.04,0.92,1.04,1.19,1.38,1.38,1.19,1.38,1.38,1.95,1.95,1.95,1.95,1.66,1.38,1.38,1.38,1.19,0.7,0.71,0.83,0.83,1.01,1.01,1.62,1.78,1.62,1.78,1.78,1.78,1.78,2.85,3.14,3.53,3.53,3.53,2.28,2.28,2.28,2.28,1.99,1.99,1.99,1.99,1.74,1.95,1.95,2.22,1.95,1.74,1.74,1.74,1.74,1.56,0.78,0.93,0.93,0.93,0.93,1.23,1.23,1.23,1.23,1.19,1.23,1.23,1.23,2.43,1.88,1.88,1.88,1.88,1.88,1.88,1.53,0.93,0.9,0.76,0.76,0.76,0.64,0.87,0.88,0.87,0.87,0.87,0.87,0.59,0.64,0.64,0.7,0.7,0.7,0.58,0.58,0.82,0.88,1.0,1.0,1.13,1.13,1.13,1.13,1.13,1.13,1.13,1.29,1.29,2.01,2.01,2.01,1.66,2.01,2.01,2.01,2.77,2.01,2.77,2.77,2.34,2.34,2.03,2.03,2.03,2.03,2.92,2.92,2.36,2.36,2.36,2.36,2.36,2.0,1.88,1.88,1.88,1.88,1.88,2.0,2.8,3.24,3.24,3.24,3.24,3.24,3.24,2.8,2.8,2.8,2.0,2.0,2.0,2.0,1.35,1.5,1.5,1.5,1.35,1.52,1.35,1.33,1.24,1.15,1.79,1.79,1.45,1.21,1.24,1.51,1.51,1.51,2.05,2.05,2.05,2.05,2.34,2.34,2.34,1.75,1.75,1.75,2.02,2.02,2.02,2.02,2.7,2.7,2.7,2.02,3.13,2.02,1.73,1.73,1.42,2.04,2.04,2.0,1.73,2.47,2.21,1.99,1.8,1.99,1.99,2.93,3.69,3.69,4.47,4.47,4.47,4.47,4.47,4.47,3.69,2.93,2.93,2.93,3.24,2.47,2.8,3.24,3.9,3.9,3.9,2.92,1.95,1.95,1.32,1.33,1.33,1.73,2.74,2.74,2.74,2.74,3.47,5.41,1.12,2.24,3.36,3.36,2.78,2.78,2.78,2.78,3.8,3.8,3.8,3.35,3.35,3.35,4.17,4.17,4.33,5.21,-0.0,0.6,-0.0,0.26,0.31,0.36,0.59,0.46,0.33,0.33,0.33,0.48,0.36,0.33,0.39,0.68,0.68,0.68,0.68,0.68,1.0,0.98,0.98,0.98,0.98,1.29,1.29,1.29,1.29,1.29,1.29,0.98,0.77,0.77,0.44,0.33,0.23,0.23,0.33,0.24,0.23,0.4,0.4,0.23,0.33,0.39,0.39,0.51,0.57,0.82,1.09,1.09,1.8,1.8,2.07,2.07,2.43,3.0,4.0,3.34,3.34,3.34,3.34,3.34,2.43,2.07,2.85,2.85,2.85,2.85,2.07,2.07,1.31,1.61,1.61,2.07,1.72,1.46,1.46,2.42,2.42,3.16,3.91,3.91,3.91,3.91,3.16,3.16,3.16,3.16,3.16,2.78,2.48,2.48,2.23,1.64,1.85,2.1,1.46,1.32,1.32,2.13,2.13,2.13,2.13,2.48,2.48,2.48,2.48,2.48,3.18,2.48,1.79,1.79,2.33,2.33,2.33,2.33,2.33,2.33,2.33,2.33,2.33,1.56,1.13,0.67,0.67,1.1,0.98,0.56,0.61,1.05,1.05,1.28,1.28,1.05,1.05,1.05,1.05,1.05,1.05,0.61,0.61,0.77,0.77,0.77,0.89,0.89,0.89,1.04,1.04,0.89,0.89,0.89,0.89,0.89,1.04,0.56,0.56,0.48,0.48,0.62,0.48,0.54,0.54,0.54,0.54,0.76,0.76,0.76,0.76,1.23,0.92,0.92,0.54,0.53,0.53,0.9,0.53,0.53,0.53,0.53,0.53,0.53,0.53,0.53,0.9,0.39,0.53,0.53,0.39,0.37,0.34,0.51,0.51,0.51,0.51,0.61,1.06,1.06,0.91,0.98,1.57,1.57,1.26,1.77,1.77,1.77,1.77,1.77,1.77,1.77,1.77,1.77,1.48,1.48,1.25,1.07,1.07,1.34,1.34,1.07,1.15,1.15,1.39,0.87,1.07,1.07,0.97,0.97,0.97,1.2,1.53,1.87,1.94,2.49,3.12,3.12,2.49,2.49,2.49,2.49,2.49,2.49,3.12,3.12,3.12,3.12,3.12,3.12,3.12,3.12,2.49,1.87,1.87,1.25,1.13,0.83,0.83,0.83,0.71,0.81,1.36,1.46,2.03,2.03,2.19,3.29,4.39,4.39,4.39,4.39,4.39,4.39,4.39,4.39,4.83,6.0,1.03,2.07,3.1,3.1,4.13,4.13,4.13,5.17,1.1,1.1,1.1,1.1,1.11,1.1,1.1,1.1,1.73,1.73,2.19,2.19,2.6,2.6,2.6,3.29,4.39,5.48,0.81,0.54,0.4,0.26,0.76,0.6,0.5,0.42,0.42,1.35,2.7,2.24,1.95,1.95,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.21,2.21,3.24,4.48,3.63,4.13,4.87,4.87,4.87,4.87,4.13,3.63,3.63,3.63,3.63,3.63,2.8,2.47,2.21,2.21,2.21,1.99,1.35,1.2,0.97,0.97,0.85,0.92,1.03,1.15,1.21,1.43,1.35,1.5,1.24,1.24,1.24,1.95,1.95,1.95,2.13,1.95,1.95,1.95,1.73,1.91,1.91,1.91,1.91,1.91,1.91,1.91,1.91,1.91,1.91,1.15,1.3,1.3,1.5,1.77,1.77,2.18,2.18,2.0,2.0,2.0,2.0,2.21,2.21,2.21,2.0,2.0,1.47,2.05,2.05,2.05,2.05],"limit":5.0,"starts":{"A":0,"B":432,"A wieder":719},"events":[{"step":133,"kind":"verfeinern","target":0},{"step":441,"kind":"verfeinern","target":0},{"step":459,"kind":"neu","target":1},{"step":737,"kind":"verfeinern","target":1},{"step":745,"kind":"verfeinern","target":1},{"step":763,"kind":"zurück","target":0}],"steps":{"A":[300,60,12,2,4,2,6,2,5,3,11,13,2,5,5],"B":[233,3,2,3,5,4,3,5,7,4,2,2,5,5,4],"A wieder":[52,10,7,8,8,6,8,10,4,1,7,8,8,2,3]}}},"stream":{"phases":["Raum","Suchbaum","Drehscheiben","Raum wieder"],"within":30,"rows":[{"handling":"ohne Erkennung","steps":{"Raum":20.44,"Suchbaum":176.18666666666667,"Drehscheiben":233.69333333333333,"Raum wieder":166.81333333333333},"detected":{"Suchbaum":0,"Drehscheiben":0,"Raum wieder":0},"extra":0,"returned":0,"maps":1},{"handling":"jede Überraschung","steps":{"Raum":78.00666666666666,"Suchbaum":125.96666666666667,"Drehscheiben":116.21333333333334,"Raum wieder":47.95333333333333},"detected":{"Suchbaum":1,"Drehscheiben":1,"Raum wieder":1},"extra":1630,"returned":0.6,"maps":20.9},{"handling":"nie neue Karte","steps":{"Raum":22.013333333333332,"Suchbaum":43.84,"Drehscheiben":63.593333333333334,"Raum wieder":28.833333333333332},"detected":{"Suchbaum":0.8,"Drehscheiben":0.8,"Raum wieder":1},"extra":0.5,"returned":0,"maps":1},{"handling":"erwartet / unerwartet","steps":{"Raum":22.013333333333332,"Suchbaum":43.84,"Drehscheiben":73.21333333333334,"Raum wieder":73.65333333333334},"detected":{"Suchbaum":0.8,"Drehscheiben":0.8,"Raum wieder":1},"extra":1.4,"returned":0.6,"maps":3.6},{"handling":"Bayes-Faktor","steps":{"Raum":22.28,"Suchbaum":91.71333333333334,"Drehscheiben":107.51333333333334,"Raum wieder":94.68},"detected":{"Suchbaum":0.8,"Drehscheiben":1,"Raum wieder":1},"extra":1.2,"returned":0.8,"maps":3.6}],"life":{"starts":{"Raum":0,"Suchbaum":419,"Drehscheiben":685,"Raum wieder":1882},"end":4504,"events":[{"step":179,"kind":"verfeinern","target":0},{"step":475,"kind":"verfeinern","target":0},{"step":501,"kind":"neu","target":1},{"step":693,"kind":"neu","target":2},{"step":1887,"kind":"zurück","target":0}]}}};
 
 const fmt = (value, digits = 1) =>
   Number(value).toLocaleString("de-DE", { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -257,7 +303,10 @@ const el = (tag, attrs = {}, ...children) => {
   return node;
 };
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-const subtitle = world => ({ "2D-Raum": "Raum", "3D-Raum": "Würfel", "Suche": "Suchbaum" })[world.name] || "";
+const subtitle = world => ({ "2D-Raum": "Raum", "3D-Raum": "Würfel", "Suche": "Suchbaum", "Eis-Raum": "Rutschen",
+  "Drehscheiben": "Ringe", "Tauschen": "ohne Form" })[world.name] || "";
+const byResult = result => DATA.worlds.filter(world => world.summary.result === result);
+const sum = values => values.reduce((a, b) => a + b, 0);
 
 const state = { world: 0, step: 0, timer: null };
 
@@ -266,13 +315,48 @@ function renderHeadline() {
   const box = document.getElementById("headline");
   for (const world of DATA.worlds) {
     const s = world.summary;
-    const ours = s.steps["Form + Regeln"];
-    const random = s.steps["Zufall"];
-    const randomText = s.reached["Zufall"] === 0 ? `Zufall: nie am Ziel` : `Zufall: ${fmt(random, 0)} Schritte`;
+    const ours = s.steps[s.main];
+    const other = s.old
+      ? `Stand 0.16: ${fmt(s.steps[s.old], 0)} Schritte`
+      : s.reached["Zufall"] === 0 ? "Zufall: nie am Ziel" : `Zufall: ${fmt(s.steps["Zufall"], 0)} Schritte`;
     box.append(el("div", { class: "card" },
       el("div", { class: "label", text: `${world.name} · ${world.size}` }),
       el("div", { class: "big" }, fmt(ours), el("small", { text: `Schritte, bestenfalls ${fmt(s.best)}` })),
-      el("div", { class: "muted", text: `${randomText} · Form erkannt in ${pct(s.formFound)} der Läufe` })));
+      el("div", { class: "muted", text: `${other} · Form erkannt in ${pct(s.formFound)} der Läufe` })));
+  }
+}
+
+/* ---------- Vier Grenzen ---------- */
+function renderSolutions() {
+  const world = name => DATA.worlds.find(w => w.name === name).summary;
+  const dials = world("Drehscheiben"), ice = world("Eis-Raum"), shuffle = world("Tauschen");
+  const oldDials = [...new Set(dials.oldForms)].join(" oder ");
+  const stream = Object.fromEntries(DATA.stream.rows.map(r => [r.handling, r]));
+  const detected = row => sum(Object.values(row.detected)) / Object.values(row.detected).length;
+  const bayes = stream["Bayes-Faktor"], expected = stream["erwartet / unerwartet"];
+  const lib = DATA.library;
+  const total = c => sum(lib.rows.map(r => r.tested[c]));
+  const change = (c, base) => `${total(c) >= total(base) ? "+" : "−"}${fmt(Math.abs(100 * (total(c) / total(base) - 1)), 0)} %`;
+  const items = [
+    ["Grenze 1 · H21", "Formen aus einer Grammatik statt aus einer Liste",
+      "0.16 kannte nur Raum und Ordnung.",
+      `Achsen sind jetzt Kette, Ring, Rutschbahn oder Ordnung, die Form ist ihr Produkt. Die Drehscheiben heißen jetzt in ${pct(dials.formFound)} der Läufe „Ring × Ring × Ring“ (0.16: „${oldDials}“). Ohne jede Achse sucht er im Modell: Tauschen <b>${fmt(shuffle.steps[shuffle.main])}</b> statt ${fmt(shuffle.steps[shuffle.old])} Schritte.`],
+    ["Grenze 2 · H22", "Ein Baustein „wiederholen, bis“",
+      "0.16 konnte das Rutschen auf Eis nicht ausdrücken.",
+      `„+1 immer wieder, bis die Wand kommt“ ist eine Regel. Auf Eis 12×12 braucht er <b>${fmt(ice.steps[ice.main])}</b> statt ${fmt(ice.steps[ice.old])} Schritte (bestenfalls ${fmt(ice.best)}) und nennt die Form „Rutschbahn mit 2 Dimensionen“.`],
+    ["Grenze 3 · H23", "Neue Welt per Bayes-Faktor",
+      "0.16 hat nur vertauschte Tasten als neue Welt geprüft.",
+      `Im Strom aus Raum, Suchbaum und Drehscheiben erkennt der Bayes-Faktor <b>${pct(detected(bayes))}</b> der Wechsel in den ersten ${DATA.stream.within} Schritten (Test einzelner Regeln: ${pct(detected(expected))}), mit ${fmt(bayes.extra)} überzähligen Wechseln je Lauf (${fmt(expected.extra)}). Er sammelt aber oft lange, bevor er entscheidet, und braucht deshalb mehr Schritte.`],
+    ["Grenze 4 · H24", "Bibliothek mit Vorprüfung",
+      "0.16: Die Bibliothek sparte nur bei den Suchen mit Erfolg.",
+      `Ein Muster wird nur probiert, wenn es die gesehenen Änderungen überhaupt erzeugen kann. Alle Suchen zusammen: mit Vorprüfung <b>${change("mit Bibliothek", "ohne Bibliothek")}</b>, ohne Vorprüfung ${change("ohne Vorprüfung", "ohne Bibliothek")} gegenüber ohne Bibliothek.`],
+  ];
+  const box = document.getElementById("solutions");
+  for (const [label, title, then, now] of items) {
+    const nowNode = el("p", { class: "now" });
+    nowNode.innerHTML = now;
+    box.append(el("div", { class: "card limit" }, el("div", { class: "label", text: label }), el("h3", { text: title }),
+      el("p", { class: "then", text: then }), nowNode));
   }
 }
 
@@ -280,6 +364,7 @@ function renderHeadline() {
 function renderTabs() {
   const tabs = document.getElementById("tabs");
   DATA.worlds.forEach((world, index) => {
+    if (index > 0 && world.summary.result !== DATA.worlds[index - 1].summary.result) tabs.append(el("span", { class: "group" }));
     const button = el("button", { type: "button", role: "tab", "aria-selected": String(index === state.world) },
       world.name, el("span", { class: "sub", text: subtitle(world) }));
     button.addEventListener("click", () => selectWorld(index));
@@ -353,13 +438,21 @@ function renderFound(world) {
   const form = world.form;
   const formBlock = el("div", { class: "block" }, el("div", { class: "label", text: "Form der Welt" }),
     el("div", { class: "formname", text: form.name }));
+  const kinds = {
+    "Kette": a => `Raumachse. Taste ${a.up} geht vor, Taste ${a.down} zurück.`,
+    "Ring": a => `Ring. Taste ${a.up} dreht vor, Taste ${a.down} zurück, nach dem letzten Wert kommt der erste.`,
+    "Rutschbahn": a => `Rutschbahn. Taste ${a.up} rutscht vor, Taste ${a.down} zurück, bis etwas aufhält.`,
+    "Ordnung": a => `Ordnung. Taste ${a.up} lässt steigen, Taste ${a.down} fallen.`,
+  };
   for (const axis of form.axes) {
-    const order = axis.kind === "Ordnung";
-    const said = order
-      ? `G${axis.component}: Ordnung. Taste ${axis.up} lässt steigen, Taste ${axis.down} fallen.`
-      : `G${axis.component}: Raumachse. Taste ${axis.up} geht vor, Taste ${axis.down} zurück.`;
+    const said = `G${axis.component}: ${kinds[axis.kind](axis)}`;
     const ours = `${axis.name}: ${axis.upName} / ${axis.downName}`;
     formBlock.append(el("div", { class: "rule" }, el("div", { class: "said", text: said }), el("div", { class: "ours", text: ours })));
+  }
+  if (!form.axes.length) {
+    formBlock.append(el("div", { class: "caption", text:
+      "Keine Größe, die eine Taste stetig erhöht und eine andere senkt: keine Form mit Namen. Er plant " +
+      "direkt in seinem Modell, stellt sich vor, was jede Taste bewirkt, und sucht den kürzesten Weg." }));
   }
   if (form.fixed.length) {
     formBlock.append(el("div", { class: "caption", text:
@@ -385,31 +478,82 @@ function renderFound(world) {
   rules.append(list, el("div", { class: "caption", text:
     `Dazu ${world.rules.kept} Regeln „bleibt gleich“ und ${world.rules.unpredictable} Größen, ` +
     `die er nach einer Taste nicht sicher vorhersagen kann ` +
-    (world.kind === "search" ? "(etwa den Schlüssel nach „hinauf“)." : "(etwa Wände am neuen Ort).") }));
+    ({ search: "(etwa den Schlüssel nach „hinauf“).", lattice: "(etwa Wände am neuen Ort)." }[world.kind] || ".") }));
   box.append(rules);
 }
 
 /* ---------- Was wirklich passiert ---------- */
 function renderLegend(world) {
-  const items = world.kind === "search"
-    ? [["--agent", "Knoten, an dem er gerade ist"], ["--goal", "gesuchter Schlüssel"]]
-    : [["--agent", "Agent und sein Weg"], ["--goal", "Ziel"], ["--wall", "Wand"]];
+  const items = {
+    search: [["--agent", "Knoten, an dem er gerade ist"], ["--goal", "gesuchter Schlüssel"]],
+    lattice: [["--agent", "Agent und sein Weg"], ["--goal", "Ziel"], ["--wall", "Wand"]].concat(world.ice ? [["--ice", "Eis"]] : []),
+    dials: [["--agent", "Stellung"], ["--goal", "Ziel"]],
+    shuffle: [["--agent", "gerade getauscht"], ["--goal", "Stein schon am richtigen Platz"]],
+  }[world.kind];
   document.getElementById("legend").replaceChildren(...items.map(([token, text]) =>
     el("span", {}, el("i", { style: `background: var(${token})` }), text)));
 }
 
 function renderTruthFrame(world) {
   const box = document.getElementById("truth");
-  if (world.kind === "search") {
-    box.replaceChildren(el("div", { class: "search-rows", id: "search-rows" }));
-  } else {
-    box.replaceChildren(el("canvas", { id: "canvas", role: "img", "aria-label": `${world.name}, Weg des Agenten` }));
-  }
+  const frames = {
+    search: () => el("div", { class: "search-rows", id: "search-rows" }),
+    lattice: () => el("canvas", { id: "canvas", role: "img", "aria-label": `${world.name}, Weg des Agenten` }),
+    dials: () => el("div", { class: "dials", id: "dials", role: "img", "aria-label": "Drehscheiben mit Stellung und Ziel" }),
+    shuffle: () => el("div", { class: "tokens", id: "tokens" }),
+  };
+  box.replaceChildren(frames[world.kind]());
 }
 
 function drawTruth(world, step) {
-  if (world.kind === "search") drawSearch(world, step);
-  else drawLattice(world, step);
+  ({ search: drawSearch, lattice: drawLattice, dials: drawDials, shuffle: drawShuffle })[world.kind](world, step);
+}
+
+function drawDials(world, step) {
+  const box = document.getElementById("dials");
+  if (!box) return;
+  const ns = "http://www.w3.org/2000/svg";
+  const size = world.positions;
+  const values = world.values[step];
+  box.replaceChildren(...values.map((value, index) => {
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 120 132");
+    const add = (tag, attrs, text) => {
+      const node = document.createElementNS(ns, tag);
+      for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+      if (text !== undefined) node.textContent = text;
+      svg.append(node);
+    };
+    const at = (k, r) => [60 + r * Math.sin((2 * Math.PI * k) / size), 60 - r * Math.cos((2 * Math.PI * k) / size)];
+    add("circle", { cx: 60, cy: 60, r: 46, fill: "var(--cell)", stroke: "var(--line)", "stroke-width": 2 });
+    for (let k = 0; k < size; k++) {
+      const [x1, y1] = at(k, 40), [x2, y2] = at(k, 46);
+      add("line", { x1, y1, x2, y2, stroke: "var(--muted)", "stroke-width": 1 });
+    }
+    const [tx, ty] = at(world.target[index], 46);
+    add("circle", { cx: tx, cy: ty, r: 7, fill: "none", stroke: "var(--goal)", "stroke-width": 3 });
+    const [vx, vy] = at(value, 34);
+    add("line", { x1: 60, y1: 60, x2: vx, y2: vy, stroke: "var(--agent)", "stroke-width": 4, "stroke-linecap": "round" });
+    add("circle", { cx: 60, cy: 60, r: 4, fill: "var(--agent)" });
+    add("text", { x: 60, y: 126, "text-anchor": "middle", "font-size": 11 }, `Scheibe ${index + 1}: ${value} → ${world.target[index]}`);
+    return svg;
+  }));
+}
+
+function drawShuffle(world, step) {
+  const box = document.getElementById("tokens");
+  if (!box) return;
+  const count = world.target.length;
+  const hue = token => `hsl(${(token * 360) / count} 55% 45%)`;
+  const now = world.slots[step];
+  const before = step > 0 ? world.slots[step - 1] : now;
+  const row = (label, slots, marks) => el("div", { class: "token-row" }, el("div", { class: "label", text: label }),
+    el("div", { class: "row" }, ...slots.map((token, i) =>
+      el("div", { class: "token" + marks(i), style: `background: ${hue(token)}`, text: String(token) }))));
+  box.replaceChildren(
+    row("Jetzt", now, i => (now[i] !== before[i] ? " moved" : "") + (now[i] === world.target[i] ? " right" : "")),
+    row("Ziel", world.target, () => ""),
+    el("div", { class: "caption", text: `${sum(now.map((t, i) => (t === world.target[i] ? 1 : 0)))} von ${count} Steinen am richtigen Platz.` }));
 }
 
 function drawLattice(world, step) {
@@ -432,7 +576,7 @@ function drawLattice(world, step) {
   const ctx = canvas.getContext("2d");
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   ctx.clearRect(0, 0, width, height);
-  const color = { cell: css("--cell"), wall: css("--wall"), agent: css("--agent"), soft: css("--agent-soft"), goal: css("--goal"), muted: css("--muted"), line: css("--line"), ink: css("--ink") };
+  const color = { ice: css("--ice"), cell: css("--cell"), wall: css("--wall"), agent: css("--agent"), soft: css("--agent-soft"), goal: css("--goal"), muted: css("--muted"), line: css("--line"), ink: css("--ink") };
   const blocked = new Set(world.blocked.map(c => c.join(",")));
   const position = world.positions[step];
   const sliceOf = p => (world.dims === 3 ? p[2] : 0);
@@ -454,7 +598,7 @@ function drawLattice(world, step) {
     for (let x = 0; x < edge; x++) {
       for (let y = 0; y < edge; y++) {
         const key = world.dims === 3 ? `${x},${y},${z}` : `${x},${y}`;
-        ctx.fillStyle = blocked.has(key) ? color.wall : color.cell;
+        ctx.fillStyle = blocked.has(key) ? color.wall : world.ice ? color.ice : color.cell;
         ctx.fillRect(ox + x * cell + 0.5, oy + (edge - 1 - y) * cell + 0.5, cell - 1, cell - 1);
       }
     }
@@ -507,23 +651,30 @@ function drawSearch(world, step) {
 }
 
 /* ---------- Alle Läufe ---------- */
-function renderAll() {
-  document.getElementById("all-note").textContent =
-    `${DATA.seeds} Läufe je Welt, je ${DATA.worlds[0].rounds} Prüfrunden. Mittlere Schritte bis zum Ziel; ` +
-    `nicht erreicht zählt als ${DATA.testLimit.toLocaleString("de-DE")}. In Klammern: Anteil der Runden am Ziel.`;
-  const table = document.getElementById("all-table");
-  const head = el("tr", {}, el("th", { text: "Welt" }), ...DATA.agents.map(a => el("th", { text: a })), el("th", { text: "bestenfalls" }));
-  const body = DATA.worlds.map(world => {
+function resultTable(id, worlds, caption) {
+  const agents = worlds[0].summary.agents;
+  const table = document.getElementById(id);
+  const head = el("tr", {}, el("th", { text: "Welt" }), ...agents.map(a => el("th", { text: a })), el("th", { text: "bestenfalls" }));
+  const body = worlds.map(world => {
     const s = world.summary;
-    const best = Math.min(...DATA.agents.map(a => s.steps[a]));
+    const best = Math.min(...agents.map(a => s.steps[a]));
     return el("tr", {}, el("td", {}, world.name, el("span", { class: "sub", text: world.size })),
-      ...DATA.agents.map(a => {
+      ...agents.map(a => {
         const cls = "num" + (s.steps[a] === best ? " best" : "") + (s.reached[a] === 0 ? " fail" : "");
         return el("td", { class: cls }, fmt(s.steps[a]), el("span", { class: "sub", text: `(${pct(s.reached[a])})` }));
       }),
       el("td", { class: "num", text: fmt(s.best) }));
   });
-  table.replaceChildren(el("thead", {}, head), el("tbody", {}, ...body));
+  table.replaceChildren(el("caption", { class: "label", style: "text-align:left; padding: 12px 14px 0", text: caption }),
+    el("thead", {}, head), el("tbody", {}, ...body));
+}
+
+function renderAll() {
+  document.getElementById("all-note").textContent =
+    `${DATA.seeds} Läufe je Welt, je ${DATA.worlds[0].rounds} Prüfrunden. Mittlere Schritte bis zum Ziel; ` +
+    `nicht erreicht zählt als ${DATA.testLimit.toLocaleString("de-DE")}. In Klammern: Anteil der Runden am Ziel.`;
+  resultTable("all-table", byResult(17), "Ergebnis 17: Raum, Würfel, Suchbaum");
+  resultTable("new-forms-table", byResult(20), "Ergebnis 20: Welten, deren Form 0.16 nicht kannte");
 }
 
 /* ---------- Bibliothek ---------- */
@@ -562,11 +713,17 @@ function renderLibrary() {
       el("div", { class: "muted", text: `wiederverwendet in ${uses}${entry.removed ? " · später entfernt" : ""}` })));
   }
   entries.append(el("div", { class: "card" },
-    el("div", { class: "label", text: "Zur Ehrlichkeit" }),
-    el("div", { text: "Im 3D-Raum findet er seine Regeln mit dem Muster aus dem 2D-Raum mit etwa halb so vielen " +
-      "Programmen. Im Suchbaum hilft es nicht, dort passt kein Muster. Über alle Suchen ist der Gewinn klein " +
-      "oder sogar negativ, weil die Bibliothek auch bei Größen mitprobiert wird, die sich gar nicht " +
-      "vorhersagen lassen. " + budgetText(lib) })));
+    el("div", { class: "label", text: "Vorprüfung (H24)" }),
+    el("div", { text: libraryText(lib) + " " + budgetText(lib) })));
+}
+
+function libraryText(lib) {
+  const total = c => sum(lib.rows.map(r => r.tested[c]));
+  const base = total("ohne Bibliothek");
+  const share = c => `${fmt(total(c), 0)} (${total(c) >= base ? "+" : "−"}${fmt(Math.abs(100 * (total(c) / base - 1)), 0)} %)`;
+  return `Alle Suchen in allen Welten zusammen: ohne Bibliothek ${fmt(base, 0)} Programme, mit Bibliothek und ` +
+    `Vorprüfung ${share("mit Bibliothek")}, ohne Vorprüfung wie in 0.16 ${share("ohne Vorprüfung")}, ` +
+    `Zufallsbibliothek ${share("Zufallsbibliothek")}.`;
 }
 
 function budgetText(lib) {
@@ -627,7 +784,7 @@ function renderChart() {
   const table = document.getElementById("new-table");
   const head = el("tr", {}, el("th", { text: "Umgang mit Überraschung" }), ...nw.phases.map(p => el("th", { text: `Schritte ${p}` })),
     el("th", { text: "Karten" }), el("th", { text: "Fehlalarme" }), el("th", { text: "B erkannt" }), el("th", { text: "alte Karte wieder" }));
-  const dash = (row, value, text) => (row.handling === "ohne Erkennung" || row.handling === "nie neue Karte") ? "–" : text(value);
+  const dash = (row, value, text) => (row.handling === "ohne Erkennung") ? "–" : text(value);
   const body = nw.rows.map(row => el("tr", {}, el("td", { text: row.handling }),
     ...nw.phases.map(p => el("td", { class: "num" }, fmt(row.steps[p]), el("span", { class: "sub", text: `(${fmt(row.firstSteps[p], 0)})` }))),
     el("td", { class: "num", text: fmt(row.maps) }),
@@ -639,15 +796,75 @@ function renderChart() {
     el("thead", {}, head), el("tbody", {}, ...body));
 }
 
+/* ---------- Strom ---------- */
+function renderStream() {
+  const st = DATA.stream;
+  const life = st.life;
+  const W = 900, H = 150, left = 12, right = 12, top = 44, bottom = 26;
+  const GAP = 110; // Mindestabstand zweier Beschriftungen in einer Zeile
+  const x = step => left + (step / Math.max(1, life.end)) * (W - left - right);
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "Phasen des Stroms und Kartenwechsel des Agenten mit Bayes-Faktor");
+  const add = (tag, attrs, text) => {
+    const node = document.createElementNS(ns, tag);
+    for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+    if (text !== undefined) node.textContent = text;
+    svg.append(node);
+    return node;
+  };
+  // Liegen zwei Beschriftungen zu dicht, rückt die zweite eine Zeile weiter.
+  const rows = [];
+  const row = at => {
+    let index = rows.findIndex(last => at - last >= GAP);
+    if (index < 0) { rows.push(-Infinity); index = rows.length - 1; }
+    rows[index] = at;
+    return index;
+  };
+  st.phases.forEach((name, i) => {
+    const start = life.starts[name];
+    const end = i + 1 < st.phases.length ? life.starts[st.phases[i + 1]] : life.end;
+    add("rect", { x: x(start), y: top, width: Math.max(1, x(end) - x(start)), height: H - top - bottom, fill: i % 2 ? "var(--phase-b)" : "var(--sunk)" });
+    add("text", { x: x(start) + 6, y: top - 8 - 16 * row(x(start)), class: "phase-label" }, name);
+  });
+  rows.length = 0;
+  const labels = { "neu": "neue Karte", "zurück": "alte Karte" };
+  for (const event of life.events) {
+    if (event.kind === "verfeinern") continue;
+    add("line", { x1: x(event.step), x2: x(event.step), y1: top, y2: H - bottom, stroke: "var(--goal)", "stroke-width": 2.5 });
+    add("text", { x: x(event.step) + 4, y: H - bottom - 8 - 16 * row(x(event.step)), fill: "var(--goal)" }, `${labels[event.kind] || event.kind} ${event.target + 1}`);
+  }
+  add("text", { x: left, y: H - 6 }, "Schritt 0");
+  add("text", { x: W - right, y: H - 6, "text-anchor": "end" }, `Schritt ${life.end}`);
+  document.getElementById("stream-chart").replaceChildren(
+    el("div", { class: "label", text: "Ein Lauf mit Bayes-Faktor: grüne Linie = Kartenwechsel, Zahl = Karte danach" }), svg);
+
+  const phases = st.phases;
+  const table = document.getElementById("stream-table");
+  const head = el("tr", {}, el("th", { text: "Umgang" }), ...phases.map(p => el("th", { text: `Schritte ${p}` })),
+    ...phases.slice(1).map(p => el("th", { text: `${p} erkannt` })), el("th", { text: "überzählig" }), el("th", { text: "alte Karte wieder" }));
+  const none = row => row.handling === "ohne Erkennung";
+  const body = st.rows.map(row => el("tr", {}, el("td", { text: row.handling }),
+    ...phases.map(p => el("td", { class: "num", text: fmt(row.steps[p]) })),
+    ...phases.slice(1).map(p => el("td", { class: "num", text: none(row) ? "–" : pct(row.detected[p]) })),
+    el("td", { class: "num", text: none(row) ? "–" : fmt(row.extra) }),
+    el("td", { class: "num", text: none(row) ? "–" : pct(row.returned) })));
+  table.replaceChildren(el("caption", { class: "label", style: "text-align:left; padding: 12px 14px 0", text:
+      `Mittlere Schritte je Runde, erkannt = Kartenwechsel in den ersten ${st.within} Schritten der Phase, überzählig = weitere Wechsel je Lauf. ${DATA.seeds} Läufe.` }),
+    el("thead", {}, head), el("tbody", {}, ...body));
+}
+
 /* ---------- Grenzen ---------- */
 function renderLimits() {
   const items = [
-    "Die Formen kommen aus einer festen Liste (Raum, Ordnung). Eine Welt mit ganz anderer Form würde er nicht erkennen, er fiele auf „Regeln ohne Form“ zurück.",
-    "„Regeln ohne Form“ fehlt nicht nur die Form, sondern auch die Karte. Der Abstand zu „Form + Regeln“ misst also beides zusammen.",
-    "Die Bibliothek spart Suche bei den Regeln, die es gibt, kostet aber insgesamt etwas mehr Rechenarbeit.",
-    "Die neue Umgebung B wird nicht in jedem Lauf erkannt (siehe Tabelle). Wird sie übersehen, lernt er A einfach um.",
+    "Ringgröße der Drehscheiben und Zahl der Steine sind in Lehrplan und Prüfung gleich, weil die Zahl der Tasten für einen Agenten fest ist. Übertragen wird hier also auf neue Ziele, nicht auf größere Welten.",
+    "Die Suche im Modell ist eine Breitensuche über vorgestellte Beobachtungen. Sie reicht für sechs Steine, für viel größere Welten ohne Form wäre sie zu langsam.",
+    "Der Bayes-Faktor erkennt mehr Wechsel und findet öfter die erste Karte wieder, entscheidet aber langsam und braucht deshalb mehr Schritte als der Test einzelner Regeln. Seine Wechselrate (ein Wechsel je 1000 Schritte) ist von Hand gesetzt.",
+    "Im Strom muss er jede neue Welt ohne Lehrplan lernen. Deshalb braucht er im Suchbaum und an den Drehscheiben viel mehr Schritte als nach einem Lehrplan.",
     "Viele Schwellen sind von Hand gesetzt und nicht aus Papern begründet (in der Paper-Zuordnung als „ohne Grundlage“ markiert).",
-    "Alle drei Welten sind deterministisch bis auf das Rutschen und sauber messbar. Die Alltagswelt ist es nicht.",
+    "Alle Welten liefern saubere Zahlen. Bilder, Lärm in der Wahrnehmung und die Alltagswelt fehlen noch.",
   ];
   document.getElementById("limits").replaceChildren(...items.map(t => el("li", { text: t })));
   document.getElementById("footer").textContent =
@@ -659,10 +876,12 @@ function redraw() { if (DATA) drawTruth(DATA.worlds[state.world], state.step); }
 
 if (DATA) {
   renderHeadline();
+  renderSolutions();
   renderTabs();
   renderAll();
   renderLibrary();
   renderChart();
+  renderStream();
   renderLimits();
   selectWorld(0);
   document.getElementById("play").addEventListener("click", () => (state.timer ? stop() : play()));

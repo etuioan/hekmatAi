@@ -12,17 +12,33 @@ früher ausprobiert. Das spart Suche, aber nur, wenn es passt. Darum zählt die 
 wie oft ein Eintrag wirklich in einer neuen Welt genutzt wird, und wirft Einträge weg, die
 `PATIENCE` Welten lang niemand nutzt.
 
+Ab 0.17 hat die Bibliothek ein Erkennungsmodell (H24): Bevor ein Muster probiert wird,
+prüft der Agent eine billige Vorbedingung an den Daten, ohne ein Programm zu testen. Kommen
+Änderungen vor, die das Muster gar nicht erzeugen kann (etwa -1, wenn das Muster nur 0 und
++1 kennt), wird es übersprungen. So kostet die Bibliothek dort nichts, wo sie nicht passen
+kann (DeepCoder, Balog 2017: erst vorhersagen, welche Bausteine vorkommen, dann suchen).
+
 Grundlage: DreamCoder und Stitch (Bibliothek durch Verdichten), LILO; die Warnung von
-Berlot-Attwell 2026, dass gelernte Bibliotheken oft gar nicht wiederverwendet werden.
+Berlot-Attwell 2026, dass gelernte Bibliotheken oft gar nicht wiederverwendet werden, und
+von AbstractBeam (Zenkner 2024), dass unpassende Muster die Suche verlangsamen.
 """
 
 from collections import Counter
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from itertools import combinations, product
 from typing import Final
 
-from hekmatki.general.programs import Falls, Keep, Leaf, Program, Rises, Shift, When
+from hekmatki.general.programs import (
+    Keep,
+    Leaf,
+    Program,
+    Shift,
+    When,
+    can_change,
+    describe,
+    leaves,
+)
 
 PATIENCE: Final = 2
 """So viele Welten darf ein Eintrag ungenutzt bleiben (von Hand gewählt, ohne Grundlage)."""
@@ -30,6 +46,9 @@ CALL_COST: Final = 1
 """Ein Bibliotheksaufruf zählt als ein Baustein; dazu kommen die gefüllten Lücken."""
 MAX_NEW: Final = 2
 """Höchstens so viele neue Einträge pro Welt (von Hand gewählt, ohne Grundlage)."""
+COVERAGE: Final = 0.9
+"""Vorbedingung: So viele der beobachteten Änderungen muss ein Muster erzeugen können
+(von Hand gewählt, ohne Grundlage; Rauschen darf den Rest ausmachen)."""
 
 
 @dataclass(frozen=True)
@@ -51,7 +70,7 @@ class Template:
     otherwise: "Pattern"
 
 
-type Pattern = Keep | Shift | Rises | Falls | Hole | AnyShift | Template
+type Pattern = Leaf | Hole | AnyShift | Template
 
 
 @dataclass(frozen=True)
@@ -59,10 +78,30 @@ class Vocabulary:
     """Woraus der Agent in einer Lage Regeln bauen kann, aus seinen Daten abgelesen."""
 
     leaves: tuple[Leaf, ...]
+    """Grundbausteine der Länge 1; aus ihnen werden auch Schalter-Regeln gebaut."""
     sensors: dict[int, tuple[int, int]]
     """Schalter: Größen mit genau zwei Werten (Größe → ihre beiden Werte)."""
     shifts: tuple[int, ...]
     """Schritte, die in den Daten vorkommen."""
+    extra: tuple[Leaf, ...] = ()
+    """Weitere Bausteine der Länge 1, nur einzeln probiert (ab 0.17: Übernehmen)."""
+    loops: tuple[Leaf, ...] = ()
+    """Bausteine der Länge 2 (ab 0.17: Ring, Schleife)."""
+    changes: Mapping[int, int] = field(default_factory=dict)
+    """Wie oft jede Änderung der Größe vorkam (für die Vorbedingung der Bibliothek)."""
+
+
+def plausible(program: Program, changes: Mapping[int, int], coverage: float = COVERAGE) -> bool:
+    """Kann die Regel genug der beobachteten Änderungen überhaupt erzeugen?
+
+    Liest nur die Häufigkeiten der Änderungen, prüft kein Programm an den Daten.
+    """
+    total = sum(changes.values())
+    if total == 0:
+        return True
+    parts = leaves(program)
+    covered = sum(n for delta, n in changes.items() if any(can_change(p, delta) for p in parts))
+    return covered >= coverage * total
 
 
 def generalize(program: Program) -> Pattern:
@@ -166,14 +205,8 @@ def describe_pattern(pattern: Pattern) -> str:
             return f"wenn ein Schalter {shown} ist: {describe_pattern(then)}, sonst " + (
                 describe_pattern(other)
             )
-        case Keep():
-            return "bleibt"
-        case Shift(by):
-            return f"{by:+d}"
-        case Rises():
-            return "steigt"
-        case Falls():
-            return "fällt"
+        case _:
+            return describe(pattern)
 
 
 @dataclass
@@ -196,10 +229,14 @@ class Entry:
 class Library:
     """Die wachsende Bibliothek."""
 
-    def __init__(self, patience: int = PATIENCE, max_new: int = MAX_NEW) -> None:
+    def __init__(
+        self, patience: int = PATIENCE, max_new: int = MAX_NEW, recognition: bool = True
+    ) -> None:
         self.entries: list[Entry] = []
         self.removed: list[Entry] = []
         self.patience, self.max_new = patience, max_new
+        self.recognition = recognition
+        """Muster nur probieren, wenn ihre Vorbedingung stimmt (ab 0.17, H24)."""
         self._names = 0
 
     def add(self, pattern: Pattern, origin: str) -> Entry:

@@ -50,9 +50,17 @@ from hekmatki.experiments.grid_roles import LEARNERS as ROLE_LEARNERS
 from hekmatki.experiments.grid_roles import RoleRow, run_roles
 from hekmatki.experiments.grid_transfer import LEARNERS, GridRow, run_grid_transfer
 from hekmatki.experiments.library_transfer import run_library_transfer
+from hekmatki.experiments.new_forms import run_new_forms
 from hekmatki.experiments.new_world import run_new_world
 from hekmatki.experiments.rule_transfer import KNOWLEDGE, Knowledge
-from hekmatki.general_report import report_general_worlds, report_library, report_new_world
+from hekmatki.experiments.world_stream import run_world_stream
+from hekmatki.general_report import (
+    report_general_worlds,
+    report_library,
+    report_new_forms,
+    report_new_world,
+    report_world_stream,
+)
 
 
 class _LevelRow(Protocol):
@@ -468,6 +476,8 @@ def main() -> None:
     report_general_worlds(run_general_worlds())
     report_library(*run_library_transfer())
     report_new_world(run_new_world())
+    report_new_forms(run_new_forms())
+    report_world_stream(run_world_stream())
 
 
 if __name__ == "__main__":

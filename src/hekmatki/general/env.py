@@ -97,3 +97,48 @@ def _permutation(size: int, rng: random.Random) -> tuple[int, ...]:
     order = list(range(size))
     rng.shuffle(order)
     return tuple(order)
+
+
+class Padded:
+    """Eine Umgebung mit mehr Größen und Tasten, als sie braucht (ab 0.17).
+
+    So passen ganz verschiedene Welten an dieselbe Schnittstelle, damit ein Agent sie
+    nacheinander erleben kann: Fehlende Größen sind immer 0, überzählige Tasten tun nichts.
+    Ein Spiel mit festem Bildschirm und fester Tastatur ist genauso: Nicht jede Taste hat in
+    jedem Level eine Wirkung.
+    """
+
+    def __init__(self, env: Environment, width: int, actions: int) -> None:
+        if actions < env.actions:
+            raise ValueError(f"Mindestens {env.actions} Tasten nötig, nicht {actions}.")
+        self.env, self.width, self._actions = env, width, actions
+        self._last: Observation = ()
+
+    @property
+    def actions(self) -> int:
+        """Anzahl der Tasten, auch der wirkungslosen."""
+        return self._actions
+
+    def reset(self, rng: random.Random) -> Observation:
+        """Neue Runde in der inneren Umgebung."""
+        self._last = self._pad(self.env.reset(rng))
+        return self._last
+
+    def step(self, action: int, rng: random.Random) -> Outcome:
+        """Eine überzählige Taste lässt alles, wie es ist."""
+        if not 0 <= action < self._actions:
+            raise ValueError(f"Taste {action} gibt es nicht (0 bis {self._actions - 1}).")
+        if action >= self.env.actions:
+            return Outcome(self._last, False)
+        outcome = self.env.step(action, rng)
+        self._last = self._pad(outcome.observation)
+        return Outcome(self._last, outcome.reached)
+
+    def least_steps(self) -> int:
+        """Wie in der inneren Umgebung."""
+        return self.env.least_steps()
+
+    def _pad(self, observation: Observation) -> Observation:
+        if len(observation) > self.width:
+            raise ValueError(f"Die Welt hat {len(observation)} Größen, Platz ist für {self.width}.")
+        return (*observation, *(0,) * (self.width - len(observation)))

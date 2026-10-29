@@ -1,11 +1,13 @@
-"""Seite „Ein Agent, drei Welten“ (ab 0.16): der allgemeine Agent zum Anschauen.
+"""Seite „Ein Agent, sechs Welten“ (ab 0.16, ab 0.17 mit sechs Welten): der allgemeine
+Agent zum Anschauen.
 
-Für jede der drei Welten (`general_worlds`) werden die Prüfrunden nach dem Lehrplan
-aufgezeichnet und die längste gezeigt (die kürzeste wäre oft nur ein, zwei Schritte).
-Die Seite zeigt nebeneinander, was der Agent sieht (nur gemischte Zahlen), was in Wahrheit
-passiert (Raum, Würfel, Suchbaum) und was er selbst herausgefunden hat: die Form und seine
-Regeln, in seinen Worten und übersetzt. Dazu die Mittelwerte aller Läufe, die Bibliothek
-(Ergebnis 18) und das Erkennen einer neuen Umgebung (Ergebnis 19).
+Für jede Welt (`general_worlds` und ab 0.17 `new_forms`) werden die Prüfrunden nach dem
+Lehrplan aufgezeichnet und die längste gezeigt (die kürzeste wäre oft nur ein, zwei
+Schritte). Die Seite zeigt nebeneinander, was der Agent sieht (nur gemischte Zahlen), was in
+Wahrheit passiert (Raum, Würfel, Suchbaum, Eis, Drehscheiben, Steine) und was er selbst
+herausgefunden hat: die Form und seine Regeln, in seinen Worten und übersetzt. Dazu die
+Mittelwerte aller Läufe, die Bibliothek (Ergebnis 18), das Erkennen einer neuen Umgebung
+(Ergebnis 19) und der Strom ganz verschiedener Welten (Ergebnis 21).
 
 Aufruf: `PYTHONPATH=src python -m hekmatki.experiments.general_replay docs/welten.html`
 """
@@ -14,20 +16,23 @@ import json
 import math
 import re
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Final
 
 from hekmatki.experiments import general_worlds as worlds
 from hekmatki.experiments import library_transfer as library
-from hekmatki.experiments import new_world
+from hekmatki.experiments import new_forms, new_world, world_stream
 from hekmatki.general.agent import GeneralAgent
 from hekmatki.general.detector import TAIL_LIMIT, Strategy
 from hekmatki.general.env import Observation, Wiring
 from hekmatki.general.form import Form
 from hekmatki.general.programs import Keep, core, describe
 from hekmatki.general.run import play_episode
-from hekmatki.general.worlds import Lattice, SortedSearch
+from hekmatki.general.worlds import Dials, Lattice, Shuffle, SortedSearch
+
+type Drawn = Lattice | SortedSearch | Dials | Shuffle
+"""Die Welten, die die Seite zeichnen kann."""
 
 REPLAY_SEED: Final = 0
 TEMPLATE: Final = Path(__file__).with_name("general_replay_template.html")
@@ -47,7 +52,7 @@ def world_replay(spec: worlds.WorldSpec, seed: int = REPLAY_SEED) -> dict[str, A
     ]
     round_number, episode = max(enumerate(episodes, 1), key=lambda pair: pair[1].steps)
     env = setting.test
-    if not isinstance(env, Lattice | SortedSearch):
+    if not isinstance(env, Lattice | SortedSearch | Dials | Shuffle):
         raise TypeError(f"Unbekannte Welt: {type(env).__name__}")
     component_names, action_names = env.names()
     seen_names = [component_names[i] for i in setting.wiring.components]
@@ -69,25 +74,43 @@ def world_replay(spec: worlds.WorldSpec, seed: int = REPLAY_SEED) -> dict[str, A
         "rules": _rules_data(agent, seen_names, seen_actions),
     }
     inner = [_inner(setting.wiring, o) for o in episode.trace]
-    if isinstance(env, Lattice):
-        data |= {
-            "kind": "lattice",
-            "dims": env.dims,
-            "edge": env.size,
-            "blocked": sorted(list(cell) for cell in env.blocked),
-            "positions": [o[: env.dims] for o in inner],
-            "target": inner[0][3 * env.dims :],
-        }
-    else:
-        target = inner[0][1] // 1000
-        data |= {
-            "kind": "search",
-            "count": env.count,
-            "targetIndex": target,
-            "targetKey": inner[0][1],
-            "frames": [_search_frame(env, o) for o in inner],
-        }
-    return data
+    return data | _truth(env, inner)
+
+
+def _truth(env: Drawn, inner: Sequence[Sequence[int]]) -> dict[str, Any]:
+    """Was wirklich passiert, für die Zeichnung (der Agent sieht das nie)."""
+    match env:
+        case Lattice():
+            return {
+                "kind": "lattice",
+                "dims": env.dims,
+                "edge": env.size,
+                "ice": env.ice,
+                "blocked": sorted(list(cell) for cell in env.blocked),
+                "positions": [list(o[: env.dims]) for o in inner],
+                "target": list(inner[0][3 * env.dims :]),
+            }
+        case SortedSearch():
+            return {
+                "kind": "search",
+                "count": env.count,
+                "targetIndex": inner[0][1] // 1000,
+                "targetKey": inner[0][1],
+                "frames": [_search_frame(env, o) for o in inner],
+            }
+        case Dials():
+            return {
+                "kind": "dials",
+                "positions": env.size,
+                "values": [list(o[: env.count]) for o in inner],
+                "target": list(inner[0][env.count :]),
+            }
+        case Shuffle():
+            return {
+                "kind": "shuffle",
+                "slots": [list(o[: env.tokens]) for o in inner],
+                "target": list(inner[0][env.tokens :]),
+            }
 
 
 def write_page(output: Path, template: Path = TEMPLATE, seeds: int = 10) -> None:
@@ -95,22 +118,25 @@ def write_page(output: Path, template: Path = TEMPLATE, seeds: int = 10) -> None
     page = template.read_text(encoding="utf-8")
     if page.count(DATA_MARKER) != 1:
         raise ValueError(f"Die Vorlage braucht genau einmal {DATA_MARKER!r}.")
-    rows = {row.world: row for row in worlds.run_general_worlds(seeds)}
     shown = []
-    for spec in worlds.WORLDS:
-        replay = world_replay(spec)
-        row = rows[spec.name]
-        replay["summary"] = {
-            "steps": row.steps,
-            "reached": row.reached,
-            "best": row.best,
-            "formFound": row.form_found,
+    for row in worlds.run_general_worlds(seeds):
+        summary = _summary(worlds.AGENTS, "Form + Regeln", None, row.steps, row.reached)
+        summary |= {"best": row.best, "formFound": row.form_found, "result": 17}
+        shown.append(world_replay(worlds.WORLD_BY_NAME[row.world]) | {"summary": summary})
+    for spec, form_row in zip(new_forms.NEW_WORLDS, new_forms.run_new_forms(seeds), strict=True):
+        summary = _summary(
+            new_forms.AGENTS, "Stand 0.17", "Stand 0.16", form_row.steps, form_row.reached
+        )
+        summary |= {
+            "best": form_row.best,
+            "formFound": form_row.form_found("Stand 0.17"),
+            "oldForms": list(form_row.forms["Stand 0.16"]),
+            "result": 20,
         }
-        shown.append(replay)
+        shown.append(world_replay(spec) | {"summary": summary})
     library_rows, entries = library.run_library_transfer(seeds)
     data = {
         "seeds": seeds,
-        "agents": list(worlds.AGENTS),
         "testLimit": worlds.TEST_LIMIT,
         "worlds": shown,
         "library": {
@@ -120,9 +146,41 @@ def write_page(output: Path, template: Path = TEMPLATE, seeds: int = 10) -> None
             "entries": [_plain(e) for e in entries],
         },
         "newWorld": _new_world_data(new_world.run_new_world(seeds)),
+        "stream": _stream_data(world_stream.run_world_stream(seeds)),
     }
     text = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
     output.write_text(page.replace(DATA_MARKER, text.replace("</", "<\\/")), encoding="utf-8")
+
+
+def _summary[Name: str](
+    agents: Sequence[Name],
+    main: Name,
+    old: Name | None,
+    steps: Mapping[Name, float],
+    reached: Mapping[Name, float],
+) -> dict[str, Any]:
+    """Mittelwerte einer Welt; `main` ist der Agent der Seite, `old` sein Stand davor."""
+    return {
+        "agents": list(agents),
+        "main": main,
+        "old": old,
+        "steps": dict(steps),
+        "reached": dict(reached),
+    }
+
+
+def _stream_data(rows: Sequence[world_stream.StreamRow]) -> dict[str, Any]:
+    life = world_stream.live(Strategy.BAYES.value, REPLAY_SEED)
+    return {
+        "phases": list(world_stream.PHASES),
+        "within": world_stream.WITHIN,
+        "rows": [_plain(r) for r in rows],
+        "life": {
+            "starts": life.starts,
+            "end": sum(sum(steps) for steps in life.steps.values()),
+            "events": [{"step": e.step, "kind": e.kind, "target": e.target} for e in life.events],
+        },
+    }
 
 
 def _inner(wiring: Wiring, observation: Observation) -> list[int]:

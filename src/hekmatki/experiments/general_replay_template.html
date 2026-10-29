@@ -1,12 +1,13 @@
 <meta charset="utf-8">
-<title>Ein Agent, drei Welten</title>
+<title>Ein Agent, sechs Welten</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: Kopf mit These, Welt-Auswahl, Wiedergabe in drei Spalten (sieht / passiert / weiß),
-   darunter die Zahlen aller Läufe, Bibliothek und das Erkennen einer neuen Umgebung. */
+/* Layout: Kopf mit These, vier Grenzen und Lösungen, Welt-Auswahl, Wiedergabe in drei Spalten
+   (sieht / passiert / weiß), darunter die Zahlen aller Läufe, Bibliothek, das Erkennen einer
+   neuen Umgebung und der Strom ganz verschiedener Welten. */
 :root {
   --bg: #eff2ee;
   --surface: #fafbf8;
@@ -21,6 +22,7 @@
   --wall: #2a3542;
   --cell: #f6f8f4;
   --phase-b: rgba(36, 72, 200, 0.08);
+  --ice: #dceef7;
   --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
   --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -30,6 +32,7 @@
     --bg: #0e1413; --surface: #151d1c; --sunk: #0b100f; --ink: #e5ece8; --muted: #93a39c;
     --line: #273331; --accent: #86a2ff; --agent: #ff62b0; --agent-soft: rgba(255, 98, 176, 0.25);
     --goal: #41d2bf; --wall: #5d6d72; --cell: #1b2524; --phase-b: rgba(134, 162, 255, 0.10);
+    --ice: #1c3440;
     color-scheme: dark;
   }
 }
@@ -37,6 +40,7 @@
   --bg: #0e1413; --surface: #151d1c; --sunk: #0b100f; --ink: #e5ece8; --muted: #93a39c;
   --line: #273331; --accent: #86a2ff; --agent: #ff62b0; --agent-soft: rgba(255, 98, 176, 0.25);
   --goal: #41d2bf; --wall: #5d6d72; --cell: #1b2524; --phase-b: rgba(134, 162, 255, 0.10);
+  --ice: #1c3440;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -150,20 +154,45 @@ td.fail { color: var(--muted); }
 .chart-wrap text { font-family: var(--font-data); font-size: 11px; fill: var(--muted); }
 .chart-wrap .phase-label { font-family: var(--font-body); font-size: 12px; font-weight: 600; fill: var(--ink); }
 
+.tabs .group { flex-basis: 100%; height: 0; }
+.limit { display: grid; gap: 8px; }
+.limit h3 { font-family: var(--font-display); font-size: 1.15rem; }
+.limit .then { font-size: 0.9rem; color: var(--muted); }
+.limit .now { font-size: 0.95rem; }
+.limit .now b { color: var(--accent); }
+.dials { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.dials svg { width: min(170px, 44%); height: auto; }
+.dials text { font-family: var(--font-data); fill: var(--ink); }
+.tokens { display: grid; gap: 14px; }
+.token-row { display: grid; gap: 6px; }
+.token-row .row { display: flex; flex-wrap: wrap; gap: 6px; }
+.token { width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; font: 600 1.05rem var(--font-data); color: var(--surface); }
+.token.moved { outline: 3px solid var(--agent); outline-offset: 2px; }
+.token.right { box-shadow: inset 0 -5px 0 var(--goal); }
 ul.plain { margin: 0; padding-left: 1.2em; display: grid; gap: 8px; max-width: 72ch; }
 footer { color: var(--muted); font-size: 0.86rem; }
 </style>
 
 <main>
   <header>
-    <div class="kicker">HekmatKI · Prototyp 0.16 · Gegenprobe zu H18, H19, H20</div>
-    <h1>Ein Agent, drei Welten</h1>
-    <p class="lede">Derselbe Code lernt einen Raum, einen Würfel und einen Suchbaum mit über einer Million
-      Schlüsseln. Er weiß nicht, was ein Raum oder ein Baum ist. Er sieht nur Zahlen in gemischter
-      Reihenfolge und drückt Tasten ohne Namen. Was er herausfindet, schreibt er als kleine Programme auf,
-      erkennt daraus die Form der Welt und plant damit.</p>
+    <div class="kicker">HekmatKI · Prototyp 0.17 · Prüfung von H18 bis H24</div>
+    <h1>Ein Agent, sechs Welten</h1>
+    <p class="lede">Derselbe Code lernt einen Raum, einen Würfel, einen Suchbaum mit über einer Million
+      Schlüsseln und seit 0.17 auch Eis, Drehscheiben und ein Tauschspiel. Er weiß nicht, was ein Raum oder
+      ein Ring ist. Er sieht nur Zahlen in gemischter Reihenfolge und drückt Tasten ohne Namen. Was er
+      herausfindet, schreibt er als kleine Programme auf, setzt daraus die Form der Welt zusammen und plant
+      damit.</p>
     <div class="cards" id="headline"></div>
   </header>
+
+  <section aria-labelledby="limits-solved-title">
+    <div class="section-head">
+      <h2 id="limits-solved-title">Vier Grenzen von 0.16, vier Lösungen aus den Papern</h2>
+      <p class="muted">Jede Lösung stammt aus Runde 7 des Dossiers. Die Zahlen darunter sind gemessen, nicht
+        geschätzt; was nicht geklappt hat, steht dabei.</p>
+    </div>
+    <div class="cards" id="solutions"></div>
+  </section>
 
   <section aria-labelledby="replay-title">
     <div class="section-head">
@@ -206,6 +235,11 @@ footer { color: var(--muted); font-size: 0.86rem; }
     <p class="caption">„Tabelle“ lernt für jede gesehene Beobachtung, welche Taste sich lohnt (Q-Lernen),
       kann aber nichts auf Neues übertragen. „Regeln ohne Form“ hat dieselben Regeln, plant aber nur einen
       Schritt voraus und hat keine Karte. „Bestenfalls“ ist der kürzeste mögliche Weg.</p>
+    <div class="table-wrap"><table id="new-forms-table"></table></div>
+    <p class="caption">„Stand 0.16“ ist derselbe Agent ohne die neuen Bausteine und ohne Suche im Modell.
+      „Neue Bausteine“ hat Übernehmen, Ring und Schleife, plant aber nur über eine Form. „Stand 0.17“ hat
+      alles. Ringgröße und Zahl der Steine sind in Lehrplan und Prüfung gleich, weil die Zahl der Tasten
+      für einen Agenten fest ist.</p>
   </section>
 
   <section aria-labelledby="lib-title">
@@ -230,6 +264,18 @@ footer { color: var(--muted); font-size: 0.86rem; }
     </div>
     <div class="chart-wrap" id="chart"></div>
     <div class="table-wrap"><table id="new-table"></table></div>
+  </section>
+
+  <section aria-labelledby="stream-title">
+    <div class="section-head">
+      <h2 id="stream-title">Ein Strom ganz verschiedener Welten</h2>
+      <p class="muted">Ohne Ankündigung wechselt die Welt: rutschiger Raum, Suchbaum, Drehscheiben, wieder
+        der Raum. Alle kommen als 8 Zahlen und 6 Tasten an; wo eine Welt weniger braucht, sind die Zahlen 0
+        und die Tasten tun nichts. Der Agent soll jeden Wechsel bemerken, für jede Welt eine eigene Karte
+        anlegen und den Raum am Ende wiedererkennen.</p>
+    </div>
+    <div class="chart-wrap" id="stream-chart"></div>
+    <div class="table-wrap"><table id="stream-table"></table></div>
   </section>
 
   <section aria-labelledby="limits-title">
@@ -257,7 +303,10 @@ const el = (tag, attrs = {}, ...children) => {
   return node;
 };
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-const subtitle = world => ({ "2D-Raum": "Raum", "3D-Raum": "Würfel", "Suche": "Suchbaum" })[world.name] || "";
+const subtitle = world => ({ "2D-Raum": "Raum", "3D-Raum": "Würfel", "Suche": "Suchbaum", "Eis-Raum": "Rutschen",
+  "Drehscheiben": "Ringe", "Tauschen": "ohne Form" })[world.name] || "";
+const byResult = result => DATA.worlds.filter(world => world.summary.result === result);
+const sum = values => values.reduce((a, b) => a + b, 0);
 
 const state = { world: 0, step: 0, timer: null };
 
@@ -266,13 +315,48 @@ function renderHeadline() {
   const box = document.getElementById("headline");
   for (const world of DATA.worlds) {
     const s = world.summary;
-    const ours = s.steps["Form + Regeln"];
-    const random = s.steps["Zufall"];
-    const randomText = s.reached["Zufall"] === 0 ? `Zufall: nie am Ziel` : `Zufall: ${fmt(random, 0)} Schritte`;
+    const ours = s.steps[s.main];
+    const other = s.old
+      ? `Stand 0.16: ${fmt(s.steps[s.old], 0)} Schritte`
+      : s.reached["Zufall"] === 0 ? "Zufall: nie am Ziel" : `Zufall: ${fmt(s.steps["Zufall"], 0)} Schritte`;
     box.append(el("div", { class: "card" },
       el("div", { class: "label", text: `${world.name} · ${world.size}` }),
       el("div", { class: "big" }, fmt(ours), el("small", { text: `Schritte, bestenfalls ${fmt(s.best)}` })),
-      el("div", { class: "muted", text: `${randomText} · Form erkannt in ${pct(s.formFound)} der Läufe` })));
+      el("div", { class: "muted", text: `${other} · Form erkannt in ${pct(s.formFound)} der Läufe` })));
+  }
+}
+
+/* ---------- Vier Grenzen ---------- */
+function renderSolutions() {
+  const world = name => DATA.worlds.find(w => w.name === name).summary;
+  const dials = world("Drehscheiben"), ice = world("Eis-Raum"), shuffle = world("Tauschen");
+  const oldDials = [...new Set(dials.oldForms)].join(" oder ");
+  const stream = Object.fromEntries(DATA.stream.rows.map(r => [r.handling, r]));
+  const detected = row => sum(Object.values(row.detected)) / Object.values(row.detected).length;
+  const bayes = stream["Bayes-Faktor"], expected = stream["erwartet / unerwartet"];
+  const lib = DATA.library;
+  const total = c => sum(lib.rows.map(r => r.tested[c]));
+  const change = (c, base) => `${total(c) >= total(base) ? "+" : "−"}${fmt(Math.abs(100 * (total(c) / total(base) - 1)), 0)} %`;
+  const items = [
+    ["Grenze 1 · H21", "Formen aus einer Grammatik statt aus einer Liste",
+      "0.16 kannte nur Raum und Ordnung.",
+      `Achsen sind jetzt Kette, Ring, Rutschbahn oder Ordnung, die Form ist ihr Produkt. Die Drehscheiben heißen jetzt in ${pct(dials.formFound)} der Läufe „Ring × Ring × Ring“ (0.16: „${oldDials}“). Ohne jede Achse sucht er im Modell: Tauschen <b>${fmt(shuffle.steps[shuffle.main])}</b> statt ${fmt(shuffle.steps[shuffle.old])} Schritte.`],
+    ["Grenze 2 · H22", "Ein Baustein „wiederholen, bis“",
+      "0.16 konnte das Rutschen auf Eis nicht ausdrücken.",
+      `„+1 immer wieder, bis die Wand kommt“ ist eine Regel. Auf Eis 12×12 braucht er <b>${fmt(ice.steps[ice.main])}</b> statt ${fmt(ice.steps[ice.old])} Schritte (bestenfalls ${fmt(ice.best)}) und nennt die Form „Rutschbahn mit 2 Dimensionen“.`],
+    ["Grenze 3 · H23", "Neue Welt per Bayes-Faktor",
+      "0.16 hat nur vertauschte Tasten als neue Welt geprüft.",
+      `Im Strom aus Raum, Suchbaum und Drehscheiben erkennt der Bayes-Faktor <b>${pct(detected(bayes))}</b> der Wechsel in den ersten ${DATA.stream.within} Schritten (Test einzelner Regeln: ${pct(detected(expected))}), mit ${fmt(bayes.extra)} überzähligen Wechseln je Lauf (${fmt(expected.extra)}). Er sammelt aber oft lange, bevor er entscheidet, und braucht deshalb mehr Schritte.`],
+    ["Grenze 4 · H24", "Bibliothek mit Vorprüfung",
+      "0.16: Die Bibliothek sparte nur bei den Suchen mit Erfolg.",
+      `Ein Muster wird nur probiert, wenn es die gesehenen Änderungen überhaupt erzeugen kann. Alle Suchen zusammen: mit Vorprüfung <b>${change("mit Bibliothek", "ohne Bibliothek")}</b>, ohne Vorprüfung ${change("ohne Vorprüfung", "ohne Bibliothek")} gegenüber ohne Bibliothek.`],
+  ];
+  const box = document.getElementById("solutions");
+  for (const [label, title, then, now] of items) {
+    const nowNode = el("p", { class: "now" });
+    nowNode.innerHTML = now;
+    box.append(el("div", { class: "card limit" }, el("div", { class: "label", text: label }), el("h3", { text: title }),
+      el("p", { class: "then", text: then }), nowNode));
   }
 }
 
@@ -280,6 +364,7 @@ function renderHeadline() {
 function renderTabs() {
   const tabs = document.getElementById("tabs");
   DATA.worlds.forEach((world, index) => {
+    if (index > 0 && world.summary.result !== DATA.worlds[index - 1].summary.result) tabs.append(el("span", { class: "group" }));
     const button = el("button", { type: "button", role: "tab", "aria-selected": String(index === state.world) },
       world.name, el("span", { class: "sub", text: subtitle(world) }));
     button.addEventListener("click", () => selectWorld(index));
@@ -353,13 +438,21 @@ function renderFound(world) {
   const form = world.form;
   const formBlock = el("div", { class: "block" }, el("div", { class: "label", text: "Form der Welt" }),
     el("div", { class: "formname", text: form.name }));
+  const kinds = {
+    "Kette": a => `Raumachse. Taste ${a.up} geht vor, Taste ${a.down} zurück.`,
+    "Ring": a => `Ring. Taste ${a.up} dreht vor, Taste ${a.down} zurück, nach dem letzten Wert kommt der erste.`,
+    "Rutschbahn": a => `Rutschbahn. Taste ${a.up} rutscht vor, Taste ${a.down} zurück, bis etwas aufhält.`,
+    "Ordnung": a => `Ordnung. Taste ${a.up} lässt steigen, Taste ${a.down} fallen.`,
+  };
   for (const axis of form.axes) {
-    const order = axis.kind === "Ordnung";
-    const said = order
-      ? `G${axis.component}: Ordnung. Taste ${axis.up} lässt steigen, Taste ${axis.down} fallen.`
-      : `G${axis.component}: Raumachse. Taste ${axis.up} geht vor, Taste ${axis.down} zurück.`;
+    const said = `G${axis.component}: ${kinds[axis.kind](axis)}`;
     const ours = `${axis.name}: ${axis.upName} / ${axis.downName}`;
     formBlock.append(el("div", { class: "rule" }, el("div", { class: "said", text: said }), el("div", { class: "ours", text: ours })));
+  }
+  if (!form.axes.length) {
+    formBlock.append(el("div", { class: "caption", text:
+      "Keine Größe, die eine Taste stetig erhöht und eine andere senkt: keine Form mit Namen. Er plant " +
+      "direkt in seinem Modell, stellt sich vor, was jede Taste bewirkt, und sucht den kürzesten Weg." }));
   }
   if (form.fixed.length) {
     formBlock.append(el("div", { class: "caption", text:
@@ -385,31 +478,82 @@ function renderFound(world) {
   rules.append(list, el("div", { class: "caption", text:
     `Dazu ${world.rules.kept} Regeln „bleibt gleich“ und ${world.rules.unpredictable} Größen, ` +
     `die er nach einer Taste nicht sicher vorhersagen kann ` +
-    (world.kind === "search" ? "(etwa den Schlüssel nach „hinauf“)." : "(etwa Wände am neuen Ort).") }));
+    ({ search: "(etwa den Schlüssel nach „hinauf“).", lattice: "(etwa Wände am neuen Ort)." }[world.kind] || ".") }));
   box.append(rules);
 }
 
 /* ---------- Was wirklich passiert ---------- */
 function renderLegend(world) {
-  const items = world.kind === "search"
-    ? [["--agent", "Knoten, an dem er gerade ist"], ["--goal", "gesuchter Schlüssel"]]
-    : [["--agent", "Agent und sein Weg"], ["--goal", "Ziel"], ["--wall", "Wand"]];
+  const items = {
+    search: [["--agent", "Knoten, an dem er gerade ist"], ["--goal", "gesuchter Schlüssel"]],
+    lattice: [["--agent", "Agent und sein Weg"], ["--goal", "Ziel"], ["--wall", "Wand"]].concat(world.ice ? [["--ice", "Eis"]] : []),
+    dials: [["--agent", "Stellung"], ["--goal", "Ziel"]],
+    shuffle: [["--agent", "gerade getauscht"], ["--goal", "Stein schon am richtigen Platz"]],
+  }[world.kind];
   document.getElementById("legend").replaceChildren(...items.map(([token, text]) =>
     el("span", {}, el("i", { style: `background: var(${token})` }), text)));
 }
 
 function renderTruthFrame(world) {
   const box = document.getElementById("truth");
-  if (world.kind === "search") {
-    box.replaceChildren(el("div", { class: "search-rows", id: "search-rows" }));
-  } else {
-    box.replaceChildren(el("canvas", { id: "canvas", role: "img", "aria-label": `${world.name}, Weg des Agenten` }));
-  }
+  const frames = {
+    search: () => el("div", { class: "search-rows", id: "search-rows" }),
+    lattice: () => el("canvas", { id: "canvas", role: "img", "aria-label": `${world.name}, Weg des Agenten` }),
+    dials: () => el("div", { class: "dials", id: "dials", role: "img", "aria-label": "Drehscheiben mit Stellung und Ziel" }),
+    shuffle: () => el("div", { class: "tokens", id: "tokens" }),
+  };
+  box.replaceChildren(frames[world.kind]());
 }
 
 function drawTruth(world, step) {
-  if (world.kind === "search") drawSearch(world, step);
-  else drawLattice(world, step);
+  ({ search: drawSearch, lattice: drawLattice, dials: drawDials, shuffle: drawShuffle })[world.kind](world, step);
+}
+
+function drawDials(world, step) {
+  const box = document.getElementById("dials");
+  if (!box) return;
+  const ns = "http://www.w3.org/2000/svg";
+  const size = world.positions;
+  const values = world.values[step];
+  box.replaceChildren(...values.map((value, index) => {
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 120 132");
+    const add = (tag, attrs, text) => {
+      const node = document.createElementNS(ns, tag);
+      for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+      if (text !== undefined) node.textContent = text;
+      svg.append(node);
+    };
+    const at = (k, r) => [60 + r * Math.sin((2 * Math.PI * k) / size), 60 - r * Math.cos((2 * Math.PI * k) / size)];
+    add("circle", { cx: 60, cy: 60, r: 46, fill: "var(--cell)", stroke: "var(--line)", "stroke-width": 2 });
+    for (let k = 0; k < size; k++) {
+      const [x1, y1] = at(k, 40), [x2, y2] = at(k, 46);
+      add("line", { x1, y1, x2, y2, stroke: "var(--muted)", "stroke-width": 1 });
+    }
+    const [tx, ty] = at(world.target[index], 46);
+    add("circle", { cx: tx, cy: ty, r: 7, fill: "none", stroke: "var(--goal)", "stroke-width": 3 });
+    const [vx, vy] = at(value, 34);
+    add("line", { x1: 60, y1: 60, x2: vx, y2: vy, stroke: "var(--agent)", "stroke-width": 4, "stroke-linecap": "round" });
+    add("circle", { cx: 60, cy: 60, r: 4, fill: "var(--agent)" });
+    add("text", { x: 60, y: 126, "text-anchor": "middle", "font-size": 11 }, `Scheibe ${index + 1}: ${value} → ${world.target[index]}`);
+    return svg;
+  }));
+}
+
+function drawShuffle(world, step) {
+  const box = document.getElementById("tokens");
+  if (!box) return;
+  const count = world.target.length;
+  const hue = token => `hsl(${(token * 360) / count} 55% 45%)`;
+  const now = world.slots[step];
+  const before = step > 0 ? world.slots[step - 1] : now;
+  const row = (label, slots, marks) => el("div", { class: "token-row" }, el("div", { class: "label", text: label }),
+    el("div", { class: "row" }, ...slots.map((token, i) =>
+      el("div", { class: "token" + marks(i), style: `background: ${hue(token)}`, text: String(token) }))));
+  box.replaceChildren(
+    row("Jetzt", now, i => (now[i] !== before[i] ? " moved" : "") + (now[i] === world.target[i] ? " right" : "")),
+    row("Ziel", world.target, () => ""),
+    el("div", { class: "caption", text: `${sum(now.map((t, i) => (t === world.target[i] ? 1 : 0)))} von ${count} Steinen am richtigen Platz.` }));
 }
 
 function drawLattice(world, step) {
@@ -432,7 +576,7 @@ function drawLattice(world, step) {
   const ctx = canvas.getContext("2d");
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   ctx.clearRect(0, 0, width, height);
-  const color = { cell: css("--cell"), wall: css("--wall"), agent: css("--agent"), soft: css("--agent-soft"), goal: css("--goal"), muted: css("--muted"), line: css("--line"), ink: css("--ink") };
+  const color = { ice: css("--ice"), cell: css("--cell"), wall: css("--wall"), agent: css("--agent"), soft: css("--agent-soft"), goal: css("--goal"), muted: css("--muted"), line: css("--line"), ink: css("--ink") };
   const blocked = new Set(world.blocked.map(c => c.join(",")));
   const position = world.positions[step];
   const sliceOf = p => (world.dims === 3 ? p[2] : 0);
@@ -454,7 +598,7 @@ function drawLattice(world, step) {
     for (let x = 0; x < edge; x++) {
       for (let y = 0; y < edge; y++) {
         const key = world.dims === 3 ? `${x},${y},${z}` : `${x},${y}`;
-        ctx.fillStyle = blocked.has(key) ? color.wall : color.cell;
+        ctx.fillStyle = blocked.has(key) ? color.wall : world.ice ? color.ice : color.cell;
         ctx.fillRect(ox + x * cell + 0.5, oy + (edge - 1 - y) * cell + 0.5, cell - 1, cell - 1);
       }
     }
@@ -507,23 +651,30 @@ function drawSearch(world, step) {
 }
 
 /* ---------- Alle Läufe ---------- */
-function renderAll() {
-  document.getElementById("all-note").textContent =
-    `${DATA.seeds} Läufe je Welt, je ${DATA.worlds[0].rounds} Prüfrunden. Mittlere Schritte bis zum Ziel; ` +
-    `nicht erreicht zählt als ${DATA.testLimit.toLocaleString("de-DE")}. In Klammern: Anteil der Runden am Ziel.`;
-  const table = document.getElementById("all-table");
-  const head = el("tr", {}, el("th", { text: "Welt" }), ...DATA.agents.map(a => el("th", { text: a })), el("th", { text: "bestenfalls" }));
-  const body = DATA.worlds.map(world => {
+function resultTable(id, worlds, caption) {
+  const agents = worlds[0].summary.agents;
+  const table = document.getElementById(id);
+  const head = el("tr", {}, el("th", { text: "Welt" }), ...agents.map(a => el("th", { text: a })), el("th", { text: "bestenfalls" }));
+  const body = worlds.map(world => {
     const s = world.summary;
-    const best = Math.min(...DATA.agents.map(a => s.steps[a]));
+    const best = Math.min(...agents.map(a => s.steps[a]));
     return el("tr", {}, el("td", {}, world.name, el("span", { class: "sub", text: world.size })),
-      ...DATA.agents.map(a => {
+      ...agents.map(a => {
         const cls = "num" + (s.steps[a] === best ? " best" : "") + (s.reached[a] === 0 ? " fail" : "");
         return el("td", { class: cls }, fmt(s.steps[a]), el("span", { class: "sub", text: `(${pct(s.reached[a])})` }));
       }),
       el("td", { class: "num", text: fmt(s.best) }));
   });
-  table.replaceChildren(el("thead", {}, head), el("tbody", {}, ...body));
+  table.replaceChildren(el("caption", { class: "label", style: "text-align:left; padding: 12px 14px 0", text: caption }),
+    el("thead", {}, head), el("tbody", {}, ...body));
+}
+
+function renderAll() {
+  document.getElementById("all-note").textContent =
+    `${DATA.seeds} Läufe je Welt, je ${DATA.worlds[0].rounds} Prüfrunden. Mittlere Schritte bis zum Ziel; ` +
+    `nicht erreicht zählt als ${DATA.testLimit.toLocaleString("de-DE")}. In Klammern: Anteil der Runden am Ziel.`;
+  resultTable("all-table", byResult(17), "Ergebnis 17: Raum, Würfel, Suchbaum");
+  resultTable("new-forms-table", byResult(20), "Ergebnis 20: Welten, deren Form 0.16 nicht kannte");
 }
 
 /* ---------- Bibliothek ---------- */
@@ -562,11 +713,17 @@ function renderLibrary() {
       el("div", { class: "muted", text: `wiederverwendet in ${uses}${entry.removed ? " · später entfernt" : ""}` })));
   }
   entries.append(el("div", { class: "card" },
-    el("div", { class: "label", text: "Zur Ehrlichkeit" }),
-    el("div", { text: "Im 3D-Raum findet er seine Regeln mit dem Muster aus dem 2D-Raum mit etwa halb so vielen " +
-      "Programmen. Im Suchbaum hilft es nicht, dort passt kein Muster. Über alle Suchen ist der Gewinn klein " +
-      "oder sogar negativ, weil die Bibliothek auch bei Größen mitprobiert wird, die sich gar nicht " +
-      "vorhersagen lassen. " + budgetText(lib) })));
+    el("div", { class: "label", text: "Vorprüfung (H24)" }),
+    el("div", { text: libraryText(lib) + " " + budgetText(lib) })));
+}
+
+function libraryText(lib) {
+  const total = c => sum(lib.rows.map(r => r.tested[c]));
+  const base = total("ohne Bibliothek");
+  const share = c => `${fmt(total(c), 0)} (${total(c) >= base ? "+" : "−"}${fmt(Math.abs(100 * (total(c) / base - 1)), 0)} %)`;
+  return `Alle Suchen in allen Welten zusammen: ohne Bibliothek ${fmt(base, 0)} Programme, mit Bibliothek und ` +
+    `Vorprüfung ${share("mit Bibliothek")}, ohne Vorprüfung wie in 0.16 ${share("ohne Vorprüfung")}, ` +
+    `Zufallsbibliothek ${share("Zufallsbibliothek")}.`;
 }
 
 function budgetText(lib) {
@@ -627,7 +784,7 @@ function renderChart() {
   const table = document.getElementById("new-table");
   const head = el("tr", {}, el("th", { text: "Umgang mit Überraschung" }), ...nw.phases.map(p => el("th", { text: `Schritte ${p}` })),
     el("th", { text: "Karten" }), el("th", { text: "Fehlalarme" }), el("th", { text: "B erkannt" }), el("th", { text: "alte Karte wieder" }));
-  const dash = (row, value, text) => (row.handling === "ohne Erkennung" || row.handling === "nie neue Karte") ? "–" : text(value);
+  const dash = (row, value, text) => (row.handling === "ohne Erkennung") ? "–" : text(value);
   const body = nw.rows.map(row => el("tr", {}, el("td", { text: row.handling }),
     ...nw.phases.map(p => el("td", { class: "num" }, fmt(row.steps[p]), el("span", { class: "sub", text: `(${fmt(row.firstSteps[p], 0)})` }))),
     el("td", { class: "num", text: fmt(row.maps) }),
@@ -639,15 +796,75 @@ function renderChart() {
     el("thead", {}, head), el("tbody", {}, ...body));
 }
 
+/* ---------- Strom ---------- */
+function renderStream() {
+  const st = DATA.stream;
+  const life = st.life;
+  const W = 900, H = 150, left = 12, right = 12, top = 44, bottom = 26;
+  const GAP = 110; // Mindestabstand zweier Beschriftungen in einer Zeile
+  const x = step => left + (step / Math.max(1, life.end)) * (W - left - right);
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "Phasen des Stroms und Kartenwechsel des Agenten mit Bayes-Faktor");
+  const add = (tag, attrs, text) => {
+    const node = document.createElementNS(ns, tag);
+    for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+    if (text !== undefined) node.textContent = text;
+    svg.append(node);
+    return node;
+  };
+  // Liegen zwei Beschriftungen zu dicht, rückt die zweite eine Zeile weiter.
+  const rows = [];
+  const row = at => {
+    let index = rows.findIndex(last => at - last >= GAP);
+    if (index < 0) { rows.push(-Infinity); index = rows.length - 1; }
+    rows[index] = at;
+    return index;
+  };
+  st.phases.forEach((name, i) => {
+    const start = life.starts[name];
+    const end = i + 1 < st.phases.length ? life.starts[st.phases[i + 1]] : life.end;
+    add("rect", { x: x(start), y: top, width: Math.max(1, x(end) - x(start)), height: H - top - bottom, fill: i % 2 ? "var(--phase-b)" : "var(--sunk)" });
+    add("text", { x: x(start) + 6, y: top - 8 - 16 * row(x(start)), class: "phase-label" }, name);
+  });
+  rows.length = 0;
+  const labels = { "neu": "neue Karte", "zurück": "alte Karte" };
+  for (const event of life.events) {
+    if (event.kind === "verfeinern") continue;
+    add("line", { x1: x(event.step), x2: x(event.step), y1: top, y2: H - bottom, stroke: "var(--goal)", "stroke-width": 2.5 });
+    add("text", { x: x(event.step) + 4, y: H - bottom - 8 - 16 * row(x(event.step)), fill: "var(--goal)" }, `${labels[event.kind] || event.kind} ${event.target + 1}`);
+  }
+  add("text", { x: left, y: H - 6 }, "Schritt 0");
+  add("text", { x: W - right, y: H - 6, "text-anchor": "end" }, `Schritt ${life.end}`);
+  document.getElementById("stream-chart").replaceChildren(
+    el("div", { class: "label", text: "Ein Lauf mit Bayes-Faktor: grüne Linie = Kartenwechsel, Zahl = Karte danach" }), svg);
+
+  const phases = st.phases;
+  const table = document.getElementById("stream-table");
+  const head = el("tr", {}, el("th", { text: "Umgang" }), ...phases.map(p => el("th", { text: `Schritte ${p}` })),
+    ...phases.slice(1).map(p => el("th", { text: `${p} erkannt` })), el("th", { text: "überzählig" }), el("th", { text: "alte Karte wieder" }));
+  const none = row => row.handling === "ohne Erkennung";
+  const body = st.rows.map(row => el("tr", {}, el("td", { text: row.handling }),
+    ...phases.map(p => el("td", { class: "num", text: fmt(row.steps[p]) })),
+    ...phases.slice(1).map(p => el("td", { class: "num", text: none(row) ? "–" : pct(row.detected[p]) })),
+    el("td", { class: "num", text: none(row) ? "–" : fmt(row.extra) }),
+    el("td", { class: "num", text: none(row) ? "–" : pct(row.returned) })));
+  table.replaceChildren(el("caption", { class: "label", style: "text-align:left; padding: 12px 14px 0", text:
+      `Mittlere Schritte je Runde, erkannt = Kartenwechsel in den ersten ${st.within} Schritten der Phase, überzählig = weitere Wechsel je Lauf. ${DATA.seeds} Läufe.` }),
+    el("thead", {}, head), el("tbody", {}, ...body));
+}
+
 /* ---------- Grenzen ---------- */
 function renderLimits() {
   const items = [
-    "Die Formen kommen aus einer festen Liste (Raum, Ordnung). Eine Welt mit ganz anderer Form würde er nicht erkennen, er fiele auf „Regeln ohne Form“ zurück.",
-    "„Regeln ohne Form“ fehlt nicht nur die Form, sondern auch die Karte. Der Abstand zu „Form + Regeln“ misst also beides zusammen.",
-    "Die Bibliothek spart Suche bei den Regeln, die es gibt, kostet aber insgesamt etwas mehr Rechenarbeit.",
-    "Die neue Umgebung B wird nicht in jedem Lauf erkannt (siehe Tabelle). Wird sie übersehen, lernt er A einfach um.",
+    "Ringgröße der Drehscheiben und Zahl der Steine sind in Lehrplan und Prüfung gleich, weil die Zahl der Tasten für einen Agenten fest ist. Übertragen wird hier also auf neue Ziele, nicht auf größere Welten.",
+    "Die Suche im Modell ist eine Breitensuche über vorgestellte Beobachtungen. Sie reicht für sechs Steine, für viel größere Welten ohne Form wäre sie zu langsam.",
+    "Der Bayes-Faktor erkennt mehr Wechsel und findet öfter die erste Karte wieder, entscheidet aber langsam und braucht deshalb mehr Schritte als der Test einzelner Regeln. Seine Wechselrate (ein Wechsel je 1000 Schritte) ist von Hand gesetzt.",
+    "Im Strom muss er jede neue Welt ohne Lehrplan lernen. Deshalb braucht er im Suchbaum und an den Drehscheiben viel mehr Schritte als nach einem Lehrplan.",
     "Viele Schwellen sind von Hand gesetzt und nicht aus Papern begründet (in der Paper-Zuordnung als „ohne Grundlage“ markiert).",
-    "Alle drei Welten sind deterministisch bis auf das Rutschen und sauber messbar. Die Alltagswelt ist es nicht.",
+    "Alle Welten liefern saubere Zahlen. Bilder, Lärm in der Wahrnehmung und die Alltagswelt fehlen noch.",
   ];
   document.getElementById("limits").replaceChildren(...items.map(t => el("li", { text: t })));
   document.getElementById("footer").textContent =
@@ -659,10 +876,12 @@ function redraw() { if (DATA) drawTruth(DATA.worlds[state.world], state.step); }
 
 if (DATA) {
   renderHeadline();
+  renderSolutions();
   renderTabs();
   renderAll();
   renderLibrary();
   renderChart();
+  renderStream();
   renderLimits();
   selectWorld(0);
   document.getElementById("play").addEventListener("click", () => (state.timer ? stop() : play()));
