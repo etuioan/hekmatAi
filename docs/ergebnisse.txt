@@ -1,0 +1,529 @@
+Experiment H11: Lernt der Agent eine neue Wartesituation schneller mit Schema?
+Neue Situation: Warten am Flughafen-Gate. Schema aus Arzt + U-Bahn.
+
+Beobachtungen | ohne Schema | mit Schema | Optimum
+----------------------------------------------------
+            5 |       0.439 |      0.591 |   0.674
+           10 |       0.539 |      0.644 |   0.674
+           20 |       0.609 |      0.672 |   0.674
+           40 |       0.640 |      0.672 |   0.674
+           80 |       0.654 |      0.672 |   0.674
+          160 |       0.665 |      0.672 |   0.674
+
+Werte: typische Wahrscheinlichkeit (geometrisches Mittel) für das tatsächlich folgende Symbol.
+Strukturabstand Arzt ↔ U-Bahn:  0.036 (verschmolzen)
+Strukturabstand Arzt ↔ Plaudern: 0.307 (nicht verschmolzen, richtig)
+
+Härtetest H11: Gate-Situationen, die vom Schema abweichen oder gestört sind.
+ohne    = kein Schema, nur eigene Beobachtungen
+starr   = Schema wird unverändert übernommen
+lernend = Schema ist Vorwissen und wird durch Beobachtungen korrigiert
+geprüft = wie lernend, aber der Agent prüft, ob das Schema überhaupt passt
+
+Variante |    Beob. |     ohne |    starr |  lernend |  geprüft |     Opt.
+--------------------------------------------------------------------------
+  normal |       10 |    0.497 |    0.604 |    0.587 |    0.577 |    0.674
+  normal |       40 |    0.636 |    0.672 |    0.660 |    0.660 |    0.674
+  normal |      160 |    0.666 |    0.672 |    0.668 |    0.668 |    0.674
+sehr lang |       10 |    0.777 |    0.708 |    0.756 |    0.778 |    0.874
+sehr lang |       40 |    0.825 |    0.724 |    0.832 |    0.827 |    0.874
+sehr lang |      160 |    0.852 |    0.734 |    0.862 |    0.856 |    0.874
+sehr kurz |       10 |    0.597 |    0.639 |    0.650 |    0.649 |    0.732
+sehr kurz |       40 |    0.693 |    0.625 |    0.693 |    0.693 |    0.732
+sehr kurz |      160 |    0.720 |    0.632 |    0.721 |    0.720 |    0.732
+ gestört |       10 |    0.350 |    0.269 |    0.365 |    0.359 |    0.446
+ gestört |       40 |    0.393 |    0.286 |    0.397 |    0.397 |    0.446
+ gestört |      160 |    0.422 |    0.286 |    0.423 |    0.423 |    0.446
+
+Experiment H12: Vergisst der Agent weniger mit Kontextwechsel?
+Strom: Pendeln Hinweg und Rückweg im Wechsel, gleiche Symbole, andere Abläufe.
+
+Ein gemeinsames Modell:    0.423
+Mit Kontextinferenz:       0.579
+Optimum:                   0.658
+Gefundene Kontexte (Mittel): 2.1 (richtig wären 2)
+
+Werte: erste 30 Schritte nach jeder Rückkehr in eine bekannte Situation.
+
+Kontexterkennung: Ordnet der Agent jeden Übergang der richtigen Situation zu?
+
+Welt                        | Situationen |    Kontexte |     richtig
+----------------------------------------------------------------------
+Pendeln (H12)               |           2 |        2.10 |       96.4%
+Lampen: Warten              |           3 |        3.00 |       99.0%
+Lampen: Warten + Gespräche  |           6 |        6.45 |       89.9%
+
+richtig = Anteil der Übergänge im Kontext, der ihrer Situation zugeordnet ist.
+
+Kontextwechsel + Scheiben: Baut der Agent eine neue Situation aus dem Schema?
+Drei Wartesituationen zeigen dieselben vier Lampen mit anderer Bedeutung.
+Wach: Arzt und U-Bahn im Wechsel. Schlaf: eigene Kontexte zum Schema verschmelzen.
+Wach: Gate (neu), Arzt, U-Bahn, Gate.
+
+Agent              | neue Situation | bekannte | Kontexte
+---------------------------------------------------------
+ein Modell         |          0.034 |    0.311 |        -
+Kontexte           |          0.418 |    0.635 |     3.00
+Kontexte + Schema  |          0.497 |    0.637 |     3.00
+Optimum            |          0.674 |    0.697 |        -
+
+Werte: erste 30 Schritte jedes Blocks; „neue Situation“ = erstes Gate.
+Richtig wären 3 Kontexte (Arzt, U-Bahn, Gate).
+
+Wach-Schlaf: Entscheidet der Agent selbst, wann er schläft?
+Strom: Arzt, U-Bahn, Arzt, U-Bahn, Gate (neu), Arzt, Gate, Kasse (neu), U-Bahn, Kasse.
+fester Schlaf  = schläft einmal nach den ersten vier Blöcken (wie Version 0.3)
+eigener Schlaf = schläft, sobald ein Kontext 100 Übergänge erlebt hat
+
+Agent           |  Gate neu | Kasse neu |  bekannte |    Schlaf | im Schema
+-----------------------------------------------------------------------------
+Kontexte        |     0.418 |     0.409 |     0.629 |         - |         -
+fester Schlaf   |     0.497 |     0.480 |     0.630 |      1.00 |      2.00
+eigener Schlaf  |     0.494 |     0.478 |     0.630 |      4.00 |      4.00
+Optimum         |     0.674 |     0.671 |     0.681 |         - |         -
+
+Werte: erste 30 Schritte jedes Blocks. „im Schema“ = Kontexte, die ins Schema flossen.
+
+Mehrere Schemata: Bildet der Agent für Warten und Gespräche je ein eigenes Schema?
+Strom: Wartesituationen und Gespräche im Wechsel, alle mit denselben vier Lampen.
+Neu im Strom: Gate (Warten) und Gespräch mit dem Freund.
+
+Agent             |   Gate neu | Freund neu |   bekannte |   Schemata
+-----------------------------------------------------------------------
+Kontexte          |      0.371 |      0.350 |      0.553 |          -
+ein Schema        |      0.436 |      0.347 |      0.558 |       1.00
+mehrere Schemata  |      0.428 |      0.363 |      0.559 |       1.95
+Optimum           |      0.667 |      0.651 |      0.667 |          -
+
+Werte: erste 30 Schritte jedes Blocks. Richtig wären 2 Schemata.
+
+Ampelspiel: Findet der Agent „Warten“ als Schnittmenge, ohne zu verschmelzen?
+Warten ist sicher, Laufen gewinnt nur bei Grün, sonst gibt es einen Unfall.
+Der Agent kennt die Schemata „Warten“ und „Gespräch“ aus dem Alltag, samt dem
+Handlungswissen, das er dort selbst durch Ausprobieren gelernt hat.
+
+Spieler         |  Siege 1-10 | Siege 11-30 |     Unfälle |     1. Sieg
+----------------------------------------------------------------------
+ohne Vorwissen  |         26% |         90% |         6.0 |         7.8
+mit Schemata    |         55% |        100% |         3.0 |         5.1
+Optimum         |        100% |        100% |         0.0 |         1.0
+
+Unfälle pro Spiel mit 30 Runden; 1. Sieg = Runde des ersten Siegs.
+Schnittmenge im Spiel gefunden: 100% der Läufe, im Mittel nach Runde 5.6
+Ohne Vorwissen, nach dem Spiel gefunden: 100% der Läufe
+Davon richtig (Autos, Gelb, Grün = Beschäftigen, Hinweis, Ereignis): 100%
+„drüben“ als Weitergehen erkannt: 70%
+Spielmodell und Schemata bleiben getrennt; gespeichert wird nur die Zuordnung.
+Gelernt im Alltag, Erfolg beim Handeln pro Rolle von „Warten“: beschäftigen 0.01, hinweis 0.04, ereignis 0.96, weitergehen 0.04
+
+Dritte Ebene: Verdichtet der Agent Schemata zu einem Meta-Schema?
+Erlebt: Warten (Arzt, U-Bahn), Anstehen (Bäcker, Post), Gespräch (Nachbar, Kollegin).
+Schlaf: dieselbe Routine zweimal, Ebene 2 mit Schwellenwert 0,1, Ebene 3 mit 0,2.
+Erwartet: drei Schemata, dann ein Meta-Schema aus Warten + Anstehen.
+
+Nach 400 Schritten pro Situation:
+
+Ebene                 | Scheiben |     Gate |  Kantine
+------------------------------------------------------
+Ebene 2               |      3.0 |     100% |      80%
+Ebene 3               |      2.0 |     100% |      85%
+Ebene 3 ohne Prüfung  |      1.0 |       0% |       0%
+
+Gate, Kantine = Anteil der Läufe, in denen der Agent in der neuen Situation genau
+im richtigen Moment handeln würde (geliehenes Handlungswissen, 30 Schritte gesehen).
+Ebene 3 wie erwartet: 100% der Läufe.
+Ohne Prüfung des Handlungswissens fällt alles in eine Scheibe: 100% der Läufe.
+
+H13: Verschmelzen nach wenig Erfahrung (sofort) oder nach viel (verzögert)?
+
+    Schritte |  Schemata ok |    vermischt |      Meta ok | Entscheidung
+--------------------------------------------------------------------------
+          15 |          10% |          75% |          25% |          20%
+          30 |          40% |          55% |          25% |          45%
+          50 |          75% |          15% |          50% |          70%
+         100 |         100% |           0% |          85% |          82%
+         400 |         100% |           0% |         100% |          92%
+
+Schritte = erlebte Schritte pro Situation vor dem Schlaf.
+vermischt = ein Schema enthält Situationen aus verschiedenen Familien.
+Entscheidung = mit Ebene 3 richtig gehandelt, Mittel aus Gate und Kantine.
+
+Spielefamilie „Schlüssel und Tür“: Entdeckt der Agent die Regeln selbst?
+Gleiche Mechanik, aber jedes Spiel hat andere Symbole und eine andere Tastenbelegung.
+Nach jedem der Spiele 1 bis 3 bildet oder ergänzt der Agent sein Schema.
+Härtetest mit dem Schema aus Spiel 1 bis 3: gespiegelt, länger, ohne Schlüssel.
+
+Spiel          | 1. Sieg ohne |   mit Schema |      Optimum |   Siege ohne |   mit Schema |          max
+--------------------------------------------------------------------------------------------------------
+Spiel 1        |         20.9 |         20.9 |            6 |          7.1 |          7.1 |           10
+Spiel 2        |         22.4 |          9.2 |            6 |          7.0 |          9.0 |           10
+Spiel 3        |         18.7 |         10.3 |            6 |          7.5 |          8.9 |           10
+gespiegelt     |         21.1 |          9.1 |            6 |          7.0 |          9.0 |           10
+länger         |         25.6 |         22.6 |            7 |          5.5 |          5.9 |            8
+ohne Schlüssel |         13.9 |          8.7 |            3 |         12.3 |          9.6 |           20
+
+1. Sieg = Tastendrücke bis zum ersten Sieg; Siege = in 60 Tastendrücken.
+Schema passt am Ende noch (eine Deutung übrig): Spiel 2 100%, Spiel 3 100%, gespiegelt 100%, länger 15%, ohne Schlüssel 100%
+Bekannte Übergänge im Schema (von 24): nach Spiel 1 17.7, nach Spiel 2 18.1, nach Spiel 3 18.4
+
+Neugier: Lohnt sich ein Abstecher ins Unbekannte, wenn man schon gewinnen kann?
+Gleiche Spiele wie oben. „+ Neugier“ = wägt Abstecher gegen sichere Siege ab.
+
+Siege in 60 Tastendrücken:
+
+Spiel            | ohne Schema |   + Neugier |  mit Schema |   + Neugier |         max
+--------------------------------------------------------------------------------------
+Spiel 1          |         7.1 |         6.0 |         7.1 |         6.0 |          10
+Spiel 2          |         7.0 |         6.0 |         9.0 |         6.8 |          10
+Spiel 3          |         7.5 |         6.3 |         8.9 |         6.8 |          10
+gespiegelt       |         7.0 |         6.0 |         9.0 |         7.0 |          10
+länger           |         5.5 |         4.3 |         5.9 |         4.0 |           8
+ohne Schlüssel   |        12.3 |        13.1 |         9.6 |         7.0 |          20
+Summe ab Spiel 2 |        39.3 |        35.7 |        42.4 |        31.6
+
+Siege in 200 Tastendrücken:
+
+Spiel            | ohne Schema |   + Neugier |  mit Schema |   + Neugier |         max
+--------------------------------------------------------------------------------------
+Spiel 1          |        30.3 |        28.9 |        30.3 |        28.9 |          33
+Spiel 2          |        30.2 |        29.1 |        32.2 |        28.4 |          33
+Spiel 3          |        30.8 |        29.0 |        32.1 |        28.0 |          33
+gespiegelt       |        30.5 |        28.9 |        32.5 |        28.3 |          33
+länger           |        25.4 |        23.4 |        25.9 |        23.1 |          28
+ohne Schlüssel   |        46.1 |        59.6 |        34.0 |        57.2 |          66
+Summe ab Spiel 2 |       163.0 |       170.1 |       156.8 |       165.1
+
+Bekannte Übergänge im Schema nach Spiel 3 (von 24): 18.4 ohne,
+23.1 mit Neugier (200 Tastendrücke).
+
+Vertrauen ins Schema (mit Schema und Neugier, 200 Tastendrücke):
+
+  Überraschung |   Siege normal | ohne Schlüssel
+------------------------------------------------
+        0.0125 |           29.9 |           30.0
+        0.0250 |           29.9 |           30.0
+        0.0500 |           28.2 |           57.2
+        0.1000 |           28.2 |           57.2
+
+Überraschung = Chance, die der Agent einer Taste zutraut, wenn das Schema etwas
+anderes vorhersagt. Siege normal = Mittel aus Spiel 2, Spiel 3 und gespiegelt.
+
+Regeln statt Zustände: Überträgt der Agent das Spiel auf andere Größen?
+Spiel 1 bis 3 werden länger (4, 5, 6 Felder). Drei Agenten spielen dieselben Spiele.
+Härtetest mit dem Vorwissen aus Spiel 1 bis 3: gespiegelt, viel länger, ohne Schlüssel.
+
+1. Sieg:
+
+Spiel          |           Länge |  ohne Vorwissen | Zustands-Schema |    Regel-Schema |         Optimum
+--------------------------------------------------------------------------------------------------------
+Spiel 1        |               4 |            20.9 |            20.9 |            20.9 |               6
+Spiel 2        |               5 |            25.8 |            22.4 |            13.3 |               7
+Spiel 3        |               6 |            27.6 |            28.6 |            14.4 |               8
+gespiegelt     |               4 |            21.4 |            10.2 |            12.2 |               6
+viel länger    |               8 |            38.5 |            34.9 |            20.5 |              10
+ohne Schlüssel |               4 |            15.6 |             9.4 |             8.9 |               3
+
+Siege:
+
+Spiel          |           Länge |  ohne Vorwissen | Zustands-Schema |    Regel-Schema |             max
+--------------------------------------------------------------------------------------------------------
+Spiel 1        |               4 |             7.1 |             7.1 |             7.1 |              10
+Spiel 2        |               5 |             5.5 |             6.0 |             7.3 |               8
+Spiel 3        |               6 |             4.5 |             4.6 |             6.4 |               7
+gespiegelt     |               4 |             7.0 |             9.0 |             8.4 |              10
+viel länger    |               8 |             2.5 |             3.0 |             4.4 |               6
+ohne Schlüssel |               4 |            10.7 |             9.5 |            12.7 |              20
+
+Regel-Schema passt am Ende noch (eine Deutung übrig): Spiel 2 100%, Spiel 3 100%, gespiegelt 100%, viel länger 100%, ohne Schlüssel 60%
+Ortsbeschreibungen im Regel-Schema nach Spiel 3 (Läufe):
+  Ereignis 1: 1 Schritt vom Start + Wand (20)
+  Ereignis 2: Wand (20)
+
+2D-Welt wie ARC-AGI-3: Labyrinthe als Farbraster, jedes Level mit neuen Farben.
+Bilder = jedes Raster ein Zustand; Objekte = lernt Figur, Tasten, Farbwirkungen;
++ Schema = bringt Rollen aus Level 1 bis 3 mit. 200 Tastendrücke pro Level.
+
+1. Sieg:
+
+Level          |            Größe |           Bilder |          Objekte | Objekte + Schema |      bestenfalls
+-------------------------------------------------------------------------------------------------------------
+Level 1        |              7×7 |             59.2 |             28.2 |             28.2 |              7.7
+Level 2        |              9×9 |            114.4 |             27.2 |             25.9 |             12.2
+Level 3        |            11×11 |            159.7 |             30.6 |             28.6 |             17.1
+groß           |            15×15 |            186.8 |             41.9 |             39.8 |             26.9
+ohne Schlüssel |              9×9 |             54.0 |             27.6 |             26.1 |              5.7
+viele Fallen   |            11×11 |             97.5 |             24.5 |             24.1 |             10.6
+
+Siege:
+
+Level          |            Größe |           Bilder |          Objekte | Objekte + Schema |      bestenfalls
+-------------------------------------------------------------------------------------------------------------
+Level 1        |              7×7 |             23.8 |             27.1 |             27.1 |             31.1
+Level 2        |              9×9 |             11.6 |             19.6 |             19.6 |             20.9
+Level 3        |            11×11 |              3.9 |             12.1 |             12.3 |             13.2
+groß           |            15×15 |              1.8 |              9.1 |              9.3 |              9.9
+ohne Schlüssel |              9×9 |             52.9 |             56.1 |             56.1 |             60.4
+viele Fallen   |            11×11 |             13.7 |             20.9 |             20.7 |             22.3
+
+Schritte in eine Falle:
+
+Level          |            Größe |           Bilder |          Objekte | Objekte + Schema
+------------------------------------------------------------------------------------------
+Level 1        |              7×7 |              1.4 |              0.5 |              0.5
+Level 2        |              9×9 |              4.5 |              0.8 |              0.1
+Level 3        |            11×11 |              3.5 |              0.8 |              0.1
+groß           |            15×15 |              2.0 |              0.9 |              0.2
+ohne Schlüssel |              9×9 |              0.7 |              0.5 |              0.3
+viele Fallen   |            11×11 |              8.4 |              1.0 |              0.3
+
+Rollen-Schema passt am Ende noch (eine Deutung übrig): Level 2 100%, Level 3 100%, groß 100%, ohne Schlüssel 100%, viele Fallen 100%
+
+Weltmodell: ein Spiel mit sechs Leveln in denselben Farben, wie bei ARC-AGI-3.
+Neue Regeln ab Level „Kiste“: Kisten schieben, Druckplatte, Tor (offen, solange
+etwas auf der Platte steht). Im Level „Tausch“ haben Ausgang und Fallen die Farben
+getauscht. Objekte 0.12 = Objekt-Agent aus Ergebnis 13; Weltmodell = leitet Regeln
+ab und plant darin; + Vorwissen = bringt sein Modell aus den vorigen Leveln mit.
+300 Tastendrücke pro Level, nie gewonnen zählt als 301.
+
+1. Sieg:
+
+Level          |            Größe |           Bilder |     Objekte 0.12 |       Weltmodell | Weltmodell + Vorwissen |      bestenfalls
+--------------------------------------------------------------------------------------------------------------------------------------
+Ausgang        |              9×9 |             70.3 |             21.1 |             19.1 |                   19.1 |              7.7
+Fallen         |            11×11 |             86.0 |             22.4 |             21.9 |                    7.9 |              7.8
+Kiste          |              9×9 |            240.7 |            301.0 |             61.9 |                   47.0 |             17.4
+zwei Kisten    |            11×11 |            278.9 |            301.0 |             76.5 |                   32.5 |             28.8
+groß           |            13×13 |            284.8 |            301.0 |             78.7 |                   36.5 |             35.2
+Tausch         |            11×11 |            298.7 |            301.0 |             77.0 |                   51.1 |             26.4
+
+Siege:
+
+Level          |            Größe |           Bilder |     Objekte 0.12 |       Weltmodell | Weltmodell + Vorwissen
+-------------------------------------------------------------------------------------------------------------------
+Ausgang        |              9×9 |             52.1 |             60.0 |             60.2 |                   60.2
+Fallen         |            11×11 |             61.5 |             67.7 |             67.7 |                   70.8
+Kiste          |              9×9 |              4.5 |              0.0 |             15.3 |                   16.1
+zwei Kisten    |            11×11 |              1.5 |              0.0 |             10.6 |                   12.1
+groß           |            13×13 |              0.8 |              0.0 |              8.8 |                   10.1
+Tausch         |            11×11 |              0.2 |              0.0 |             10.1 |                   11.2
+
+Schritte in eine Falle:
+
+Level          |            Größe |           Bilder |     Objekte 0.12 |       Weltmodell | Weltmodell + Vorwissen
+-------------------------------------------------------------------------------------------------------------------
+Ausgang        |              9×9 |              0.3 |              0.4 |              0.4 |                    0.4
+Fallen         |            11×11 |              1.4 |              0.5 |              0.5 |                    0.0
+Kiste          |              9×9 |              1.9 |              0.2 |              0.5 |                    0.2
+zwei Kisten    |            11×11 |              2.1 |              0.5 |              0.8 |                    0.1
+groß           |            13×13 |              2.6 |              0.7 |              1.1 |                    0.0
+Tausch         |            11×11 |              2.9 |              0.7 |              0.9 |                    1.1
+
+Objekte 0.12 bricht ab (Widerspruch zu seinem Wissen): Ausgang 0%, Fallen 0%, Kiste 95%, zwei Kisten 95%, groß 100%, Tausch 95%
+
+Gegenprobe auf den Labyrinthen aus Ergebnis 13 (1. Sieg, 200 Tastendrücke):
+
+Level          |    Objekte | Weltmodell
+----------------------------------------
+Level 1        |       28.2 |       28.2
+Level 2        |       27.2 |       26.9
+Level 3        |       30.6 |       30.6
+groß           |       41.9 |       41.0
+ohne Schlüssel |       27.6 |       26.9
+viele Fallen   |       24.5 |       23.7
+
+Rollen-Weltmodell (H14): Nach einem ganzen Spiel A bekommt der Agent neue Level in
+den Farben und mit den Tasten eines neuen Spiels B. Was in A braun war, ist in B
+vielleicht gelb. Farben aus A = bringt sein Modell über Farben mit; Rollen aus A =
+bringt Regeln über Rollen mit (schiebbar, auslöser, …); gleiches Spiel = dasselbe
+Level in den Farben von A, der Bestwert. Alle kennen die Neustart-Taste.
+300 Tastendrücke pro Level, nie gewonnen zählt als 301.
+
+1. Sieg:
+
+Level          |            Größe |   ohne Vorwissen |     Farben aus A |     Rollen aus A |   gleiches Spiel |      bestenfalls
+--------------------------------------------------------------------------------------------------------------------------------
+Ausgang        |              9×9 |             16.8 |             41.0 |             16.6 |              6.9 |              6.9
+Fallen         |            11×11 |             21.1 |             48.2 |             16.9 |             10.1 |             10.1
+Kiste          |              9×9 |             56.2 |            138.6 |             50.5 |             21.0 |             20.7
+zwei Kisten    |            11×11 |             63.1 |            136.8 |             53.2 |             26.0 |             25.8
+groß           |            13×13 |             79.5 |            206.6 |             73.2 |             33.6 |             33.4
+Tausch         |            11×11 |             57.2 |            127.9 |             49.6 |             41.5 |             24.4
+
+Neustart-Taste gedrückt:
+
+Level          |            Größe |   ohne Vorwissen |     Farben aus A |     Rollen aus A |   gleiches Spiel
+-------------------------------------------------------------------------------------------------------------
+Ausgang        |              9×9 |              0.0 |              0.0 |              0.0 |              0.0
+Fallen         |            11×11 |              0.0 |              0.0 |              0.0 |              0.0
+Kiste          |              9×9 |              0.2 |              1.6 |              0.1 |              0.0
+zwei Kisten    |            11×11 |              0.1 |              1.1 |              0.1 |              0.0
+groß           |            13×13 |              0.2 |              0.1 |              0.2 |              0.0
+Tausch         |            11×11 |              0.1 |              1.1 |              0.1 |              0.0
+
+Schritte in eine Falle:
+
+Level          |            Größe |   ohne Vorwissen |     Farben aus A |     Rollen aus A |   gleiches Spiel
+-------------------------------------------------------------------------------------------------------------
+Ausgang        |              9×9 |              0.3 |              0.4 |              0.3 |              0.0
+Fallen         |            11×11 |              0.8 |              1.1 |              0.0 |              0.0
+Kiste          |              9×9 |              0.8 |              1.1 |              0.8 |              0.0
+zwei Kisten    |            11×11 |              0.8 |              0.8 |              0.3 |              0.0
+groß           |            13×13 |              0.9 |              1.1 |              0.7 |              0.1
+Tausch         |            11×11 |              0.8 |              0.8 |              0.3 |              0.9
+
+Ohne Sieg (ohne Vorwissen): keine
+Ohne Sieg (Farben aus A): Ausgang 5%, Fallen 10%, Kiste 25%, zwei Kisten 25%, groß 55%, Tausch 25%
+Ohne Sieg (Rollen aus A): keine
+Ohne Sieg (gleiches Spiel): keine
+
+Gegenprobe: fremde Mechanik. Nach Spiel A kommen Level von Spiel B. „gewohnt“ hat
+die Regeln von A; bei „Tor umgekehrt“ schließt die Druckplatte das Tor, und die Kiste
+steht zu Beginn darauf; bei „Eis“ rutscht die Figur, bis etwas sie aufhält.
+Aussehen A = dasselbe Level in Farben und Tasten von A. Modell aus A = bringt sein
+Modell über die Farben von A mit: Das Level sieht aus wie A, ist es aber nicht immer.
++ Prüfung = Vorwissen erst nach zwei Bestätigungen nutzen, nach einem Widerspruch nie
+mehr (H17). + Teilprüfung = Vorwissen sofort nutzen, aber bei Stillstand jeden Teil
+testen, der nicht selbst gesehen ist (H16).
+300 Tastendrücke pro Level, nie gewonnen zählt als 301.
+
+1. Sieg:
+
+Level          |            Größe |   ohne Vorwissen |     Rollen aus A | Rollen + Prüfung | ohne, Aussehen A |     Modell aus A | Modell + Prüfung | Modell + Teilprüfung |      bestenfalls
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+gewohnt        |            11×11 |             62.9 |             54.8 |             54.8 |             61.4 |             22.9 |             25.5 |                 22.9 |             22.4
+Tor umgekehrt  |            11×11 |             47.4 |             42.6 |             42.8 |             49.5 |            195.6 |            198.1 |                 54.6 |             24.8
+Eis            |            13×13 |            136.3 |            136.3 |            136.3 |            127.2 |            131.8 |            134.9 |                131.8 |              7.7
+
+Schaden (1. Sieg minus ohne Vorwissen im selben Aussehen):
+
+Level          |            Größe |   ohne Vorwissen |     Rollen aus A | Rollen + Prüfung | ohne, Aussehen A |     Modell aus A | Modell + Prüfung | Modell + Teilprüfung
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+gewohnt        |            11×11 |              0.0 |             -8.1 |             -8.1 |              0.0 |            -38.5 |            -35.9 |                -38.5
+Tor umgekehrt  |            11×11 |              0.0 |             -4.8 |             -4.7 |              0.0 |            146.1 |            148.7 |                  5.2
+Eis            |            13×13 |              0.0 |              0.0 |              0.0 |              0.0 |              4.5 |              7.7 |                  4.5
+
+Ohne Sieg (% der Läufe):
+
+Level          |            Größe |   ohne Vorwissen |     Rollen aus A | Rollen + Prüfung | ohne, Aussehen A |     Modell aus A | Modell + Prüfung | Modell + Teilprüfung
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+gewohnt        |            11×11 |              0.0 |              0.0 |              0.0 |              0.0 |              0.0 |              0.0 |                  0.0
+Tor umgekehrt  |            11×11 |              0.0 |              0.0 |              0.0 |              0.0 |             40.0 |             40.0 |                  0.0
+Eis            |            13×13 |             20.0 |             20.0 |             20.0 |             15.0 |             10.0 |             10.0 |                 10.0
+
+Vorwissen am Ende widerlegt (% der Läufe):
+
+Level          |            Größe |   ohne Vorwissen |     Rollen aus A | Rollen + Prüfung | ohne, Aussehen A |     Modell aus A | Modell + Prüfung | Modell + Teilprüfung
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+gewohnt        |            11×11 |              0.0 |              0.0 |              0.0 |              0.0 |              0.0 |              5.0 |                  0.0
+Tor umgekehrt  |            11×11 |              0.0 |              0.0 |              5.0 |              0.0 |              0.0 |             55.0 |                  0.0
+Eis            |            13×13 |              0.0 |              0.0 |              0.0 |              0.0 |              0.0 |            100.0 |                  0.0
+
+Spielwelt gegen Alltagswelt: Schaden durch Vorwissen in Prozent (negativ = hilft).
+Alltag = Härtetest H11 von oben (Vorhersage, gemittelt über 10, 40, 160 Beob.),
+Spiel = Gegenprobe (Tastendrücke bis zum 1. Sieg, Aussehen A).
+übernehmen = starr / Modell aus A; als Ganzes prüfen = geprüft / Modell + Prüfung;
+Teile korrigieren = lernend / Modell + Teilprüfung. Gleiches Prinzip, anderer Code.
+
+Welt   | Lage            |        übernehmen | als Ganzes prüfen | Teile korrigieren
+------------------------------------------------------------------------------------
+Alltag | normal          |             -9.4% |             -6.7% |             -7.4%
+Alltag | sehr lang       |            +11.7% |             -0.2% |             +0.3%
+Alltag | sehr kurz       |             +5.0% |             -2.9% |             -3.0%
+Alltag | gestört         |            +27.6% |             -1.3% |             -1.9%
+Spiel  | gewohnt         |            -62.7% |            -58.4% |            -62.7%
+Spiel  | Tor umgekehrt   |           +295.4% |           +300.6% |            +10.5%
+Spiel  | Eis             |             +3.5% |             +6.1% |             +3.5%
+
+
+Ein Agent, drei Welten (H19). Derselbe Code, nur Zahlen und Tasten, gemischt.
+Lehrplan: kleine Räume / Suchbäume, dann Prüfung in der großen Welt (5 Runden).
+Schritte bis zum Ziel in der Prüfung, nicht erreicht zählt als 2000.
+
+Welt    |               Größe | Zufall | Tabelle | Regeln ohne Form | Form + Regeln | bestenfalls
+-------------------------------------------------------------------------------------------------
+2D-Raum |               25×25 | 1583.2 |  1415.9 |             52.4 |          23.2 |        17.8
+3D-Raum |            10×10×10 | 1082.5 |  1062.7 |             19.0 |          10.8 |         9.1
+Suche   | 1.048.575 Schlüssel | 2000.0 |  2000.0 |           2000.0 |          18.0 |        18.0
+
+Ziel erreicht (% der Prüfrunden):
+
+Welt    | Zufall | Tabelle | Regeln ohne Form | Form + Regeln
+-------------------------------------------------------------
+2D-Raum |     44 |      64 |              100 |           100
+3D-Raum |     78 |      80 |              100 |           100
+Suche   |      0 |       0 |                0 |           100
+
+Form, die der Agent selbst gefunden hat:
+
+Welt    | richtige Form gefunden |           Formen (je Lauf)
+-------------------------------------------------------------
+2D-Raum |                  100 % | Raum mit 2 Dimensionen ×10
+3D-Raum |                  100 % | Raum mit 3 Dimensionen ×10
+Suche   |                  100 % |                Ordnung ×10
+
+Bibliothek über Welten (H20). Geprüfte Programme: erst nur die Suchen mit Erfolg
+(Größen mit einer Regel ohne Ausnahme; in Klammern: davon Regeln aus der
+Bibliothek), dann alle Suchen, auch die vergeblichen nach unvorhersagbaren Größen.
+Zufallsbibliothek = zwei Zufallsmuster gleicher Länge, die nie entfernt werden.
+
+Suchen mit Erfolg:
+
+Reihenfolge               |    Welt | ohne Bibliothek | mit Bibliothek | Zufallsbibliothek
+------------------------------------------------------------------------------------------
+2D-Raum → 3D-Raum → Suche | 2D-Raum |       421 (0.0) |      421 (0.0) |         688 (1.2)
+2D-Raum → 3D-Raum → Suche | 3D-Raum |       762 (0.0) |      364 (6.0) |        1279 (1.8)
+2D-Raum → 3D-Raum → Suche |   Suche |       211 (0.0) |      232 (0.1) |         311 (0.3)
+Suche → 2D-Raum → 3D-Raum |   Suche |       211 (0.0) |      211 (0.0) |         311 (0.3)
+Suche → 2D-Raum → 3D-Raum | 2D-Raum |       421 (0.0) |      321 (2.4) |         688 (1.2)
+Suche → 2D-Raum → 3D-Raum | 3D-Raum |       762 (0.0) |      416 (6.0) |        1279 (1.8)
+
+Alle Suchen:
+
+Reihenfolge               |    Welt | ohne Bibliothek | mit Bibliothek | Zufallsbibliothek
+------------------------------------------------------------------------------------------
+2D-Raum → 3D-Raum → Suche | 2D-Raum |            2785 |           2785 |              4888
+2D-Raum → 3D-Raum → Suche | 3D-Raum |            6714 |           6204 |             12810
+2D-Raum → 3D-Raum → Suche |   Suche |             703 |            690 |               930
+Suche → 2D-Raum → 3D-Raum |   Suche |             703 |            703 |               930
+Suche → 2D-Raum → 3D-Raum | 2D-Raum |            2785 |           3006 |              4888
+Suche → 2D-Raum → 3D-Raum | 3D-Raum |            6714 |           7024 |             12810
+
+Gleiches Budget: höchstens 20 Programme je Regelsuche. Ziel erreicht (%):
+
+Reihenfolge               |    Welt | ohne Bibliothek | mit Bibliothek
+----------------------------------------------------------------------
+2D-Raum → 3D-Raum → Suche | 2D-Raum |              94 |             94
+2D-Raum → 3D-Raum → Suche | 3D-Raum |             100 |             98
+2D-Raum → 3D-Raum → Suche |   Suche |              90 |             92
+Suche → 2D-Raum → 3D-Raum |   Suche |              90 |             90
+Suche → 2D-Raum → 3D-Raum | 2D-Raum |              94 |             94
+Suche → 2D-Raum → 3D-Raum | 3D-Raum |             100 |            100
+
+Einträge am Ende (erster Lauf jeder Reihenfolge):
+
+Reihenfolge               | Eintrag |                                                     Muster |     aus | genutzt in |    Stand
+----------------------------------------------------------------------------------------------------------------------------------
+2D-Raum → 3D-Raum → Suche |      B1 | fester Schritt, außer ein Schalter ist 1 (dann bleibt sie) | 2D-Raum | 3D-Raum: 6 | behalten
+Suche → 2D-Raum → 3D-Raum |      B1 | fester Schritt, außer ein Schalter ist 1 (dann bleibt sie) | 2D-Raum | 3D-Raum: 6 | behalten
+
+Neue Umgebung erkennen (H18). Rutschiger Raum A (jeder 10. Schritt geht nicht),
+dann B (Tasten vertauscht), dann wieder A. 15 Runden je Phase.
+
+Mittlere Schritte je Runde (in Klammern: die ersten drei Runden der Phase):
+
+Umgang                |         A |           B |    A wieder
+-------------------------------------------------------------
+ohne Erkennung        | 21.8 (61) | 104.7 (104) | 134.5 (150)
+jede Überraschung     | 53.4 (89) |   53.0 (53) |   30.8 (32)
+nie neue Karte        | 17.6 (60) |   54.0 (68) |   23.6 (50)
+erwartet / unerwartet | 17.6 (60) |   53.1 (66) |   24.8 (18)
+
+Umgang                | Karten | Fehlalarme in A | B erkannt | alte Karte wieder
+--------------------------------------------------------------------------------
+ohne Erkennung        |    1.0 |             0.0 |       0 % |               0 %
+jede Überraschung     |   21.6 |           416.4 |     100 % |              40 %
+nie neue Karte        |    1.0 |             0.1 |      80 % |               0 %
+erwartet / unerwartet |    2.1 |             0.1 |      80 % |              90 %
+
+B erkannt = Kartenwechsel in den ersten 30 Schritten von B. Alte Karte wieder =
+der erste Wechsel in „A wieder“ führt zur ersten Karte zurück. (4 Umgänge)

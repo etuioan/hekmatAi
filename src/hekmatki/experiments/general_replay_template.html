@@ -1,0 +1,684 @@
+<meta charset="utf-8">
+<title>Ein Agent, drei Welten</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: Kopf mit These, Welt-Auswahl, Wiedergabe in drei Spalten (sieht / passiert / weiß),
+   darunter die Zahlen aller Läufe, Bibliothek und das Erkennen einer neuen Umgebung. */
+:root {
+  --bg: #eff2ee;
+  --surface: #fafbf8;
+  --sunk: #e4e9e3;
+  --ink: #15213a;
+  --muted: #56635d;
+  --line: #d2d9d1;
+  --accent: #2448c8;
+  --agent: #c02478;
+  --agent-soft: rgba(192, 36, 120, 0.22);
+  --goal: #0d877b;
+  --wall: #2a3542;
+  --cell: #f6f8f4;
+  --phase-b: rgba(36, 72, 200, 0.08);
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1413; --surface: #151d1c; --sunk: #0b100f; --ink: #e5ece8; --muted: #93a39c;
+    --line: #273331; --accent: #86a2ff; --agent: #ff62b0; --agent-soft: rgba(255, 98, 176, 0.25);
+    --goal: #41d2bf; --wall: #5d6d72; --cell: #1b2524; --phase-b: rgba(134, 162, 255, 0.10);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1413; --surface: #151d1c; --sunk: #0b100f; --ink: #e5ece8; --muted: #93a39c;
+  --line: #273331; --accent: #86a2ff; --agent: #ff62b0; --agent-soft: rgba(255, 98, 176, 0.25);
+  --goal: #41d2bf; --wall: #5d6d72; --cell: #1b2524; --phase-b: rgba(134, 162, 255, 0.10);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 15px/1.55 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 64px;
+}
+main { max-width: 1180px; margin: 0 auto; display: grid; gap: 56px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.12; }
+h1 { font-size: clamp(2.1rem, 5vw, 3.4rem); font-weight: 700; letter-spacing: -0.02em; }
+h2 { font-size: 1.6rem; font-weight: 700; }
+h3 { font-size: 1.02rem; font-weight: 600; font-family: var(--font-body); }
+p { margin: 0; max-width: 68ch; }
+.kicker, .label {
+  font: 500 0.74rem/1.3 var(--font-data); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted);
+}
+.lede { font-size: 1.12rem; color: var(--ink); }
+.muted { color: var(--muted); }
+.mono { font-family: var(--font-data); }
+header { display: grid; gap: 16px; }
+section { display: grid; gap: 20px; }
+.section-head { display: grid; gap: 8px; }
+
+/* Welt-Auswahl */
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.tabs button {
+  font: 600 0.95rem var(--font-body); color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; cursor: pointer;
+}
+.tabs button[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.tabs .sub { font-weight: 400; opacity: 0.75; margin-left: 6px; }
+
+/* Steuerleiste */
+.controls {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px;
+}
+.controls button {
+  font: 600 0.9rem var(--font-body); background: var(--accent); color: var(--surface);
+  border: 0; border-radius: 8px; padding: 7px 14px; cursor: pointer; min-width: 92px;
+}
+.controls button.quiet { background: transparent; color: var(--accent); border: 1px solid var(--line); min-width: 0; }
+.controls input[type="range"] { flex: 1 1 220px; accent-color: var(--accent); min-width: 0; }
+.controls .readout { font: 500 0.9rem var(--font-data); min-width: 12ch; }
+
+/* Drei Spalten */
+.stage { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.3fr) minmax(0, 1.1fr); gap: 16px; }
+@media (max-width: 980px) { .stage { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .stage .truth { grid-column: 1 / -1; order: -1; } }
+@media (max-width: 640px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: grid; gap: 12px; align-content: start; min-width: 0;
+}
+.panel > .label { display: flex; justify-content: space-between; gap: 8px; }
+
+.readings { display: grid; gap: 2px; font-family: var(--font-data); font-size: 0.9rem; }
+.reading { display: grid; grid-template-columns: 3.2em 1fr; gap: 8px; padding: 3px 8px; border-radius: 6px; }
+.reading .v { text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.reading.changed { background: var(--agent-soft); }
+.reading .n { color: var(--muted); }
+.reading .real { display: none; color: var(--muted); font-family: var(--font-body); font-size: 0.82rem; grid-column: 1 / -1; margin-top: -2px; }
+.show-names .reading .real { display: block; }
+.pressed { font: 500 0.92rem var(--font-data); padding: 8px 10px; border-radius: 8px; background: var(--sunk); }
+.toggle { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; color: var(--muted); cursor: pointer; }
+.toggle input { accent-color: var(--accent); }
+
+.truth canvas { width: 100%; display: block; border-radius: 8px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.84rem; color: var(--muted); }
+.legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+
+.search-rows { display: grid; gap: 7px; max-height: 470px; overflow-y: auto; padding-right: 4px; }
+.search-row { display: grid; grid-template-columns: 2.4em minmax(0, 1fr); gap: 4px 10px; align-items: center; font-size: 0.82rem; }
+.search-row .d { font-family: var(--font-data); color: var(--muted); }
+.track { position: relative; height: 14px; background: var(--sunk); border-radius: 4px; }
+.track .node { position: absolute; top: -3px; bottom: -3px; width: 3px; margin-left: -1px; background: var(--agent); border-radius: 2px; }
+.track .target { position: absolute; top: 3px; width: 8px; height: 8px; margin-left: -4px; background: var(--goal); border-radius: 50%; }
+.search-row .info { grid-column: 2; font-family: var(--font-data); color: var(--muted); overflow-wrap: anywhere; }
+.search-row.now .d { color: var(--agent); font-weight: 600; }
+
+.found { display: grid; gap: 14px; }
+.found .block { display: grid; gap: 6px; }
+.said { font: 0.86rem/1.45 var(--font-data); background: var(--sunk); border-radius: 8px; padding: 8px 10px; overflow-wrap: anywhere; }
+.said + .ours, .ours { font-size: 0.86rem; color: var(--muted); padding-left: 10px; border-left: 2px solid var(--goal); }
+.rule { display: grid; gap: 3px; }
+.rules { display: grid; gap: 10px; }
+.formname { font: 700 1.25rem var(--font-display); color: var(--accent); }
+.caption { font-size: 0.9rem; color: var(--muted); }
+
+/* Tabellen */
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { padding: 9px 14px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+th:first-child, td:first-child { text-align: left; }
+thead th { font: 500 0.74rem var(--font-data); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+tbody tr:last-child td { border-bottom: 0; }
+td.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+td .sub { color: var(--muted); font-size: 0.82rem; margin-left: 4px; }
+td.best { color: var(--accent); font-weight: 600; }
+td.fail { color: var(--muted); }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 6px; align-content: start; }
+.card .big { font: 700 2rem/1 var(--font-display); }
+.card .big small { font-size: 0.95rem; font-weight: 500; color: var(--muted); margin-left: 4px; }
+
+.chart-wrap { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; overflow-x: auto; }
+.chart-wrap svg { display: block; width: 100%; min-width: 560px; height: auto; }
+.chart-wrap text { font-family: var(--font-data); font-size: 11px; fill: var(--muted); }
+.chart-wrap .phase-label { font-family: var(--font-body); font-size: 12px; font-weight: 600; fill: var(--ink); }
+
+ul.plain { margin: 0; padding-left: 1.2em; display: grid; gap: 8px; max-width: 72ch; }
+footer { color: var(--muted); font-size: 0.86rem; }
+</style>
+
+<main>
+  <header>
+    <div class="kicker">HekmatKI · Prototyp 0.16 · Gegenprobe zu H18, H19, H20</div>
+    <h1>Ein Agent, drei Welten</h1>
+    <p class="lede">Derselbe Code lernt einen Raum, einen Würfel und einen Suchbaum mit über einer Million
+      Schlüsseln. Er weiß nicht, was ein Raum oder ein Baum ist. Er sieht nur Zahlen in gemischter
+      Reihenfolge und drückt Tasten ohne Namen. Was er herausfindet, schreibt er als kleine Programme auf,
+      erkennt daraus die Form der Welt und plant damit.</p>
+    <div class="cards" id="headline"></div>
+  </header>
+
+  <section aria-labelledby="replay-title">
+    <div class="section-head">
+      <h2 id="replay-title">Eine Prüfrunde, Schritt für Schritt</h2>
+      <p class="muted" id="replay-note"></p>
+    </div>
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="controls">
+      <button type="button" id="play">Abspielen</button>
+      <button type="button" class="quiet" id="back" aria-label="Ein Schritt zurück">◀</button>
+      <button type="button" class="quiet" id="next" aria-label="Ein Schritt vor">▶</button>
+      <input type="range" id="slider" min="0" value="0" aria-label="Schritt">
+      <span class="readout" id="readout"></span>
+    </div>
+    <div class="stage">
+      <div class="panel">
+        <div class="label"><span>Was der Agent sieht</span></div>
+        <div class="readings" id="readings"></div>
+        <div class="pressed" id="pressed"></div>
+        <label class="toggle"><input type="checkbox" id="names"> Namen einblenden (kennt er nicht)</label>
+      </div>
+      <div class="panel truth">
+        <div class="label"><span>Was wirklich passiert</span><span id="truth-size"></span></div>
+        <div id="truth"></div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="panel">
+        <div class="label"><span>Was er herausgefunden hat</span></div>
+        <div class="found" id="found"></div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="all-title">
+    <div class="section-head">
+      <h2 id="all-title">Alle Läufe: wie viele Schritte bis zum Ziel</h2>
+      <p class="muted" id="all-note"></p>
+    </div>
+    <div class="table-wrap"><table id="all-table"></table></div>
+    <p class="caption">„Tabelle“ lernt für jede gesehene Beobachtung, welche Taste sich lohnt (Q-Lernen),
+      kann aber nichts auf Neues übertragen. „Regeln ohne Form“ hat dieselben Regeln, plant aber nur einen
+      Schritt voraus und hat keine Karte. „Bestenfalls“ ist der kürzeste mögliche Weg.</p>
+  </section>
+
+  <section aria-labelledby="lib-title">
+    <div class="section-head">
+      <h2 id="lib-title">Bibliothek: Gelerntes in die nächste Welt mitnehmen</h2>
+      <p class="muted">Aus Regeln, die in einer Welt ohne Ausnahme stimmen, zieht der Agent Muster mit
+        Lücken (wie DreamCoder und Stitch). In der nächsten Welt probiert er sie früh aus. Gezählt wird,
+        wie viele Programme er bei der Regelsuche prüft. Die Zufallsbibliothek ist die Kontrolle: zwei
+        Muster gleicher Länge, aber ohne Sinn.</p>
+    </div>
+    <div class="table-wrap"><table id="lib-table"></table></div>
+    <div id="lib-entries" class="cards"></div>
+  </section>
+
+  <section aria-labelledby="new-title">
+    <div class="section-head">
+      <h2 id="new-title">Eine neue Umgebung erkennen</h2>
+      <p class="muted">Ein rutschiger Raum A (jeder zehnte Schritt geht nicht), dann Raum B, in dem die
+        Tasten vertauscht sind, dann wieder A. Der Agent soll Rauschen hinnehmen, B als neue Welt erkennen
+        und bei der Rückkehr seine alte Karte wiederfinden. Die Kurve zeigt, wie unwahrscheinlich das
+        Gesehene für seine schlechteste Regel ist (Binomial-Test über die letzten 20 Schritte).</p>
+    </div>
+    <div class="chart-wrap" id="chart"></div>
+    <div class="table-wrap"><table id="new-table"></table></div>
+  </section>
+
+  <section aria-labelledby="limits-title">
+    <h2 id="limits-title">Grenzen</h2>
+    <ul class="plain" id="limits"></ul>
+  </section>
+
+  <footer id="footer"></footer>
+</main>
+
+<script>
+const DATA = /*WORLDS_DATA*/null;
+
+const fmt = (value, digits = 1) =>
+  Number(value).toLocaleString("de-DE", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+const pct = value => `${fmt(100 * value, 0)} %`;
+const el = (tag, attrs = {}, ...children) => {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(attrs)) {
+    if (key === "class") node.className = value;
+    else if (key === "text") node.textContent = value;
+    else node.setAttribute(key, value);
+  }
+  for (const child of children) node.append(child);
+  return node;
+};
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const subtitle = world => ({ "2D-Raum": "Raum", "3D-Raum": "Würfel", "Suche": "Suchbaum" })[world.name] || "";
+
+const state = { world: 0, step: 0, timer: null };
+
+/* ---------- Kopf ---------- */
+function renderHeadline() {
+  const box = document.getElementById("headline");
+  for (const world of DATA.worlds) {
+    const s = world.summary;
+    const ours = s.steps["Form + Regeln"];
+    const random = s.steps["Zufall"];
+    const randomText = s.reached["Zufall"] === 0 ? `Zufall: nie am Ziel` : `Zufall: ${fmt(random, 0)} Schritte`;
+    box.append(el("div", { class: "card" },
+      el("div", { class: "label", text: `${world.name} · ${world.size}` }),
+      el("div", { class: "big" }, fmt(ours), el("small", { text: `Schritte, bestenfalls ${fmt(s.best)}` })),
+      el("div", { class: "muted", text: `${randomText} · Form erkannt in ${pct(s.formFound)} der Läufe` })));
+  }
+}
+
+/* ---------- Wiedergabe ---------- */
+function renderTabs() {
+  const tabs = document.getElementById("tabs");
+  DATA.worlds.forEach((world, index) => {
+    const button = el("button", { type: "button", role: "tab", "aria-selected": String(index === state.world) },
+      world.name, el("span", { class: "sub", text: subtitle(world) }));
+    button.addEventListener("click", () => selectWorld(index));
+    tabs.append(button);
+  });
+}
+
+function selectWorld(index) {
+  stop();
+  state.world = index;
+  state.step = 0;
+  document.querySelectorAll("#tabs button").forEach((b, i) => b.setAttribute("aria-selected", String(i === index)));
+  const world = DATA.worlds[index];
+  const slider = document.getElementById("slider");
+  slider.max = String(world.observations.length - 1);
+  document.getElementById("replay-note").textContent =
+    `Gezeigt wird die längste der ${world.rounds} Prüfrunden nach dem Lehrplan (Runde ${world.round}): ` +
+    `${world.steps} Schritte, der kürzeste Weg wäre ${world.least}. Die Taste, die er drückt, ` +
+    `kommt aus seiner Planung oder, wo er nichts weiß, aus Neugier.`;
+  document.getElementById("truth-size").textContent = world.size;
+  renderFound(world);
+  renderLegend(world);
+  renderTruthFrame(world);
+  showStep();
+}
+
+function showStep() {
+  const world = DATA.worlds[state.world];
+  const step = state.step;
+  document.getElementById("slider").value = String(step);
+  document.getElementById("readout").textContent = `Schritt ${step} / ${world.observations.length - 1}`;
+  const now = world.observations[step];
+  const before = step > 0 ? world.observations[step - 1] : now;
+  const box = document.getElementById("readings");
+  box.replaceChildren(...now.map((value, i) => el("div", { class: "reading" + (value !== before[i] ? " changed" : "") },
+    el("span", { class: "n", text: `G${i}` }),
+    el("span", { class: "v", text: String(value) }),
+    el("span", { class: "real", text: world.componentNames[i] }))));
+  const pressed = document.getElementById("pressed");
+  if (step === 0) pressed.textContent = "Rundenbeginn, noch keine Taste.";
+  else {
+    const action = world.pressed[step - 1];
+    pressed.textContent = `Gedrückt: Taste ${action}` +
+      (document.getElementById("names").checked ? `  (= ${world.actionNames[action]})` : "");
+  }
+  drawTruth(world, step);
+}
+
+function play() {
+  const world = DATA.worlds[state.world];
+  if (state.step >= world.observations.length - 1) state.step = 0;
+  const button = document.getElementById("play");
+  button.textContent = "Anhalten";
+  const delay = Math.max(70, Math.min(420, 9000 / world.observations.length));
+  state.timer = setInterval(() => {
+    if (state.step >= world.observations.length - 1) { stop(); return; }
+    state.step += 1;
+    showStep();
+  }, delay);
+}
+function stop() {
+  clearInterval(state.timer);
+  state.timer = null;
+  document.getElementById("play").textContent = "Abspielen";
+}
+
+/* ---------- Was er herausgefunden hat ---------- */
+function renderFound(world) {
+  const box = document.getElementById("found");
+  box.replaceChildren();
+  const form = world.form;
+  const formBlock = el("div", { class: "block" }, el("div", { class: "label", text: "Form der Welt" }),
+    el("div", { class: "formname", text: form.name }));
+  for (const axis of form.axes) {
+    const order = axis.kind === "Ordnung";
+    const said = order
+      ? `G${axis.component}: Ordnung. Taste ${axis.up} lässt steigen, Taste ${axis.down} fallen.`
+      : `G${axis.component}: Raumachse. Taste ${axis.up} geht vor, Taste ${axis.down} zurück.`;
+    const ours = `${axis.name}: ${axis.upName} / ${axis.downName}`;
+    formBlock.append(el("div", { class: "rule" }, el("div", { class: "said", text: said }), el("div", { class: "ours", text: ours })));
+  }
+  if (form.fixed.length) {
+    formBlock.append(el("div", { class: "caption", text:
+      `Fest (ändert sich nie): ${form.fixed.map(f => `G${f.component}`).join(", ")}` +
+      `, also ${form.fixed.map(f => f.name).join(", ")}.` }));
+  }
+  box.append(formBlock);
+
+  const goal = el("div", { class: "block" }, el("div", { class: "label", text: "Ziel" }));
+  if (world.goal.length) {
+    goal.append(el("div", { class: "said", text: "Am Ziel, wenn " + world.goal.map(g => `G${g.pair[0]} = G${g.pair[1]}`).join(" und ") }),
+      el("div", { class: "ours", text: world.goal.map(g => `${g.names[0]} = ${g.names[1]}`).join(" und ") }));
+  } else {
+    goal.append(el("div", { class: "caption", text: "Noch kein Ziel gelernt." }));
+  }
+  box.append(goal);
+
+  const rules = el("div", { class: "block" }, el("div", { class: "label", text: "Regeln, die etwas bewegen" }));
+  const list = el("div", { class: "rules" });
+  for (const rule of world.rules.moving) {
+    list.append(el("div", { class: "rule" }, el("div", { class: "said", text: rule.agent }), el("div", { class: "ours", text: rule.ours })));
+  }
+  rules.append(list, el("div", { class: "caption", text:
+    `Dazu ${world.rules.kept} Regeln „bleibt gleich“ und ${world.rules.unpredictable} Größen, ` +
+    `die er nach einer Taste nicht sicher vorhersagen kann ` +
+    (world.kind === "search" ? "(etwa den Schlüssel nach „hinauf“)." : "(etwa Wände am neuen Ort).") }));
+  box.append(rules);
+}
+
+/* ---------- Was wirklich passiert ---------- */
+function renderLegend(world) {
+  const items = world.kind === "search"
+    ? [["--agent", "Knoten, an dem er gerade ist"], ["--goal", "gesuchter Schlüssel"]]
+    : [["--agent", "Agent und sein Weg"], ["--goal", "Ziel"], ["--wall", "Wand"]];
+  document.getElementById("legend").replaceChildren(...items.map(([token, text]) =>
+    el("span", {}, el("i", { style: `background: var(${token})` }), text)));
+}
+
+function renderTruthFrame(world) {
+  const box = document.getElementById("truth");
+  if (world.kind === "search") {
+    box.replaceChildren(el("div", { class: "search-rows", id: "search-rows" }));
+  } else {
+    box.replaceChildren(el("canvas", { id: "canvas", role: "img", "aria-label": `${world.name}, Weg des Agenten` }));
+  }
+}
+
+function drawTruth(world, step) {
+  if (world.kind === "search") drawSearch(world, step);
+  else drawLattice(world, step);
+}
+
+function drawLattice(world, step) {
+  const canvas = document.getElementById("canvas");
+  if (!canvas) return;
+  const width = canvas.clientWidth || 600;
+  const edge = world.edge;
+  const slices = world.dims === 3 ? edge : 1;
+  const columns = world.dims === 3 ? (width < 460 ? 2 : 5) : 1;
+  const rows = Math.ceil(slices / columns);
+  const gap = world.dims === 3 ? 14 : 0;
+  const labelSpace = world.dims === 3 ? 16 : 0;
+  const cell = Math.floor((width - gap * (columns - 1)) / (columns * edge));
+  const sliceSize = cell * edge;
+  const height = rows * (sliceSize + labelSpace) + (rows - 1) * gap;
+  const ratio = window.devicePixelRatio || 1;
+  canvas.width = Math.round(width * ratio);
+  canvas.height = Math.round(height * ratio);
+  canvas.style.height = `${height}px`;
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+  const color = { cell: css("--cell"), wall: css("--wall"), agent: css("--agent"), soft: css("--agent-soft"), goal: css("--goal"), muted: css("--muted"), line: css("--line"), ink: css("--ink") };
+  const blocked = new Set(world.blocked.map(c => c.join(",")));
+  const position = world.positions[step];
+  const sliceOf = p => (world.dims === 3 ? p[2] : 0);
+  const origin = z => {
+    const col = z % columns, row = Math.floor(z / columns);
+    return [col * (sliceSize + gap), row * (sliceSize + labelSpace + gap) + labelSpace];
+  };
+  const centre = p => {
+    const [ox, oy] = origin(sliceOf(p));
+    return [ox + p[0] * cell + cell / 2, oy + (edge - 1 - p[1]) * cell + cell / 2];
+  };
+  for (let z = 0; z < slices; z++) {
+    const [ox, oy] = origin(z);
+    if (world.dims === 3) {
+      ctx.fillStyle = z === sliceOf(position) ? color.agent : color.muted;
+      ctx.font = `500 11px ${css("--font-data") || "monospace"}`;
+      ctx.fillText(`z = ${z}`, ox, oy - 4);
+    }
+    for (let x = 0; x < edge; x++) {
+      for (let y = 0; y < edge; y++) {
+        const key = world.dims === 3 ? `${x},${y},${z}` : `${x},${y}`;
+        ctx.fillStyle = blocked.has(key) ? color.wall : color.cell;
+        ctx.fillRect(ox + x * cell + 0.5, oy + (edge - 1 - y) * cell + 0.5, cell - 1, cell - 1);
+      }
+    }
+    if (world.dims === 3 && z === sliceOf(position)) {
+      ctx.strokeStyle = color.agent; ctx.lineWidth = 2;
+      ctx.strokeRect(ox - 1, oy - 1, sliceSize + 2, sliceSize + 2);
+    }
+  }
+  // Weg bis hierher: innerhalb einer Schicht als Linie, Wechsel der Schicht als Punkt.
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.strokeStyle = color.soft; ctx.lineWidth = Math.max(2, cell * 0.3);
+  for (let i = 1; i <= step; i++) {
+    const a = world.positions[i - 1], b = world.positions[i];
+    if (sliceOf(a) !== sliceOf(b)) continue;
+    const [ax, ay] = centre(a), [bx, by] = centre(b);
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+  }
+  const goal = world.target;
+  const [gx, gy] = centre(goal);
+  ctx.strokeStyle = color.goal; ctx.lineWidth = 2.5;
+  ctx.strokeRect(gx - cell * 0.42, gy - cell * 0.42, cell * 0.84, cell * 0.84);
+  ctx.fillStyle = color.goal;
+  ctx.fillRect(gx - cell * 0.2, gy - cell * 0.2, cell * 0.4, cell * 0.4);
+  const [px, py] = centre(position);
+  ctx.fillStyle = color.agent;
+  ctx.beginPath(); ctx.arc(px, py, Math.max(3, cell * 0.36), 0, Math.PI * 2); ctx.fill();
+}
+
+function drawSearch(world, step) {
+  const box = document.getElementById("search-rows");
+  if (!box) return;
+  const target = world.targetIndex;
+  const rows = [];
+  for (let i = 0; i <= step; i++) {
+    const frame = world.frames[i];
+    const span = frame.high - frame.low;
+    const at = value => (span === 0 ? 50 : (100 * (value - frame.low)) / span);
+    const track = el("div", { class: "track" }, el("div", { class: "node", style: `left: ${at(frame.index)}%` }));
+    if (target >= frame.low && target <= frame.high) {
+      track.append(el("div", { class: "target", style: `left: ${at(target)}%` }));
+    }
+    const count = frame.high - frame.low + 1;
+    const text = `${frame.key.toLocaleString("de-DE")} · Bereich darunter: ${count.toLocaleString("de-DE")} Schlüssel` +
+      (i > 0 ? `  (${world.actionNames[world.pressed[i - 1]]})` : "");
+    rows.push(el("div", { class: "search-row" + (i === step ? " now" : "") },
+      el("span", { class: "d", text: String(i) }), track, el("span", { class: "info", text })));
+  }
+  box.replaceChildren(...rows);
+  box.scrollTop = box.scrollHeight;
+}
+
+/* ---------- Alle Läufe ---------- */
+function renderAll() {
+  document.getElementById("all-note").textContent =
+    `${DATA.seeds} Läufe je Welt, je ${DATA.worlds[0].rounds} Prüfrunden. Mittlere Schritte bis zum Ziel; ` +
+    `nicht erreicht zählt als ${DATA.testLimit.toLocaleString("de-DE")}. In Klammern: Anteil der Runden am Ziel.`;
+  const table = document.getElementById("all-table");
+  const head = el("tr", {}, el("th", { text: "Welt" }), ...DATA.agents.map(a => el("th", { text: a })), el("th", { text: "bestenfalls" }));
+  const body = DATA.worlds.map(world => {
+    const s = world.summary;
+    const best = Math.min(...DATA.agents.map(a => s.steps[a]));
+    return el("tr", {}, el("td", {}, world.name, el("span", { class: "sub", text: world.size })),
+      ...DATA.agents.map(a => {
+        const cls = "num" + (s.steps[a] === best ? " best" : "") + (s.reached[a] === 0 ? " fail" : "");
+        return el("td", { class: cls }, fmt(s.steps[a]), el("span", { class: "sub", text: `(${pct(s.reached[a])})` }));
+      }),
+      el("td", { class: "num", text: fmt(s.best) }));
+  });
+  table.replaceChildren(el("thead", {}, head), el("tbody", {}, ...body));
+}
+
+/* ---------- Bibliothek ---------- */
+function renderLibrary() {
+  const lib = DATA.library;
+  const table = document.getElementById("lib-table");
+  const head = el("tr", {}, el("th", { text: "Reihenfolge · Welt" }),
+    ...lib.conditions.map(c => el("th", { text: c })));
+  const body = [];
+  let order = null;
+  for (const row of lib.rows) {
+    if (row.order !== order) {
+      order = row.order;
+      body.push(el("tr", {}, el("td", { colspan: String(lib.conditions.length + 1), class: "label", text: order })));
+    }
+    const least = Math.min(...lib.conditions.map(c => row.testedFound[c]));
+    body.push(el("tr", {}, el("td", { text: row.world }),
+      ...lib.conditions.map(c => el("td", { class: "num" + (row.testedFound[c] === least && row.borrowed[c] > 0 ? " best" : "") },
+        fmt(row.testedFound[c], 0),
+        el("span", { class: "sub", text: `/ ${fmt(row.tested[c], 0)}` })))));
+  }
+  table.replaceChildren(el("caption", { class: "label", style: "text-align:left; padding: 12px 14px 0", text:
+      "Geprüfte Programme: Suchen mit Erfolg / alle Suchen (Mittel über die Läufe)" }),
+    el("thead", {}, head), el("tbody", {}, ...body));
+
+  const entries = document.getElementById("lib-entries");
+  const seen = new Set();
+  for (const entry of lib.entries) {
+    const key = `${entry.pattern}|${entry.origin}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const uses = Object.entries(entry.reuses).map(([w, n]) => `${w}: ${n}×`).join(", ") || "nirgends";
+    entries.append(el("div", { class: "card" },
+      el("div", { class: "label", text: `Eintrag ${entry.name} · gelernt in ${entry.origin}` }),
+      el("div", { class: "said", text: entry.pattern }),
+      el("div", { class: "muted", text: `wiederverwendet in ${uses}${entry.removed ? " · später entfernt" : ""}` })));
+  }
+  entries.append(el("div", { class: "card" },
+    el("div", { class: "label", text: "Zur Ehrlichkeit" }),
+    el("div", { text: "Im 3D-Raum findet er seine Regeln mit dem Muster aus dem 2D-Raum mit etwa halb so vielen " +
+      "Programmen. Im Suchbaum hilft es nicht, dort passt kein Muster. Über alle Suchen ist der Gewinn klein " +
+      "oder sogar negativ, weil die Bibliothek auch bei Größen mitprobiert wird, die sich gar nicht " +
+      "vorhersagen lassen. " + budgetText(lib) })));
+}
+
+function budgetText(lib) {
+  const row = lib.rows.find(r => r.world === "3D-Raum");
+  if (!row) return "";
+  const [without, withLib] = Object.values(row.budgetReached);
+  return `Mit knappem Budget (höchstens ${lib.budget} Programme je Suche) erreicht er im 3D-Raum ` +
+    `das Ziel in ${pct(without)} der Runden ohne und in ${pct(withLib)} mit Bibliothek.`;
+}
+
+/* ---------- Neue Umgebung ---------- */
+function renderChart() {
+  const nw = DATA.newWorld;
+  const life = nw.life;
+  const values = life.surprise;
+  const W = 900, H = 260, left = 62, right = 12, top = 26, bottom = 30;
+  const x = i => left + (i / Math.max(1, values.length - 1)) * (W - left - right);
+  const top_ = 12;
+  const y = v => top + (1 - v / top_) * (H - top - bottom);
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "Unerwartetheit je Schritt über die drei Phasen");
+  const add = (tag, attrs, text) => {
+    const node = document.createElementNS(ns, tag);
+    for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+    if (text !== undefined) node.textContent = text;
+    svg.append(node);
+    return node;
+  };
+  const phases = nw.phases.map((name, i) => [name, life.starts[name], i + 1 < nw.phases.length ? life.starts[nw.phases[i + 1]] : values.length]);
+  for (const [name, start, end] of phases) {
+    if (name === "B") add("rect", { x: x(start), y: top, width: x(end) - x(start), height: H - top - bottom, fill: "var(--phase-b)" });
+    add("text", { x: x(start) + 6, y: top - 8, class: "phase-label" }, name === "B" ? "B: Tasten vertauscht" : name === "A" ? "A: rutschiger Raum" : "A wieder");
+  }
+  for (const v of [0, 4, 8, 12]) {
+    add("line", { x1: left, x2: W - right, y1: y(v), y2: y(v), stroke: "var(--line)", "stroke-width": 1 });
+    add("text", { x: left - 6, y: y(v) + 4, "text-anchor": "end" }, v === 12 ? "≥10⁻¹²" : v === 0 ? "1" : `10⁻${v}`);
+  }
+  add("line", { x1: left, x2: W - right, y1: y(life.limit), y2: y(life.limit), stroke: "var(--agent)", "stroke-dasharray": "5 4", "stroke-width": 1.5 });
+  add("text", { x: W - right, y: y(life.limit) - 6, "text-anchor": "end", fill: "var(--agent)" }, "Grenze: unerwartet");
+  const path = values.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
+  add("path", { d: path, fill: "none", stroke: "var(--accent)", "stroke-width": 1.3, "stroke-linejoin": "round" });
+  const labels = { "neu": "neue Karte", "zurück": "alte Karte wieder", "umlernen": "umlernen", "verfeinern": "Regel verfeinert" };
+  for (const event of life.events) {
+    const strong = event.kind !== "verfeinern";
+    add("line", { x1: x(event.step), x2: x(event.step), y1: top, y2: H - bottom, stroke: strong ? "var(--goal)" : "var(--muted)", "stroke-width": strong ? 2 : 1, "stroke-dasharray": strong ? "" : "2 3" });
+    if (!strong) continue;
+    const nearEnd = x(event.step) > W - 170;
+    add("text", { x: x(event.step) + (nearEnd ? -5 : 5), y: top + 16, fill: "var(--goal)",
+      "text-anchor": nearEnd ? "end" : "start" }, labels[event.kind] || event.kind);
+  }
+  add("text", { x: left, y: H - 8 }, "Schritt 0");
+  add("text", { x: W - right, y: H - 8, "text-anchor": "end" }, `Schritt ${values.length}`);
+  document.getElementById("chart").replaceChildren(svg);
+
+  const table = document.getElementById("new-table");
+  const head = el("tr", {}, el("th", { text: "Umgang mit Überraschung" }), ...nw.phases.map(p => el("th", { text: `Schritte ${p}` })),
+    el("th", { text: "Karten" }), el("th", { text: "Fehlalarme" }), el("th", { text: "B erkannt" }), el("th", { text: "alte Karte wieder" }));
+  const dash = (row, value, text) => (row.handling === "ohne Erkennung" || row.handling === "nie neue Karte") ? "–" : text(value);
+  const body = nw.rows.map(row => el("tr", {}, el("td", { text: row.handling }),
+    ...nw.phases.map(p => el("td", { class: "num" }, fmt(row.steps[p]), el("span", { class: "sub", text: `(${fmt(row.firstSteps[p], 0)})` }))),
+    el("td", { class: "num", text: fmt(row.maps) }),
+    el("td", { class: "num", text: dash(row, row.falseAlarms, v => fmt(v)) }),
+    el("td", { class: "num", text: dash(row, row.detectedB, pct) }),
+    el("td", { class: "num", text: dash(row, row.returned, pct) })));
+  table.replaceChildren(el("caption", { class: "label", style: "text-align:left; padding: 12px 14px 0", text:
+      `Mittlere Schritte je Runde, in Klammern die ersten drei Runden der Phase. ${DATA.seeds} Läufe.` }),
+    el("thead", {}, head), el("tbody", {}, ...body));
+}
+
+/* ---------- Grenzen ---------- */
+function renderLimits() {
+  const items = [
+    "Die Formen kommen aus einer festen Liste (Raum, Ordnung). Eine Welt mit ganz anderer Form würde er nicht erkennen, er fiele auf „Regeln ohne Form“ zurück.",
+    "„Regeln ohne Form“ fehlt nicht nur die Form, sondern auch die Karte. Der Abstand zu „Form + Regeln“ misst also beides zusammen.",
+    "Die Bibliothek spart Suche bei den Regeln, die es gibt, kostet aber insgesamt etwas mehr Rechenarbeit.",
+    "Die neue Umgebung B wird nicht in jedem Lauf erkannt (siehe Tabelle). Wird sie übersehen, lernt er A einfach um.",
+    "Viele Schwellen sind von Hand gesetzt und nicht aus Papern begründet (in der Paper-Zuordnung als „ohne Grundlage“ markiert).",
+    "Alle drei Welten sind deterministisch bis auf das Rutschen und sauber messbar. Die Alltagswelt ist es nicht.",
+  ];
+  document.getElementById("limits").replaceChildren(...items.map(t => el("li", { text: t })));
+  document.getElementById("footer").textContent =
+    `Erzeugt mit hekmatki.experiments.general_replay, ${DATA.seeds} Läufe je Messung. Nur Python-Standardbibliothek.`;
+}
+
+/* ---------- Start ---------- */
+function redraw() { if (DATA) drawTruth(DATA.worlds[state.world], state.step); }
+
+if (DATA) {
+  renderHeadline();
+  renderTabs();
+  renderAll();
+  renderLibrary();
+  renderChart();
+  renderLimits();
+  selectWorld(0);
+  document.getElementById("play").addEventListener("click", () => (state.timer ? stop() : play()));
+  document.getElementById("back").addEventListener("click", () => { stop(); state.step = Math.max(0, state.step - 1); showStep(); });
+  document.getElementById("next").addEventListener("click", () => {
+    stop();
+    state.step = Math.min(DATA.worlds[state.world].observations.length - 1, state.step + 1);
+    showStep();
+  });
+  document.getElementById("slider").addEventListener("input", event => { stop(); state.step = Number(event.target.value); showStep(); });
+  document.getElementById("names").addEventListener("change", event => {
+    document.getElementById("readings").parentElement.classList.toggle("show-names", event.target.checked);
+    showStep();
+  });
+  window.addEventListener("resize", redraw);
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", redraw);
+  new MutationObserver(redraw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+}
+</script>
