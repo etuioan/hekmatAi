@@ -10,7 +10,7 @@ Bitte lies das zuerst, wenn du verstehen willst, worum es mir geht.
 - **Idee:** Ähnliche Situationen (beim Arzt warten, auf die Bahn warten) liegen wie
   „Scheiben“ übereinander. Der Agent lernt das Gemeinsame („Warten“) einmal und wechselt
   zwischen den Kontexten.
-- **Stand:** Forschungsprototyp in Python, nur Standardbibliothek, 240 Tests.
+- **Stand:** Forschungsprototyp in Python, nur Standardbibliothek, 241 Tests.
   Spielwelten (ähnlich ARC-AGI-3) sind das Testfeld, nicht das Ziel.
 - **Ehrlich:** Hier wird nichts behauptet, was nicht gemessen ist. Widerlegte Hypothesen
   stehen genauso im README wie gestützte (siehe [Grenzen](#grenzen)).
@@ -784,18 +784,20 @@ Schritte je Runde (in Klammern: die ersten drei Runden der Phase):
 |---|---:|---:|---:|---:|---:|---:|---:|
 | ohne Erkennung | 20,3 (60) | 97,6 (107) | 140,4 (166) | 1 | – | – | – |
 | jede Überraschung | 66,1 (99) | 76,0 (104) | 30,9 (24) | 25,4 | 533,9 | 100 % | 0 % |
-| nie neue Karte (nur umlernen) | 18,7 (64) | 48,1 (86) | 46,2 (117) | 1 | 0,1 | 100 % | – |
-| erwartet / unerwartet | 18,7 (64) | 46,2 (75) | **17,3** (38) | 2,3 | 0,1 | 100 % | **100 %** |
-| Bayes-Faktor (ab 0.17) | 17,7 (63) | 51,2 (85) | 40,0 (41) | 2,5 | 0,0 | 90 % | 90 % |
+| nie neue Karte (nur umlernen) | 18,7 (64) | 47,3 (88) | 38,0 (119) | 1 | 0,1 | 100 % | – |
+| erwartet / unerwartet | 18,7 (64) | 45,4 (76) | **10,8** (26) | 2,2 | 0,1 | 100 % | **100 %** |
+| Bayes-Faktor (ab 0.17) | 17,7 (63) | 43,9 (84) | 41,3 (44) | 2,1 | 0,0 | 90 % | **100 %** |
 
 - **Rauschen löst fast nie eine neue Karte aus** (0,1 Fehlalarme gegen 534, wenn jede
   Überraschung zählt), und Raum A lernt er dabei genauso gut wie ohne Erkennung.
-- **Bei der Rückkehr nimmt er in allen Läufen seine alte Karte wieder** und braucht 17
-  Schritte je Runde statt 46 beim Umlernen und 140 ohne Erkennung. Das ist der Nutzen
+- **Bei der Rückkehr nimmt er in allen Läufen seine alte Karte wieder** und braucht 11
+  Schritte je Runde statt 38 beim Umlernen und 140 ohne Erkennung. Das ist der Nutzen
   getrennter Karten: Das alte Wissen bleibt erhalten. In 0.16 waren es 90 %; geholfen hat,
-  dass eine neue Karte nicht mehr das alte Ziel übernimmt.
-- **Der Bayes-Faktor (H23) ist hier nicht besser:** keine Fehlalarme, aber B in 90 % und die
-  alte Karte in 90 % der Läufe, und zurück in A langsamer. Wo er hilft, zeigt Ergebnis 21.
+  dass eine neue Karte nicht mehr das alte Ziel übernimmt, sondern nur lernt, was sie selbst
+  gesehen hat (auch aus den Schritten, die er bis zur Entscheidung zurückhielt).
+- **Der Bayes-Faktor (H23) ist hier nicht besser:** keine Fehlalarme und die alte Karte in
+  allen Läufen, aber B nur in 90 % erkannt und zurück in A langsamer (41 statt 11 Schritte),
+  weil er länger sammelt, bevor er entscheidet. Mehr dazu in Ergebnis 21.
 
 ## Ergebnis 20: Neue Formen, ein Baustein „wiederholen“ und Planen ohne Form (neu in 0.17, H21, H22)
 
@@ -850,18 +852,18 @@ Faktor 150, Kass & Raftery 1995).
 |---|---:|---:|---:|---:|---|---:|---:|
 | ohne Erkennung | 20,4 | 176,2 | 233,7 | 166,8 | 0 / 0 / 0 % | 0 | – |
 | jede Überraschung | 78,0 | 126,0 | 116,2 | 48,0 | 100 / 100 / 100 % | 1630 | 60 % |
-| nie neue Karte | 22,0 | 43,8 | 63,6 | 28,8 | 80 / 80 / 100 % | 0,5 | – |
-| erwartet / unerwartet | 22,0 | 43,8 | 73,2 | 73,7 | 80 / 80 / 100 % | 1,4 | 60 % |
-| Bayes-Faktor | 22,3 | 91,7 | 107,5 | 94,7 | 80 / **100** / 100 % | **1,2** | **80 %** |
+| nie neue Karte | 22,0 | 61,1 | 60,5 | 33,9 | 80 / 100 / 100 % | 0,8 | – |
+| erwartet / unerwartet | 22,0 | 61,1 | 67,2 | 103,8 | 80 / 100 / 100 % | 1,7 | 40 % |
+| Bayes-Faktor | 22,5 | 78,3 | 90,2 | 102,6 | 80 / 100 / 100 % | **1,3** | **80 %** |
 
 Schritte je Runde; erkannt = Kartenwechsel in den ersten 30 Schritten der Phase.
 
 - **Ganz verschiedene Welten erkennt schon der Test aus 0.16 meist** (80 bis 100 %). Die
   Grenze „nur vertauschte Tasten geprüft“ ist damit geprüft und hält.
-- **Der Bayes-Faktor erkennt öfter, wechselt seltener grundlos und findet öfter seine erste
-  Karte wieder.** Er braucht aber mehr Schritte, weil er oft lange sammelt, bevor er
-  entscheidet, und in dieser Zeit nicht aus den Schritten lernt. H23 ist damit nur teilweise
-  gestützt.
+- **Der Bayes-Faktor wechselt seltener grundlos (1,3 statt 1,7 überzählige Wechsel) und
+  findet doppelt so oft seine erste Karte wieder (80 statt 40 %).** Er erkennt aber nicht
+  öfter, und er braucht im Suchbaum und an den Drehscheiben mehr Schritte, weil er oft lange
+  sammelt, bevor er entscheidet. H23 ist damit nur teilweise gestützt.
 - **Am schnellsten ist hier „nie neue Karte“**: Bei so verschiedenen Welten passt eine alte
   Karte ohnehin kaum, und Umlernen kostet wenig. Getrennte Karten lohnen sich erst, wenn eine
   Welt wiederkommt; im letzten Abschnitt ist Umlernen trotzdem schneller, weil der Agent die
@@ -935,7 +937,7 @@ PYTHONPATH=src python -m hekmatki
 Qualitätsprüfungen (einmalig `pip install -e ".[dev]"`):
 
 ```bash
-pytest            # 240 Tests
+pytest            # 241 Tests
 mypy              # strikte Typprüfung
 ruff check .      # Linter
 ruff format --check .
@@ -987,7 +989,8 @@ Bezeichner sind englisch (Python-Konvention), Dokumentation und Ausgaben deutsch
   Welten hinter derselben Schnittstelle nacheinander kommen können.
 - Experimente `new_forms` (Ergebnis 20) und `world_stream` (Ergebnis 21); Ergebnis 18 hat die
   Bedingung „ohne Vorprüfung“, Ergebnis 19 den Umgang „Bayes-Faktor“.
-- Eine neue Karte übernimmt nicht mehr das Ziel der alten.
+- Eine neue Karte übernimmt nicht mehr das Ziel der alten. Dafür lernt sie Ziel und Orte auch
+  aus den Schritten, die der Agent bis zur Entscheidung zurückgehalten hat.
 - Die Seite [docs/welten.html](docs/welten.html) zeigt jetzt sechs Welten.
 
 ## Änderungen in 0.16

@@ -130,9 +130,13 @@ class GeneralAgent:
             self._apply(decision, transition)
             held = [*(t for _, t in self._held), transition]
             self._held.clear()
-            self.knowledge.notice(transition)
+            # Die Karte, die jetzt gilt, lernt die zurückgehaltenen Schritte. Ist es eine
+            # andere Karte, erfährt sie auch, wohin sie führten und ob das Ziel erreicht war.
+            seen = [transition] if decision.kind == "verfeinern" else held
+            for step in seen:
+                self.knowledge.notice(step)
             for step in held:
-                self.knowledge.learn_rules(step)  # Die Karte, die jetzt gilt, lernt sie.
+                self.knowledge.learn_rules(step)
             return
         self.knowledge.notice(transition)
         if self._trial is not None and self._trial[2] <= self.steps - self.detector.window:

@@ -356,7 +356,9 @@ zurückgehaltenen Schritten.
 **Keine Übernahme des Ziels**: Eine neue Karte beginnt ohne das Ziel der alten. In 0.16 wurde
 es übernommen; im Strom ganz verschiedener Welten führte das den Agenten in die Irre, weil
 das alte Ziel in einer anderen Welt nichts bedeutet (Suchbaum 194 statt 93 Schritte,
-Drehscheiben 223 statt 58). Neue Ursache, neues Wissen (Gershman 2017).
+Drehscheiben 223 statt 58). Neue Ursache, neues Wissen (Gershman 2017). Was die neue Karte
+selbst gesehen hat, lernt sie dagegen ganz: Wechselt der Agent, bekommt die Karte, die jetzt
+gilt, alle zurückgehaltenen Schritte mit Regeln, Orten und Ziel.
 
 **Experimente**: `experiments/new_forms.py` (Ergebnis 20, H21 und H22), `world_stream.py`
 (Ergebnis 21, H23); `library_transfer.py` hat die Bedingung „ohne Vorprüfung“ (H24),

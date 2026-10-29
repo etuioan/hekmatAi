@@ -515,17 +515,17 @@ Umgang                |         A |          B |    A wieder
 ------------------------------------------------------------
 ohne Erkennung        | 20.3 (60) | 97.6 (107) | 140.4 (166)
 jede Überraschung     | 66.1 (99) | 76.0 (104) |   30.9 (24)
-nie neue Karte        | 18.7 (64) |  48.1 (86) |  46.2 (117)
-erwartet / unerwartet | 18.7 (64) |  46.2 (75) |   17.3 (38)
-Bayes-Faktor          | 17.7 (63) |  51.2 (85) |   40.0 (41)
+nie neue Karte        | 18.7 (64) |  47.3 (88) |  38.0 (119)
+erwartet / unerwartet | 18.7 (64) |  45.4 (76) |   10.8 (26)
+Bayes-Faktor          | 17.7 (63) |  43.9 (84) |   41.3 (44)
 
 Umgang                | Karten | Fehlalarme in A | B erkannt | alte Karte wieder
 --------------------------------------------------------------------------------
 ohne Erkennung        |    1.0 |             0.0 |       0 % |               0 %
 jede Überraschung     |   25.4 |           533.9 |     100 % |               0 %
 nie neue Karte        |    1.0 |             0.1 |     100 % |               0 %
-erwartet / unerwartet |    2.3 |             0.1 |     100 % |             100 %
-Bayes-Faktor          |    2.5 |             0.0 |      90 % |              90 %
+erwartet / unerwartet |    2.2 |             0.1 |     100 % |             100 %
+Bayes-Faktor          |    2.1 |             0.0 |      90 % |             100 %
 
 B erkannt = Kartenwechsel in den ersten 30 Schritten von B. Alte Karte wieder =
 der erste Wechsel in „A wieder“ führt zur ersten Karte zurück. (5 Umgänge)
@@ -564,9 +564,9 @@ Umgang                | Raum | Suchbaum | Drehscheiben | Raum wieder
 --------------------------------------------------------------------
 ohne Erkennung        | 20.4 |    176.2 |        233.7 |       166.8
 jede Überraschung     | 78.0 |    126.0 |        116.2 |        48.0
-nie neue Karte        | 22.0 |     43.8 |         63.6 |        28.8
-erwartet / unerwartet | 22.0 |     43.8 |         73.2 |        73.7
-Bayes-Faktor          | 22.3 |     91.7 |        107.5 |        94.7
+nie neue Karte        | 22.0 |     61.1 |         60.5 |        33.9
+erwartet / unerwartet | 22.0 |     61.1 |         67.2 |       103.8
+Bayes-Faktor          | 22.5 |     78.3 |         90.2 |       102.6
 
 Wechsel erkannt (Kartenwechsel in den ersten 30 Schritten der Phase):
 
@@ -574,9 +574,9 @@ Umgang                | Suchbaum | Drehscheiben | Raum wieder | überzählige We
 ----------------------------------------------------------------------------------------------------------------
 ohne Erkennung        |      0 % |          0 % |         0 % |                 0.0 |               0 % |    1.0
 jede Überraschung     |    100 % |        100 % |       100 % |              1630.0 |              60 % |   20.9
-nie neue Karte        |     80 % |         80 % |       100 % |                 0.5 |               0 % |    1.0
-erwartet / unerwartet |     80 % |         80 % |       100 % |                 1.4 |              60 % |    3.6
-Bayes-Faktor          |     80 % |        100 % |       100 % |                 1.2 |              80 % |    3.6
+nie neue Karte        |     80 % |        100 % |       100 % |                 0.8 |               0 % |    1.0
+erwartet / unerwartet |     80 % |        100 % |       100 % |                 1.7 |              40 % |    3.6
+Bayes-Faktor          |     80 % |        100 % |       100 % |                 1.3 |              80 % |    3.7
 
 Überzählig = jeder Wechsel in der ersten Phase und jeder weitere nach dem ersten
 in den anderen Phasen.

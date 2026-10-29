@@ -2,13 +2,14 @@
 
 import math
 import random
+from collections.abc import Sequence
 
 import pytest
 
 from hekmatki.experiments.new_forms import GENERAL, NEW_WORLDS, run_new_forms
 from hekmatki.experiments.world_stream import PHASES, live, run_world_stream, worlds
 from hekmatki.general.agent import GeneralAgent
-from hekmatki.general.detector import BF_BITS, Detector, Strategy
+from hekmatki.general.detector import BF_BITS, Decision, Detector, Strategy
 from hekmatki.general.env import Padded, Transition, Wiring
 from hekmatki.general.form import AxisKind, find_form
 from hekmatki.general.knowledge import Knowledge
@@ -211,6 +212,28 @@ def test_model_search_solves_shuffle_without_a_form() -> None:
 
 
 # Neue Welt per Bayes-Faktor
+
+
+class _SwitchOnThirdStep(Detector):
+    """Zweifelt an jedem Schritt und legt beim dritten eine neue Karte an."""
+
+    def judge(
+        self, maps: Sequence[Knowledge], current: int, transition: Transition
+    ) -> Decision | None:
+        self.calls = getattr(self, "calls", 0) + 1
+        return Decision("neu", len(maps)) if self.calls == 3 else None
+
+    def doubts(self, knowledge: Knowledge, transition: Transition) -> bool:
+        return True
+
+
+def test_new_map_learns_the_goal_from_held_steps() -> None:
+    agent = GeneralAgent(2, detector=_SwitchOnThirdStep(Strategy.EXPECTED))
+    agent.learn(Transition((0, 1), 0, (1, 1), True))
+    agent.learn(Transition((1, 1), 1, (0, 1), False))
+    agent.learn(Transition((0, 1), 1, (2, 1), False))
+    assert agent.current == 1
+    assert agent.knowledge.goal.reached == [(1, 1)]
 
 
 def test_bayes_threshold_is_very_strong_evidence() -> None:
