@@ -1,11 +1,11 @@
 # Paper-Zuordnung: Welches Modul stützt sich auf welche Forschung?
 
-Stand: Prototyp 0.17, Dossier Runde 7 (29. Oktober 2026, 221 Paper).
+Stand: Prototyp 0.18, Dossier Runde 7 (29. Oktober 2026, 221 Paper) plus Paper zu 0.18 (siehe unten).
 Dossier: https://claude.ai/artifact/Sghxz5AxhcHgCKY9dtGSM5, Abschnitt „Paper ↔ Prototyp“.
 
 **Regel:** Jede neue Version aktualisiert diese Datei. Ideen, die zuerst im Code entstehen,
 bekommen den Vermerk **ohne Grundlage**. Sie sind der Suchauftrag für die nächste Paper-Runde.
-P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers.
+P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers, H25–H28 neu mit 0.18 (siehe unten).
 
 ## Module und ihre Grundlagen
 
@@ -40,6 +40,10 @@ P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers.
 | `general/form.py`, `general/planner.py` | Form der Welt als Grammatik (Kette, Ring, Rutschbahn, Ordnung), Karte mit Bezugssystem; ohne Form Suche im gelernten Modell | Kemp & Tenenbaum 2008, Duvenaud 2013, Grosse 2012, Constantinescu 2016, Bellmund 2018, Aronov 2017; Runde 7: Mahadevan & Maggioni 2007, Stachenfeld 2017, Mark 2020 | P2, H19, H21 |
 | `general/knowledge.py` | Regelbuch und Ziel je Karte | Collins & Frank 2013 (Kontext-Karten), Gershman 2010 | P7 |
 | `general/detector.py`, `general/agent.py` | Neue Umgebung erkennen: erwartete gegen unerwartete Unsicherheit, ab 0.17 per Bayes-Faktor | Yu & Dayan 2002, Sanders 2020, Heald 2021 (COIN), Stahl & Feigenson 2015; Runde 7: Adams & MacKay 2007, Liakoni 2021, Wald 1945 (sequentieller Test), Kass & Raftery 1995 (Schwelle), Dawid 1984 (prequentielle Wertung); Fenster 20 und Wechselrate 1/1000 sind **ohne Grundlage** | P7, H18, H23 |
+| `general/causes.py` | Ursachen: unter welcher Bedingung eine Taste etwas bewirkt (ab 0.18) | Regeln lernen durch schrittweises Abdecken (Michalski 1969, CN2: Clark & Niblett 1989), Literal-Wahl nach gewichteter relativer Genauigkeit (Lavrač, Flach & Zupan 1999), Schema Networks 2017 (Bedingung → Wirkung); höchstens 3 Literale, 4 Ursachen, 2 Treffer, Genauigkeit 0,34 sind **ohne Grundlage** | P1, P4, H25 |
+| `general/subgoals.py` | Teilziele und Vorstellen mit Lücken (ab 0.18) | Mittel-Ziel-Analyse (Newell & Simon 1961), STRIPS (Fikes & Nilsson 1971), Optionen (Sutton, Precup, Singh 1999), Raum aus Sensomotorik (Philipona 2003, Laflaquière 2019); Tiefe 3, 200 vorgestellte Zustände und „seltene Ursache ab 5 %“ sind **ohne Grundlage** | P2, P5, H25, H26 |
+| `general/drives.py` | Eigene Ziele: Bedürfnisse, Rekorde, Versuche, Erkunden, Abwehr (ab 0.18) | Homöostase (Keramati & Gutkin 2014), intrinsisch motivierte Zielprozesse (Forestier, Portelas, Mollard, Oudeyer 2022; Oudeyer & Kaplan 2007), Zählen als Neugier (Strehl & Littman 2008, Bellemare 2016), Go-Explore (Ecoffet 2021), Vermeiden lernen (Mowrer 1947), modellfrei neben modellbasiert (Daw, Niv & Dayan 2005), Schrumpfen zum Mittel (Efron & Morris 1975), Zahl und Ort als Kernsysteme (Spelke 2022, Dehaene 2011); Gegenstimmen siehe unten; fast alle Schwellen sind **ohne Grundlage** | P5, H27, H28 |
+| `adapters/crafter.py`, `experiments/crafter_run.py`, `experiments/crafter_replay.py` | Prüfstein Crafter, Adapter getrennt vom Agenten (ab 0.18) | Crafter (Hafner 2021), Wertung wie dort; MineRL/MineDojo erst später (Prüfung vom 29.10.2026) | G4 |
 | `experiments/` | Messung, ab 0.15 auch Schaden durch Vorwissen | Tastendrücke bis zum ersten Sieg; ARC-AGI-3 misst RHAE; negative Übertragung: Wang 2019; Vergleich Spielwelt–Alltagswelt: Runde 5 G4 | H11–H17 |
 
 ## Was aus der Architektur v0.3 noch fehlt
@@ -51,6 +55,42 @@ P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers.
 | Sprachorgan (LLM) | bewusst weggelassen | LILO; Tycho und Kepler zeigen, dass LLMs Weltmodelle als Code schreiben |
 | Lehrplan-Generator | fehlt | Absolute Zero, Oudeyer 2007, POET |
 | Kontext-Inferenz und Schlaf in der 2D-Welt | Kontext-Inferenz ab 0.16 im allgemeinen Agenten (`general/detector.py`), Schlaf fehlt | COIN, Bhattarai 2026; Runde 6: Sanders, Wilson, Gershman 2020, Yu & Dayan 2002 |
+
+## Umgesetzt in 0.18 (eigene Ziele und Crafter, H25 bis H28)
+
+Neue Hypothesen, abgeleitet aus der Crafter-Prüfung vom 29. Oktober 2026 (dort hieß der
+Vorschlag „Nacht als Kontext“ noch H27; er ist verschoben):
+
+| Hypothese | Stand |
+|---|---|
+| H25: Ziele und Teilziele aus gelernten Ursachen (Mittel-Ziel-Analyse über Bedingungen, die der Agent selbst findet) | **gestützt in der Testwelt, teilweise in Crafter** (Ergebnis 22): Er lernt etwa „Holz steigt nach Taste X, wenn vorne ein Baum ist“ (60 von 60) und baut darüber Werkbank (14 statt 2 %) und Werkzeug (bis 7 statt 0 %). Viele Ursachen bleiben übergenau (zufällige Nebenfelder als Literal); längere Ketten (Stein-, Eisenwerkzeug) schafft er nicht |
+| H26: Ein mitwanderndes Sichtfeld als „übernimmt den Nachbarn“, Planen mit Lücken | **teilweise**: Mit Rauschen (Tiere) braucht Übernehmen eine Toleranz; die strenge Fassung lässt viele Sichtfelder ohne Regel. Raum (welches Feld neben welchem) folgt daraus noch nicht |
+| H27: Eigene Ziele (Bedürfnisse, Rekorde, Versuche) bringen ohne äußere Belohnung voran | **gestützt** (Ergebnis 22): 2,6 statt 1,4 % Wertung, 13 statt 6 Erfolgsarten gegen 0.17 ohne eigene Ziele. In der Testwelt „Quelle“ hebt er einen Vorrat, den ihm niemand als Ziel nennt (Test). Gegenstimme beachtet: Neugier allein bleibt in Crafter bei etwa 2 % (Hafner 2021, Plan2Explore, RND), wir liegen in derselben Größenordnung |
+| H28: Gefahren lernen und meiden | **nicht gestützt**: Er stirbt so früh wie Zufall (etwa 170 Schritte). Gefahren hängen an einzelnen Feldern; Flucht hilft nicht, weil Zombies hinterherlaufen |
+
+**Gegenstimmen und Warnungen zu 0.18:**
+- Burda u. a. 2019 (Neugier im großen Maßstab): Neugier allein scheitert an Zufall im Bild
+  („rauschender Fernseher“). Unsere Neugier ist Zählen, nicht Vorhersagefehler; bei Tieren im
+  Bild bleibt das Risiko.
+- Sutton 2019 („The Bitter Lesson“): Von Hand gebaute Antriebe skalieren schlechter als
+  allgemeine Lernverfahren. Die Antriebe hier sind allgemein (keine Spielnamen), aber ihre
+  Reihenfolge ist von Hand.
+- Pyke 2015: Die Lévy-Hypothese bei Tieren ist umstritten. Wir nutzen nur gerade Strecken
+  zufälliger Länge, ohne Anspruch auf Optimalität.
+- Hafner 2021: Erfolge in Crafter hängen am Überleben; ohne Abwehr bleibt jede Wertung klein.
+
+**Ohne Grundlage (neu in 0.18), Suchauftrag für Runde 8:**
+- Ursachen: höchstens 3 Literale (`MAX_LITERALS`), 4 Ursachen (`MAX_CAUSES`), mindestens
+  2 Treffer (`MIN_HITS`), Genauigkeit 0,34 (`MIN_PRECISION`), seltene Ursache ab 5 % (`WEAK`),
+  Gedächtnis 400 Schritte je Taste, Neulernen alle 100 bzw. 250 Schritte.
+- Teilziele: Tiefe 3, drei Ursachen je Teilziel, 200 vorgestellte Zustände.
+- Eigene Ziele: dringend ab der Hälfte, Pflege ab 90 %, 60 Schritte Geduld, „sinkt nach 75 %
+  der Tasten“ = Bedürfnis, „nach 50 %“ = Schaden, Mengen ändern sich in 80 % der Fälle um 1,
+  Schaden in 5 Schritten, Gefahr ab 15 % und 5 Treffern, Taste meiden ab 50 %, 3 gedachte
+  Fälle beim Schrumpfen, Strecken von 4 bis 12 Schritten, 15 % Neugier beim Erkunden.
+- Synthese: Übernehmen trotz Rauschen ab 90 % von 10 Wechseln; Regeln mit Ausnahmen nach 200
+  Schritten neu suchen.
+- Die Reihenfolge der Antriebe (Abwehr, Bedürfnis, Ziel, Versuch, Rekord, Pflege, Erkunden).
 
 ## Umgesetzt in 0.17 (Test von H21 bis H24 nach Runde 7)
 

@@ -1,1 +1,1 @@
-"""HekmatKI Prototyp 0.17: Schema-Stapel, Weltmodell, Gegenprobe und ein allgemeiner Agent."""
+"""HekmatKI Prototyp 0.18: Schema-Stapel, Weltmodell, allgemeiner Agent mit eigenen Zielen."""

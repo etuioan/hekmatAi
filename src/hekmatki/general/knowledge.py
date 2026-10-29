@@ -10,7 +10,8 @@
   einen Schritt richtig vorausgesagt haben (für H18, siehe `detector`). Ab 0.17 auch die
   Stellen, über die eine Schleife hinweggelaufen ist: Lief „+1 bis Schalter“ fünfmal, war der
   Schalter an den vier Zwischenstellen nicht gesetzt. Das folgt aus der Bedeutung der Schleife,
-  nicht aus der Welt (Programmspur wie bei Ellis 2018 und Cropper 2020).
+  nicht aus der Welt (Programmspur wie bei Ellis 2018 und Cropper 2020). Ab 0.18 auch die
+  Ursachen: unter welcher Bedingung eine Taste etwas bewirkt (siehe `causes`).
 """
 
 import math
@@ -21,13 +22,18 @@ from itertools import combinations
 from statistics import median
 from typing import Final
 
+from hekmatki.general.causes import CauseBook
 from hekmatki.general.env import Observation, Transition
 from hekmatki.general.library import Library
-from hekmatki.general.programs import Keep, Program, Until, core, fits
+from hekmatki.general.programs import Cycle, Keep, Program, Shift, Until, core, fits
 from hekmatki.general.synthesis import Example, Found, description_bits, synthesize
 
 MAX_EXAMPLES: Final = 300
 """So viele Schritte je Taste merkt sich der Agent für die Regelsuche (die neuesten)."""
+
+REFRESH: Final = 200
+"""Eine Regel mit Ausnahmen sucht der Agent spätestens nach so vielen neuen Schritten der
+Taste neu (ab 0.18; vorher erst, wenn sich die Daten verdoppelt hatten)."""
 
 MIN_FOR_NOISE: Final = 20
 """Erst ab so vielen Beispielen zählt eine Regel für die Schätzung des Rauschens."""
@@ -120,6 +126,24 @@ class RuleBook:
             if f.program is not None and f.errors <= max_error_rate * f.examples
         }
 
+    def blocked_moves(self, max_error_rate: float) -> dict[Slot, Program]:
+        """Bewegungen, die nur danebenliegen, weil die Größe blieb (ab 0.18).
+
+        Ein Schritt nach rechts, der gegen einen Baum läuft, bleibt stehen. Das ist keine
+        Ausnahme vom Raum, sondern eine Sperre, wie die Wand, die `planner` schon kennt. Hier
+        zählen nur die Fehler, bei denen sich die Größe anders änderte als vorhergesagt.
+        """
+        found = {}
+        for (action, component), f in self.found.items():
+            program = f.program
+            if program is None or f.exact or not isinstance(core(program), Shift | Cycle | Until):
+                continue
+            moved = [e for e in self.examples[action] if e.after[component] != e.before[component]]
+            wrong = sum(not fits(program, e.before, e.after, component) for e in moved)
+            if moved and wrong <= max_error_rate * len(moved):
+                found[action, component] = program
+        return found
+
     def refine(self, slot: Slot, extra: Sequence[Example]) -> Found | None:
         """Gibt es eine Regel, die die alten Schritte so gut erklärt wie die jetzige und die
         neuen ebenso? Dann war die Regel nur unvollständig, die Welt ist dieselbe (H16)."""
@@ -180,6 +204,8 @@ class RuleBook:
         if self._seen[action] >= 2 * last:
             return True
         found = self.found[slot]
+        if not found.exact and self._seen[action] - last >= REFRESH:
+            return True  # Eine Regel mit Ausnahmen: ab und zu neu suchen, ob es Besseres gibt.
         fresh = self._fresh.get(action, [])
         return found.exact and any(
             found.program is not None and not fits(found.program, e.before, e.after, component)
@@ -286,6 +312,8 @@ class Knowledge:
         self.seen: set[Observation] = set()
         self.passed: set[Passage] = set()
         """Strecken, über die eine Schleife hinweglief (siehe `Passage`)."""
+        self.causes = CauseBook()
+        """Wann eine Taste etwas bewirkt (ab 0.18, siehe `causes`)."""
 
     def forget_place(self) -> None:
         """Eine neue Umgebung: Die Karte gilt nicht mehr, Regeln und Ziel schon."""
@@ -322,9 +350,10 @@ class Knowledge:
         return found
 
     def learn_rules(self, transition: Transition) -> None:
-        """Nur die Regeln."""
+        """Nur die Regeln und Ursachen."""
         self.rules.add(transition)
         self.rules.update()
+        self.causes.add(transition)
 
     def checks(self, transition: Transition) -> list[Check]:
         """Für jede Regel dieser Taste: lag sie richtig?"""

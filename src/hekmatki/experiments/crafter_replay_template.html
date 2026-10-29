@@ -1,0 +1,421 @@
+<meta charset="utf-8">
+<title>HekmatKI in Crafter</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: Kopf mit These und vier Wertungen, Wiedergabe (Feld links, Körper und Grund rechts),
+   Erfolge je Agent als Balken, Lernkurve, was er selbst gefunden hat, Grenzen. */
+:root {
+  --bg: #f1f3ec;
+  --surface: #fbfcf8;
+  --sunk: #e3e8db;
+  --ink: #1d2618;
+  --muted: #5b6652;
+  --line: #d0d8c6;
+  --accent: #3d6b1f;
+  --s-rand: #9aa293;
+  --s-table: #c4a35a;
+  --s-old: #5b7fa8;
+  --s-new: #3d6b1f;
+  --bad: #b23a2a;
+  --font-display: "Pixelify Sans", "Trebuchet MS", system-ui, sans-serif;
+  --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --font-data: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121610; --surface: #191f16; --sunk: #0d100b; --ink: #e6ecdf; --muted: #9aa691;
+    --line: #2b3427; --accent: #9ccf6b; --s-rand: #6d7566; --s-table: #d8b86a;
+    --s-old: #86a9d4; --s-new: #9ccf6b; --bad: #f07a66;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121610; --surface: #191f16; --sunk: #0d100b; --ink: #e6ecdf; --muted: #9aa691;
+  --line: #2b3427; --accent: #9ccf6b; --s-rand: #6d7566; --s-table: #d8b86a;
+  --s-old: #86a9d4; --s-new: #9ccf6b; --bad: #f07a66;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 64px;
+}
+main { max-width: 1100px; margin: 0 auto; display: grid; gap: 56px; }
+h1, h2 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.1; font-weight: 700; }
+h1 { font-size: clamp(2.2rem, 6vw, 3.6rem); letter-spacing: 0.01em; }
+h2 { font-size: 1.6rem; }
+h3 { margin: 0; font-size: 1rem; }
+p { margin: 0; max-width: 68ch; }
+.kicker { font: 500 0.75rem/1.3 var(--font-data); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 1.15rem; }
+.muted { color: var(--muted); }
+.mono { font-family: var(--font-data); }
+header, section { display: grid; gap: 18px; }
+
+.scores { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.score { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; display: grid; gap: 4px; }
+.score .value { font: 500 2rem/1 var(--font-data); font-variant-numeric: tabular-nums; }
+.score .who { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.score .note { font-size: 0.85rem; color: var(--muted); }
+.score.new { border-color: var(--s-new); border-width: 2px; }
+.swatch { width: 12px; height: 12px; border-radius: 2px; flex: none; }
+
+.replay { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 760px) { .replay { grid-template-columns: 1fr; } }
+.field { display: grid; grid-template-columns: repeat(9, 1fr); gap: 2px; background: var(--sunk); padding: 2px; border-radius: 6px; max-width: 100%; }
+.cell { aspect-ratio: 1; display: grid; place-items: center; font: 500 clamp(0.5rem, 1.6vw, 0.7rem)/1 var(--font-data); color: rgba(0,0,0,0.62); border-radius: 2px; overflow: hidden; }
+.cell.me { outline: 3px solid var(--ink); outline-offset: -3px; }
+.cell.front { box-shadow: inset 0 0 0 3px #fff8; }
+.panel { display: grid; gap: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 16px; min-width: 0; }
+.why { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip { font: 700 0.9rem var(--font-body); padding: 4px 12px; border-radius: 999px; background: var(--sunk); }
+.chip[data-kind="Abwehr"] { background: var(--bad); color: var(--surface); }
+.chip[data-kind="Bedürfnis"], .chip[data-kind="Pflege"] { background: #3b7fb8; color: #fff; }
+.chip[data-kind="Rekord"], .chip[data-kind="Ziel"] { background: var(--s-new); color: var(--surface); }
+.chip[data-kind="Versuch"] { background: var(--s-table); color: #1d2618; }
+.meters { display: grid; gap: 6px; }
+.meter { display: grid; grid-template-columns: 7.5em 1fr 1.5em; gap: 8px; align-items: center; font-size: 0.9rem; }
+.pips { display: grid; grid-template-columns: repeat(9, 1fr); gap: 2px; }
+.pip { height: 10px; border-radius: 2px; background: var(--sunk); }
+.pip.on { background: var(--accent); }
+.items { display: flex; flex-wrap: wrap; gap: 6px; }
+.item { font: 400 0.85rem var(--font-data); background: var(--sunk); border-radius: 4px; padding: 2px 8px; }
+.got { display: flex; flex-wrap: wrap; gap: 6px; }
+.got .item { background: var(--s-new); color: var(--surface); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.controls button { font: 700 0.9rem var(--font-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+.controls button:focus-visible, input[type="range"]:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.controls input[type="range"] { flex: 1 1 200px; accent-color: var(--accent); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.8rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 4px; }
+
+.chart { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
+.chart svg { display: block; min-width: 560px; width: 100%; height: auto; }
+.chart text { fill: var(--ink); font: 12px var(--font-body); }
+.chart .tick { fill: var(--muted); font: 11px var(--font-data); }
+.chart .grid { stroke: var(--line); }
+.keys { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 0.9rem; }
+.keys span { display: inline-flex; gap: 6px; align-items: center; }
+
+.learned { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; align-items: start; }
+.learned .panel { align-content: start; gap: 10px; }
+.learned ul { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; }
+.learned li { font-size: 0.95rem; }
+.limits { display: grid; gap: 10px; padding-left: 1.1em; margin: 0; max-width: 72ch; }
+table { border-collapse: collapse; font-size: 0.92rem; }
+td, th { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: left; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-data); }
+.table-wrap { overflow-x: auto; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<main>
+  <header>
+    <span class="kicker">HekmatKI 0.18 · allgemeiner Agent · Crafter</span>
+    <h1>Der Agent im kleinen Minecraft</h1>
+    <p class="lede">Niemand sagt ihm, was Holz, Durst oder ein Zombie ist. Er sieht nur 85 gemischte
+      Zahlen und 17 Tasten ohne Namen. Seit 0.18 setzt er sich eigene Ziele: Zahlen, die von
+      selbst sinken, hält er oben; Zahlen, die er steigen lassen kann, will er höher bringen.
+      So fängt er an zu sammeln, zu trinken und zu bauen.</p>
+    <div class="scores" id="scores"></div>
+    <p class="muted" id="score-note"></p>
+  </header>
+
+  <section aria-labelledby="replay-title">
+    <h2 id="replay-title">Eine Runde zum Anschauen</h2>
+    <p class="muted" id="replay-note"></p>
+    <div class="replay">
+      <div style="display:grid; gap:12px; min-width:0">
+        <div class="field" id="field" role="img" aria-label="Die 9 mal 7 Felder um die Figur"></div>
+        <div class="legend" id="legend"></div>
+        <div class="controls">
+          <button id="play" type="button">Abspielen</button>
+          <button id="back" type="button" aria-label="Ein Schritt zurück">◀</button>
+          <button id="next" type="button" aria-label="Ein Schritt weiter">▶</button>
+          <input id="slider" type="range" min="0" value="0" aria-label="Schritt">
+          <span class="mono" id="counter"></span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="why"><span class="chip" id="reason"></span><span class="mono" id="action"></span></div>
+        <p class="muted" id="reason-text"></p>
+        <div class="meters" id="meters"></div>
+        <div><h3>Im Inventar</h3><div class="items" id="items"></div></div>
+        <div><h3>Erfolge in dieser Runde</h3><div class="got" id="got"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="rates-title">
+    <h2 id="rates-title">Welche Erfolge kommen wie oft</h2>
+    <p class="muted">Anteil der Runden, in denen der Erfolg kam (nur die späteren Runden, nachdem
+      jeder Agent schon gelernt hat). Erfolge, die kein Agent geschafft hat, stehen unten.</p>
+    <div class="keys" id="keys"></div>
+    <div class="chart" id="rates"></div>
+  </section>
+
+  <section aria-labelledby="curve-title">
+    <h2 id="curve-title">Lernkurve</h2>
+    <p class="muted">Verschiedene Erfolge je Runde, gemittelt über alle Karten-Startwerte. Er
+      behält sein Wissen von Runde zu Runde; jede Runde ist eine neue Karte. Die Zahl der
+      Erfolge je Runde steigt bei ihm nicht über die anderen: Er tauscht leichte Zufallserfolge
+      (aufwachen, pflanzen) gegen seltene (Holz, Werkbank, Werkzeug, Zombie). Die Wertung zählt
+      seltene Erfolge stärker, darum liegt er dort vorn.</p>
+    <div class="chart" id="curve"></div>
+  </section>
+
+  <section aria-labelledby="learned-title">
+    <h2 id="learned-title">Was er selbst herausgefunden hat</h2>
+    <p class="muted">Nach der gezeigten Runde, übersetzt in Crafters Namen. Er selbst kennt nur
+      Nummern wie „Größe 41“ und „Taste 7“.</p>
+    <div class="learned" id="learned"></div>
+  </section>
+
+  <section aria-labelledby="limits-title">
+    <h2 id="limits-title">Was das heißt, und was nicht</h2>
+    <ul class="limits">
+      <li>Er spielt etwa 5000 Schritte (30 Runden). Die Werte aus dem Crafter-Paper (Hafner 2021)
+        gelten nach einer Million Schritten: Zufall 1,6 %, Neugier-Agenten ohne Belohnung
+        (Plan2Explore, RND) etwa 2 %, PPO 4,6 %, DreamerV2 10 %, Menschen 50 %. Ein fairer
+        Vergleich bei gleich vielen Schritten fehlt noch.</li>
+      <li>Seine Wahrnehmung ist geschenkt: Er bekommt Crafters Karte als Nummern, nicht das Bild,
+        und dazu, was vor ihm liegt. Aus Pixeln müsste er das erst lernen.</li>
+      <li>Er stirbt meist nach 160 bis 180 Schritten, fast immer durch Zombies, wie der
+        Zufallsagent. Seine Gefahren hängen an einem bestimmten Feld („Zombie rechts neben
+        mir“); dass ein Zombie links genauso gefährlich ist, weiß er nicht. Das ist der
+        nächste Schritt: Raum aus der eigenen Bewegung lernen.</li>
+      <li>Zufall schafft „aufwachen“, „Setzling sammeln“ und „pflanzen“ oft nebenbei. Er drückt
+        diese Tasten seltener, weil er Ziele verfolgt.</li>
+      <li>Kein Code kennt Crafter. Der Adapter liegt in einem eigenen Paket; ein Test prüft, dass
+        der Agent ihn nie importiert.</li>
+    </ul>
+  </section>
+</main>
+
+<script>
+const DATA = /*CRAFTER_DATA*/null;
+const COLORS = {
+  "": "#20251d", water: "#4f8fd6", grass: "#7fbf4d", stone: "#9a9a92", path: "#c8b893",
+  sand: "#e6d79a", tree: "#2f6b2a", lava: "#f06a1d", coal: "#3a3a36", iron: "#c79f7a",
+  diamond: "#7fe3e0", table: "#9b6a3c", furnace: "#6b5d55", player: "#f2c9a0",
+  cow: "#a67c52", zombie: "#3f7f5a", skeleton: "#e8e6dc", arrow: "#e0c050", plant: "#a9d86e"
+};
+const SHORT = {
+  "": "", water: "Wa", grass: "", stone: "St", path: "", sand: "", tree: "Bm", lava: "La",
+  coal: "Ko", iron: "Ei", diamond: "Di", table: "Wb", furnace: "Of", player: "Ich",
+  cow: "Ku", zombie: "Zo", skeleton: "Sk", arrow: "Pf", plant: "Pl"
+};
+const GERMAN = {
+  water: "Wasser", grass: "Gras", stone: "Stein", path: "Weg", sand: "Sand", tree: "Baum",
+  lava: "Lava", coal: "Kohle", iron: "Eisen", diamond: "Diamant", table: "Werkbank",
+  furnace: "Ofen", player: "Figur", cow: "Kuh", zombie: "Zombie", skeleton: "Skelett",
+  arrow: "Pfeil", plant: "Pflanze"
+};
+const REASONS = {
+  "Abwehr": "Eine Lage, nach der Gesundheit oft sank: Er nimmt die Taste, nach der er sich außer Gefahr denkt.",
+  "Bedürfnis": "Eine Zahl, die von selbst sinkt, ist auf die Hälfte gefallen. Er will sie heben.",
+  "Pflege": "Nichts anderes zu tun: Er hebt eine sinkende Zahl schon, bevor sie knapp wird.",
+  "Ziel": "Er bleibt an seinem Ziel von eben.",
+  "Versuch": "Hier ist etwas, das er mit dieser Taste noch nie gesehen hat. Er probiert es.",
+  "Rekord": "Eine Zahl, die er steigen lassen kann, will er höher bringen als je zuvor.",
+  "Erkunden": "Nichts zu tun: Er geht dorthin, wo er am seltensten war.",
+  "Plan": "Er kennt einen Weg zu einem Zustand, in dem die Welt schon einmal „Erfolg“ meldete."
+};
+const AGENT_COLOR = { "Zufall": "--s-rand", "Tabelle": "--s-table", "Stand 0.17": "--s-old", "Stand 0.18": "--s-new" };
+const AGENT_NOTE = {
+  "Zufall": "drückt zufällige Tasten",
+  "Tabelle": "Q-Lernen aus „Erfolg“",
+  "Stand 0.17": "allgemeiner Agent ohne eigene Ziele",
+  "Stand 0.18": "mit eigenen Zielen"
+};
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const el = (tag, attrs = {}, text) => {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  if (text !== undefined) node.textContent = text;
+  return node;
+};
+const svgEl = (tag, attrs = {}, text) => {
+  const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  if (text !== undefined) node.textContent = text;
+  return node;
+};
+
+function renderScores() {
+  const box = document.getElementById("scores");
+  for (const row of DATA.rows) {
+    const card = el("div", { class: "score" + (row.agent === "Stand 0.18" ? " new" : "") });
+    const who = el("div", { class: "who" });
+    const sw = el("span", { class: "swatch" }); sw.style.background = `var(${AGENT_COLOR[row.agent]})`;
+    who.append(sw, el("span", {}, row.agent));
+    card.append(who, el("div", { class: "value" }, row.score.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " %"));
+    card.append(el("div", { class: "note" }, `${AGENT_NOTE[row.agent]} · ${row.per_round.toLocaleString("de-DE", { maximumFractionDigits: 2 })} Erfolge je Runde`));
+    box.append(card);
+  }
+  const n = DATA.rows[0].curve.length;
+  document.getElementById("score-note").textContent =
+    `Crafter-Wertung wie bei Hafner 2021: geometrisches Mittel der Erfolgsquoten über alle 22 Erfolge, in Prozent. ` +
+    `Gezählt sind die Runden 11 bis ${n}, über mehrere Karten-Startwerte.`;
+}
+
+const R = DATA.replay;
+let at = 0, timer = null;
+function renderLegend() {
+  const seen = new Set(R.steps.flatMap(s => s.view.flat()));
+  const box = document.getElementById("legend");
+  for (const name of Object.keys(GERMAN)) {
+    if (!seen.has(name)) continue;
+    const span = el("span"); const sw = el("span", { class: "swatch" }); sw.style.background = COLORS[name];
+    span.append(sw, document.createTextNode(GERMAN[name])); box.append(span);
+  }
+}
+function renderStep() {
+  const step = R.steps[at];
+  const field = document.getElementById("field");
+  field.replaceChildren();
+  const facing = facingCell(step);
+  step.view.forEach((row, y) => row.forEach((name, x) => {
+    const cell = el("div", { class: "cell", title: GERMAN[name] || "außerhalb" }, SHORT[name] ?? "");
+    cell.style.background = COLORS[name] ?? "#888";
+    if (x === 4 && y === 3) cell.classList.add("me");
+    if (facing && facing[0] === x && facing[1] === y) cell.classList.add("front");
+    field.append(cell);
+  }));
+  const reason = step.reason.split(",")[0];
+  const chip = document.getElementById("reason");
+  chip.textContent = step.reason; chip.dataset.kind = reason;
+  document.getElementById("action").textContent = "Taste: " + step.action;
+  document.getElementById("reason-text").textContent = REASONS[reason] || "";
+  const meters = document.getElementById("meters"); meters.replaceChildren();
+  for (const [key, label] of [["health", "Gesundheit"], ["food", "Essen"], ["drink", "Trinken"], ["energy", "Wachheit"]]) {
+    const value = step.inventory[key];
+    const row = el("div", { class: "meter" }); const pips = el("div", { class: "pips", "aria-hidden": "true" });
+    for (let i = 0; i < 9; i++) pips.append(el("span", { class: "pip" + (i < value ? " on" : "") }));
+    row.append(el("span", {}, label), pips, el("span", { class: "mono" }, String(value)));
+    meters.append(row);
+  }
+  const items = document.getElementById("items"); items.replaceChildren();
+  const have = Object.entries(step.inventory).filter(([k, v]) => !["health", "food", "drink", "energy"].includes(k) && v > 0);
+  if (!have.length) items.append(el("span", { class: "muted" }, "nichts"));
+  for (const [k, v] of have) items.append(el("span", { class: "item" }, `${k} ${v}`));
+  if (step.sleeping) items.append(el("span", { class: "item" }, "schläft"));
+  const got = document.getElementById("got"); got.replaceChildren();
+  const so_far = R.steps.slice(0, at + 1).flatMap(s => (s.new || []).map(n => n));
+  if (!so_far.length) got.append(el("span", { class: "muted" }, "noch keiner"));
+  for (const name of so_far) got.append(el("span", { class: "item" }, name));
+  document.getElementById("slider").value = at;
+  document.getElementById("counter").textContent = `Schritt ${at + 1} / ${R.steps.length}`;
+}
+function facingCell(step) {
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    if (step.view[3 + dy][4 + dx] === step.front) return [4 + dx, 3 + dy];
+  }
+  return null;
+}
+function setupReplay() {
+  const slider = document.getElementById("slider");
+  slider.max = R.steps.length - 1;
+  slider.addEventListener("input", () => { at = Number(slider.value); renderStep(); });
+  document.getElementById("back").addEventListener("click", () => { at = Math.max(0, at - 1); renderStep(); });
+  document.getElementById("next").addEventListener("click", () => { at = Math.min(R.steps.length - 1, at + 1); renderStep(); });
+  const play = document.getElementById("play");
+  play.addEventListener("click", () => {
+    if (timer) { clearInterval(timer); timer = null; play.textContent = "Abspielen"; return; }
+    play.textContent = "Anhalten";
+    timer = setInterval(() => {
+      if (at >= R.steps.length - 1) { clearInterval(timer); timer = null; play.textContent = "Abspielen"; return; }
+      at += 1; renderStep();
+    }, 220);
+  });
+  const total = R.unlocked.length;
+  document.getElementById("replay-note").textContent =
+    `Runde ${R.round} auf einer neuen Karte, nachdem er ${R.round - 1} Runden gespielt hat: ` +
+    `von den Runden ${R.candidates[0]} bis ${R.candidates[1]} die mit den meisten Erfolgen. ` +
+    `${R.steps.length} Schritte, ${total} Erfolge. Die Farben und Namen sieht nur diese Seite; ` +
+    `der Agent sieht dieselbe Lage als gemischte Zahlen. Weiß umrandet: das Feld vor ihm.`;
+  renderLegend(); renderStep();
+}
+
+function renderKeys() {
+  const box = document.getElementById("keys");
+  for (const row of DATA.rows) {
+    const span = el("span"); const sw = el("span", { class: "swatch" }); sw.style.background = `var(${AGENT_COLOR[row.agent]})`;
+    span.append(sw, document.createTextNode(row.agent)); box.append(span);
+  }
+}
+function renderRates() {
+  const names = DATA.achievements;
+  const order = names.map((n, i) => i).sort((a, b) => Math.max(...DATA.rows.map(r => r.rates[b])) - Math.max(...DATA.rows.map(r => r.rates[a])));
+  const shown = order.filter(i => Math.max(...DATA.rows.map(r => r.rates[i])) > 0);
+  const none = order.filter(i => !shown.includes(i));
+  const bar = 7, group = DATA.rows.length * bar + 10, left = 150, width = 820, right = 40;
+  const height = shown.length * group + 40;
+  const svg = svgEl("svg", { viewBox: `0 0 ${width} ${height}`, role: "img", "aria-label": "Erfolgsquote je Erfolg und Agent" });
+  const x = v => left + v * (width - left - right);
+  for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+    svg.append(svgEl("line", { x1: x(t), x2: x(t), y1: 10, y2: height - 24, class: "grid" }));
+    svg.append(svgEl("text", { x: x(t), y: height - 8, "text-anchor": "middle", class: "tick" }, `${t * 100} %`));
+  }
+  shown.forEach((i, k) => {
+    const y0 = 14 + k * group;
+    svg.append(svgEl("text", { x: left - 8, y: y0 + group / 2 - 2, "text-anchor": "end" }, names[i].replace(/_/g, " ")));
+    DATA.rows.forEach((row, j) => {
+      const w = Math.max(row.rates[i] > 0 ? 1.5 : 0, x(row.rates[i]) - left);
+      svg.append(svgEl("rect", { x: left, y: y0 + j * bar, width: w, height: bar - 1, fill: css(AGENT_COLOR[row.agent]) }));
+    });
+  });
+  const box = document.getElementById("rates"); box.replaceChildren(svg);
+  if (none.length) box.append(el("p", { class: "muted", style: "margin-top:8px" }, "Kein Agent geschafft: " + none.map(i => names[i].replace(/_/g, " ")).join(", ") + "."));
+}
+function renderCurve() {
+  const n = DATA.rows[0].curve.length;
+  const max = Math.ceil(Math.max(...DATA.rows.flatMap(r => r.curve)) + 0.5);
+  const width = 820, height = 300, left = 48, right = 120, top = 16, bottom = 36;
+  const x = i => left + i / (n - 1) * (width - left - right);
+  const y = v => top + (1 - v / max) * (height - top - bottom);
+  const svg = svgEl("svg", { viewBox: `0 0 ${width} ${height}`, role: "img", "aria-label": "Erfolge je Runde über die Runden" });
+  for (let v = 0; v <= max; v++) {
+    svg.append(svgEl("line", { x1: left, x2: width - right, y1: y(v), y2: y(v), class: "grid" }));
+    svg.append(svgEl("text", { x: left - 8, y: y(v) + 4, "text-anchor": "end", class: "tick" }, String(v)));
+  }
+  for (const i of [0, 9, 19, n - 1]) svg.append(svgEl("text", { x: x(i), y: height - 12, "text-anchor": "middle", class: "tick" }, `Runde ${i + 1}`));
+  svg.append(svgEl("rect", { x: left, y: top, width: x(9) - left, height: height - top - bottom, fill: css("--sunk"), opacity: 0.6 }));
+  svg.append(svgEl("text", { x: left + 6, y: top + 14, class: "tick" }, "lernt noch (nicht gezählt)"));
+  for (const row of DATA.rows) {
+    const smooth = row.curve.map((_, i) => { const w = row.curve.slice(Math.max(0, i - 2), i + 3); return w.reduce((a, b) => a + b, 0) / w.length; });
+    const d = smooth.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+    const color = css(AGENT_COLOR[row.agent]);
+    svg.append(svgEl("path", { d, fill: "none", stroke: color, "stroke-width": row.agent === "Stand 0.18" ? 3 : 2 }));
+    svg.append(svgEl("circle", { cx: x(n - 1), cy: y(smooth[n - 1]), r: 3.5, fill: color }));
+    svg.append(svgEl("text", { x: x(n - 1) + 8, y: y(smooth[n - 1]) + 4 }, row.agent));
+  }
+  document.getElementById("curve").replaceChildren(svg);
+  document.getElementById("curve").append(el("p", { class: "muted", style: "margin-top:8px" }, "Gleitendes Mittel über fünf Runden."));
+}
+function translate(text) {
+  return text.replace(/= (\w+)$/, (m, v) => "= " + (GERMAN[v] || v));
+}
+function renderLearned() {
+  const L = R.learned, box = document.getElementById("learned");
+  const card = (title, lines, empty) => {
+    const div = el("div", { class: "panel" }); div.append(el("h3", {}, title));
+    if (!lines.length) { div.append(el("p", { class: "muted" }, empty)); box.append(div); return; }
+    const ul = el("ul"); for (const line of lines) ul.append(el("li", {}, line)); div.append(ul); box.append(div);
+  };
+  card("Form seiner Welt", [L.form], "");
+  card("Bedürfnisse (sinken von selbst)", L.needs, "keine");
+  card("Rekorde (lässt er steigen)", L.records, "noch keine");
+  card("Darauf achtet er (Schaden)", L.harmed, "nichts");
+  card("Gefährliche Lagen", L.dangers.map(d => d.map(translate).join(" und ")), "noch keine sicher genug");
+  card("Ursachen, die er gelernt hat", L.causes.map(c => `${c.effect} nach „${c.action}“, wenn ${c.when.map(translate).join(" und ") || "immer"} (${c.hits} von ${c.uses})`), "keine");
+}
+renderScores(); setupReplay(); renderKeys(); renderRates(); renderCurve(); renderLearned();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { renderRates(); renderCurve(); });
+new MutationObserver(() => { renderRates(); renderCurve(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+</script>

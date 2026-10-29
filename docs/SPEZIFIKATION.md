@@ -237,7 +237,7 @@ Neue Kontexte starten aus allen Schemata zugleich (`schemas_or_flat_model`): Vor
 
 **Experiment Kontexterkennung.** In drei Welten (Pendeln wie H12; Lampen mit Arzt, U-Bahn, Gate; Lampen mit drei Wartesituationen und drei Gesprächen) wird gezählt, welcher Anteil der Übergänge im richtigen Kontext landet. Weil der Agent die wahren Situationen nicht kennt, bekommt jede Situation höchstens einen Kontext und umgekehrt, gierig nach Häufigkeit. 20 Zufallsstarts, Blöcke à 150 Schritte.
 
-## 9. Der allgemeine Agent (ab 0.16, erweitert in 0.17)
+## 9. Der allgemeine Agent (ab 0.16, erweitert in 0.17 und 0.18)
 
 Paket `general/`. Ein Agent, der keine Welt kennt. Er sieht nur ein Tupel ganzer Zahlen und
 wählt eine Taste aus `0 … n−1`. Jede Welt mischt Reihenfolge der Größen und Tasten neu
@@ -364,6 +364,50 @@ gilt, alle zurückgehaltenen Schritte mit Regeln, Orten und Ziel.
 (Ergebnis 21, H23); `library_transfer.py` hat die Bedingung „ohne Vorprüfung“ (H24),
 `new_world.py` den Umgang „Bayes-Faktor“.
 
+### 9.2 Neu in 0.18: eigene Ziele und Crafter (H25 bis H28)
+
+**Baustein „wird v“** (`programs.Becomes`): Die Größe bekommt den Wert v, egal welchen sie
+hatte. Vorgeschlagen nur, wenn jeder Wechsel bei demselben Wert endete, von mindestens zwei
+Werten aus. **Übernehmen trotz Rauschen** (`synthesis._sources`): Stimmt eine Quelle bei 90 %
+von mindestens 10 Wechseln, und hatte die Größe in 90 % der Schritte einen Wert, den die
+Quelle auch zeigte, kommt `Copy` in Frage (ein Tier läuft durchs Bild). **Gesperrte Schritte**
+(`RuleBook.blocked_moves`): Eine Bewegung, die nur danebenliegt, weil die Größe blieb (gegen
+einen Baum gelaufen), zählt für die Form als verlässlich. Regeln mit Ausnahmen sucht er nach
+200 neuen Schritten der Taste neu (`REFRESH`).
+
+**Ursachen** (`causes.py`, H25): Für jedes Ereignis (Größe steigt, sinkt, wird v) und jede
+Taste lernt er Bedingungen aus Literalen `Gi = v` und `Gi ≥ v`: schrittweises Abdecken, je
+Literal das mit der besten gewichteten relativen Genauigkeit (Lavrač 1999), höchstens drei
+Literale und vier Ursachen. Eine Ursache zählt ab zwei Treffern und einer Genauigkeit von
+0,34 (Laplace). Für Ereignisse, die die Welt bewirkt (ein Angriff), dieselbe Suche über alle
+Tasten zusammen (`conditions`). Rechnet mit Bitmengen.
+
+**Teilziele** (`subgoals.py`, H25, H26): Er stellt sich vor, was eine Taste bewirkt; was er
+nicht vorhersagen kann, wird „unbekannt“ und erfüllt kein Literal. Breitensuche (höchstens
+200 Zustände) zu einem Zustand, in dem das Ziel gilt, oder in dem eine Ursache bereit ist.
+Sonst macht er die fehlenden Literale der ersten drei Ursachen zu Teilzielen, bis Tiefe 3.
+Gibt es keine verlässliche Ursache, nimmt er auch seltene (ab 5 %).
+
+**Eigene Ziele** (`drives.py`, H27, H28), eingeschaltet mit `GeneralAgent(own_goals=True)`.
+Reihenfolge je Schritt:
+1. *Abwehr:* Gilt eine gefährliche Lage (danach sank Gesundheit oft, egal nach welcher
+   Taste), die Taste mit dem kleinsten gelernten Schaden in den nächsten 5 Schritten
+   (geschrumpft zum Mittel über alle Lagen), bei Gleichstand die, nach der er sich außer
+   Gefahr denkt.
+2. *Bedürfnis:* Eine Menge, die nach fast jeder Taste schon sank, ist auf die Hälfte gefallen.
+3. *Ziel:* das Ziel von eben, höchstens 60 Schritte.
+4. *Versuch:* eine Taste an einem Wert, den er mit ihr noch nie sah.
+5. *Rekord:* eine Menge höher bringen als je zuvor an diesem Ort.
+6. *Pflege:* ein Bedürfnis schon unter 90 % heben.
+7. *Erkunden:* auf der Karte seiner Form geradeaus in eine Richtung (4 bis 12 Schritte), ab
+   und zu die am seltensten probierte Taste.
+Weiß er für ein Ziel keinen Weg, geht er dorthin zurück, wo die Größe zuletzt stieg. Tasten,
+nach denen hier meist Gesundheit sank, nimmt er nie. Mengen sind Größen ohne `Copy`- oder
+`Becomes`-Regel, keine Achse, die sich in 80 % der Fälle um genau 1 ändern.
+
+**Crafter** (`adapters/crafter.py`, `experiments/crafter_run.py`, `crafter_replay.py`): siehe
+[CRAFTER.md](CRAFTER.md). Der Agent importiert nie etwas aus `adapters`.
+
 ## 10. Qualitätsregeln für den Code
 
 - Lesbarkeit und Einfachheit vor Cleverness (KISS, Zen of Python).
@@ -375,6 +419,15 @@ gilt, alle zurückgehaltenen Schritte mit Regeln, Orten und Ziel.
 - Bezeichner auf Englisch (Python-Konvention), Dokumentation und Ausgaben auf Deutsch.
 
 ## 11. Änderungen
+
+### Version 0.18
+
+- Eigene Ziele (`drives.py`), Ursachen (`causes.py`), Teilziele (`subgoals.py`), Baustein
+  „wird v“, Übernehmen trotz Rauschen, gesperrte Schritte (Abschnitt 9.2).
+- Crafter-Adapter in einem eigenen Paket `hekmatki.adapters`, Messung und Seite
+  (Ergebnis 22). Zusatzpaket `crafter`, der Kern bleibt bei der Standardbibliothek.
+- Ohne `own_goals` verhält sich der Agent fast wie in 0.17; die gemeinsamen Änderungen
+  verschieben einzelne Zahlen in Ergebnis 17 bis 21 leicht (siehe README).
 
 ### Version 0.17
 

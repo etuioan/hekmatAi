@@ -12,7 +12,8 @@ Bitte lies das zuerst, wenn du verstehen willst, worum es mir geht.
 - **Idee:** Ähnliche Situationen (beim Arzt warten, auf die Bahn warten) liegen wie
   „Scheiben“ übereinander. Der Agent lernt das Gemeinsame („Warten“) einmal und wechselt
   zwischen den Kontexten.
-- **Stand:** Forschungsprototyp in Python, nur Standardbibliothek, 241 Tests.
+- **Stand:** Forschungsprototyp in Python, nur Standardbibliothek (Crafter als freiwilliges
+  Zusatzpaket), 260 Tests.
   Spielwelten (ähnlich ARC-AGI-3) sind das Testfeld, nicht das Ziel.
 - **Ehrlich:** Hier wird nichts behauptet, was nicht gemessen ist. Widerlegte Hypothesen
   stehen genauso im README wie gestützte (siehe [Grenzen](#grenzen)).
@@ -49,7 +50,9 @@ Please read it first if you want to understand what it's about.
 - **Idea:** Similar situations (waiting at the doctor's, waiting for the train) lie on top of
   each other like "slices". The agent learns what they share ("waiting") once and switches
   between contexts.
-- **Status:** Research prototype in Python, standard library only, 217 tests.
+- **Status:** Research prototype in Python, standard library only (Crafter as an optional
+  extra), 260 tests. Since 0.18 the general agent sets its own goals and plays Crafter, a
+  small 2D Minecraft, through a separate adapter: [docs/crafter.html](docs/crafter.html).
   Game worlds (similar to ARC-AGI-3) are the test bed, not the goal.
 - **Honest:** Nothing is claimed here that hasn't been measured. Refuted hypotheses are
   reported just like supported ones (see "Grenzen", the limitations section below).
@@ -61,7 +64,7 @@ Quick start: `PYTHONPATH=src python -m hekmatki` (Python 3.12+). How to contribu
 
 ---
 
-## HekmatKI Prototyp 0.17: Schema-Stapel, Kontextwechsel, Weltmodell und ein Agent für ganz andere Welten
+## HekmatKI Prototyp 0.18: Schema-Stapel, Kontextwechsel, Weltmodell und ein Agent mit eigenen Zielen
 
 Ein kleiner, vollständig nachvollziehbarer Test der Idee, ähnliche Alltagssituationen als
 übereinanderliegende „Scheiben“ zu modellieren und zwischen ihnen zu wechseln.
@@ -893,7 +896,89 @@ Schritte je Runde; erkannt = Kartenwechsel in den ersten 30 Schritten der Phase.
   Welt wiederkommt; im letzten Abschnitt ist Umlernen trotzdem schneller, weil der Agent die
   erste Karte nicht immer wiederfindet.
 
+## Ergebnis 22: Eigene Ziele, und der Agent spielt Crafter (neu in 0.18, H25 bis H28)
+
+Bis 0.17 hatte der Agent nur ein Ziel: das, wofür die Welt „erreicht“ meldet. Kannte er
+dafür keinen Weg, drückte er die am seltensten probierte Taste. Jetzt setzt er sich selbst
+Ziele, ohne zu wissen, was die Zahlen bedeuten (`general/drives.py`):
+
+- **Bedürfnisse:** Eine Zahl, die von selbst sinkt, hält er oben (Durst, Hunger, Müdigkeit).
+- **Rekorde:** Eine Zahl, die er steigen lassen kann, will er höher bringen als je zuvor
+  („Zahl steigt“: Holz, Setzlinge).
+- **Versuche:** Tasten an Stellen probieren, an denen er mit ihnen noch nie etwas sah.
+- **Abwehr:** Lagen, nach denen Gesundheit oft sank, lernt er als gefährlich und nimmt dort
+  die Taste, nach der bisher am wenigsten Schaden folgte.
+- **Erkunden:** auf der Karte seiner Form geradeaus in neue Richtungen.
+
+Den Weg plant er über **Ursachen** (`general/causes.py`: unter welcher Bedingung bewirkt
+eine Taste etwas?) und **Teilziele** (`general/subgoals.py`): Fehlt ein Teil der Bedingung,
+wird er zum nächsten Ziel. Er stellt sich vor, was eine Taste bewirkt, auch wenn er nur einen
+Teil vorhersagen kann; ein mitwanderndes Sichtfeld lernt er als „jedes Feld übernimmt den
+Wert seines Nachbarn“.
+
+Prüfstein ist **Crafter** (Hafner 2021), ein kleines 2D-Minecraft mit 22 Erfolgen. Der Agent
+sieht nur 85 gemischte Zahlen und 17 Tasten ohne Namen; der Adapter liegt in einem eigenen
+Paket (`hekmatki.adapters`), und ein Test prüft, dass der Agent ihn nie importiert
+([docs/CRAFTER.md](docs/CRAFTER.md)). Jeder Agent spielt 30 Runden auf immer neuen Karten
+und behält sein Wissen; gezählt werden die Runden 11 bis 30, über 8 Karten-Startwerte
+(`experiments/crafter_run.py`, Rohdaten in `docs/crafter_messung.json`).
+
+| Agent | Wertung | verschiedene Erfolge je Runde | Runde dauert | Erfolgsarten überhaupt |
+|---|---:|---:|---:|---:|
+| Zufall | 1,4 % | 2,09 | 165 | 7 |
+| Tabelle (Q-Lernen) | 1,6 % | 2,31 | 173 | 8 |
+| Stand 0.17 | 1,4 % | 2,21 | 171 | 6 |
+| **Stand 0.18** | **2,6 %** | 2,06 | 169 | **13** |
+
+Wertung wie im Crafter-Paper: geometrisches Mittel der Erfolgsquoten über alle 22 Erfolge.
+
+| Erfolg | Zufall | Stand 0.17 | Stand 0.18 |
+|---|---:|---:|---:|
+| Holz sammeln | 18 % | 17 % | **37 %** |
+| Werkbank bauen | 2 % | 4 % | **14 %** |
+| Holzschwert | 0 % | 0 % | **7 %** |
+| Holzspitzhacke | 0 % | 0 % | **2 %** |
+| Zombie besiegen | 0 % | 0 % | **6 %** |
+| Trinken | 7 % | 11 % | **15 %** |
+| Kuh essen | 1 % | 0 % | **3 %** |
+| Kohle, Stein abbauen, Stein setzen | 0 % | 0 % | je 1 % |
+| aufwachen | 92 % | 94 % | 42 % |
+| pflanzen | 41 % | 44 % | 24 % |
+
+- **Der Agent mit eigenen Zielen schafft fast doppelt so viel Wertung wie Zufall und 0.17
+  (2,6 statt 1,4 %), und fast doppelt so viele Arten von Erfolgen (13 statt 7).** Er sammelt
+  doppelt so oft Holz, baut siebenmal so oft eine Werkbank, stellt Werkzeug her und baut
+  zum ersten Mal Kohle und Stein ab. Niemand hat ihm gesagt, was Holz ist; er hat gelernt,
+  dass eine bestimmte Zahl nach einer bestimmten Taste steigt, wenn vor ihm eine bestimmte
+  Nummer steht (in der gezeigten Runde 60 von 60 Mal), und wollte diese Zahl höher bringen.
+- **Ohne eigene Ziele (0.17) ist er so gut wie Zufall.** Das Ziel der Welt allein reicht
+  nicht: Jeder Erfolg zählt in Crafter nur einmal pro Runde, also gibt es kein festes Ziel,
+  das er wieder ansteuern könnte.
+- **Er stirbt so früh wie der Zufallsagent** (nach etwa 170 Schritten, meist durch Zombies).
+  Seine Gefahren hängen an einem bestimmten Feld („Zombie direkt über mir“); dass derselbe
+  Zombie links genauso gefährlich ist, weiß er nicht. Darum bleibt er weit unter Agenten mit
+  tiefem Lernen (DreamerV2 10 % nach einer Million Schritten; er spielt nur etwa 5000).
+- **Leichte Zufallserfolge verliert er** (aufwachen, pflanzen), weil er Ziele verfolgt, statt
+  zufällig zu schlafen. Die Zahl der Erfolge je Runde bleibt darum gleich; die Wertung steigt,
+  weil sie seltene Erfolge stärker zählt.
+- **Die Streuung ist groß:** Je Karten-Startwert liegt er zwischen 0,8 und 2,6 % (Zufall
+  zwischen 1,0 und 1,5 %); bei 6 von 8 Startwerten liegt er über dem besten Zufallswert.
+  Zwei frühere Messungen mit fast demselben Code ergaben 2,1 und 2,2 % (Zufall 1,5 %).
+
+Zum Anschauen: [docs/crafter.html](docs/crafter.html) zeigt eine Runde Schritt für Schritt
+(was um die Figur ist, Inventar, Taste und Grund), die Erfolge aller Agenten, die Lernkurve
+und was er selbst herausgefunden hat.
+
 ## Grenzen
+
+- In Crafter (Ergebnis 22) stirbt er so früh wie Zufall. Gefahren und Ursachen hängen an
+  einzelnen Feldern der Sicht; Raum aus der eigenen Bewegung (welches Feld neben welchem
+  liegt) lernt er noch nicht. Seine Wahrnehmung ist geschenkt (Crafters Karte als Nummern,
+  dazu das Feld vor ihm), nicht das Bild. Er spielt nur etwa 5000 Schritte; ein Vergleich
+  mit tiefem Lernen bei gleich vielen Schritten fehlt.
+- Die eigenen Ziele haben viele Schwellen von Hand (Hälfte für „dringend“, 60 Schritte
+  Geduld, 5 Schritte für Schaden, 3 Literale je Ursache …). Sie stehen als „ohne Grundlage“
+  in der Paper-Zuordnung.
 
 - Der allgemeine Agent (Ergebnisse 17 bis 21) setzt Formen aus vier Achsenarten zusammen
   (Kette, Ring, Rutschbahn, Ordnung). Bäume, Graphen mit Türen oder Objekte kennt er nicht;
@@ -961,7 +1046,7 @@ PYTHONPATH=src python -m hekmatki
 Qualitätsprüfungen (einmalig `pip install -e ".[dev]"`):
 
 ```bash
-pytest            # 241 Tests
+pytest            # 260 Tests (6 davon nur mit Crafter)
 mypy              # strikte Typprüfung
 ruff check .      # Linter
 ruff format --check .
@@ -993,8 +1078,9 @@ Ein Modul, eine Aufgabe:
 | `player.py` | Spieler für das Ampelspiel, nutzt Schnittmengen als Vorwissen |
 | `online.py` | Protokolle `LearningPredictor`/`OnlineLearner`, Vergleichsagent mit einem Modell |
 | `evaluation.py` | Gemeinsame Schnittstelle `Predictor` und ehrliche Bewertung |
-| `experiments/` | Ein Modul pro Experiment: `schema_learning` (H11, Härtetest), `forgetting` (H12), `sleep` (Kontextwechsel, Wach-Schlaf, mehrere Schemata), `traffic_light` (Ampelspiel), `recognition` (Kontexterkennung), `meta_schema` (dritte Ebene, H13), `discovery` (Spielefamilie), `exploration` (Neugier), `rule_transfer` (Regeln statt Zustände), `grid_transfer` (2D-Welt), `grid_mechanics` (Weltmodell), `grid_roles` (Rollen-Weltmodell), `grid_foreign` (Gegenprobe mit fremder Mechanik), `cross_world` (Spielwelt gegen Alltagswelt), `grid_replay` (Wiedergabe-Seite), `general_worlds`, `library_transfer`, `new_world`, `new_forms`, `world_stream`, `general_replay` (allgemeiner Agent, Seite „Ein Agent, sechs Welten“), dazu `blocks` mit gemeinsamen Werkzeugen |
-| `general/` | Allgemeiner Agent ab 0.16: `env` (Schnittstelle, Mischung, Auffüllen), `worlds` (Raum, Würfel, Suchbaum, Eis, Drehscheiben, Tauschen), `programs` (Bausteine), `synthesis` (kürzestes Programm), `library` (Bibliothek), `knowledge` (Regelbuch, Ziel), `form` (Form der Welt), `planner` (Wege auf Achsen, Ringen und Rutschbahnen, Eingrenzen, Suche im Modell), `detector` (neue Umgebung), `agent` (der Agent), `run` (Runden, Vergleichsagenten) |
+| `experiments/` | Ein Modul pro Experiment: `schema_learning` (H11, Härtetest), `forgetting` (H12), `sleep` (Kontextwechsel, Wach-Schlaf, mehrere Schemata), `traffic_light` (Ampelspiel), `recognition` (Kontexterkennung), `meta_schema` (dritte Ebene, H13), `discovery` (Spielefamilie), `exploration` (Neugier), `rule_transfer` (Regeln statt Zustände), `grid_transfer` (2D-Welt), `grid_mechanics` (Weltmodell), `grid_roles` (Rollen-Weltmodell), `grid_foreign` (Gegenprobe mit fremder Mechanik), `cross_world` (Spielwelt gegen Alltagswelt), `grid_replay` (Wiedergabe-Seite), `general_worlds`, `library_transfer`, `new_world`, `new_forms`, `world_stream`, `general_replay` (allgemeiner Agent, Seite „Ein Agent, sechs Welten“), `crafter_run` und `crafter_replay` (Crafter, Seite [docs/crafter.html](docs/crafter.html)), dazu `blocks` mit gemeinsamen Werkzeugen |
+| `general/` | Allgemeiner Agent ab 0.16: `env` (Schnittstelle, Mischung, Auffüllen), `worlds` (Raum, Würfel, Suchbaum, Eis, Drehscheiben, Tauschen), `programs` (Bausteine), `synthesis` (kürzestes Programm), `library` (Bibliothek), `knowledge` (Regelbuch, Ziel), `form` (Form der Welt), `planner` (Wege auf Achsen, Ringen und Rutschbahnen, Eingrenzen, Suche im Modell), `detector` (neue Umgebung), `causes` (Ursachen, ab 0.18), `subgoals` (Teilziele), `drives` (eigene Ziele), `agent` (der Agent), `run` (Runden, Vergleichsagenten) |
+| `adapters/` | Ab 0.18: Zugänge zu fremden Welten, getrennt vom Agenten: `crafter` (Crafter an der allgemeinen Schnittstelle) |
 | `general_report.py` | Ausgabe der Ergebnisse 17 bis 21 |
 | `__main__.py` | Ausgabe der Ergebnisse |
 
@@ -1002,6 +1088,26 @@ Grundsätze: Lesbarkeit vor Cleverness, nur Standardbibliothek, vollständige
 Typannotationen (`mypy --strict`), ungültige Eingaben lösen immer einen `ValueError` mit
 verständlicher Meldung aus, Zufall nur über einen übergebenen `random.Random`.
 Bezeichner sind englisch (Python-Konvention), Dokumentation und Ausgaben deutsch.
+
+## Änderungen in 0.18
+
+- Eigene Ziele (`general/drives.py`, eingeschaltet mit `own_goals=True`): Bedürfnisse,
+  Rekorde, Versuche, Abwehr, Erkunden. Ursachen (`general/causes.py`) und Teilziele
+  (`general/subgoals.py`) für den Weg dahin.
+- Baustein „wird v“, Übernehmen trotz Rauschen, gesperrte Schritte (gegen einen Baum
+  gelaufen) zählen nicht gegen die Form.
+- Crafter-Adapter im eigenen Paket `hekmatki.adapters`, Messung `crafter_run`, Seite
+  `crafter_replay` (Ergebnis 22). Crafter ist ein freiwilliges Zusatzpaket:
+  `pip install -e ".[crafter]"`.
+- Gegenprobe der alten Welten (ohne eigene Ziele, gleiche Startwerte): Die Tabellen von
+  Ergebnis 17 bis 21 und `docs/ergebnisse.txt` zeigen noch die Zahlen von 0.17. Mit 0.18
+  ändern sich: 2D-Raum 22,9 statt 23,2 Schritte, **3D-Raum 11,7 statt 10,8 (schlechter**, weil
+  „Übernehmen trotz Rauschen“ in kleinen Lehrplan-Räumen manchmal eine Zufallsregel findet),
+  Eis 11,7 statt 11,9, Drehscheiben mit Stand 0.16 12,1 statt 13,9. Im Strom verschiedener
+  Welten (Ergebnis 21) ist der Bayes-Faktor schneller (18 / 82 / 66 / 79 statt 23 / 78 / 90 /
+  103 Schritte), erkennt jede Welt (100 %) und findet die erste Karte öfter wieder (90 statt
+  80 %). Bibliothek (Ergebnis 18) und Erkennen (Ergebnis 19) sind unverändert. Alle Formen
+  werden wie in 0.17 gefunden.
 
 ## Änderungen in 0.17
 
@@ -1163,15 +1269,12 @@ Bezeichner sind englisch (Python-Konvention), Dokumentation und Ausgaben deutsch
 
 ## Nächste Schritte
 
-1. Die Vorprüfung der Bibliothek lernen statt von Hand bauen (wie DeepCoder), und die
-   Bibliothek auch über Formen und Pläne führen (H24).
-2. Auf Eis gezielt erkunden, wo eine Rutschpartie endet, statt an der ersten unbekannten
-   Stelle anzuhalten (H22).
-3. Den Bayes-Faktor schneller entscheiden lassen, ohne mehr Fehlalarme, und die Wechselrate
-   aus Erfahrung schätzen statt fest (H23).
-4. Die 2D-Spielwelt aus 0.12 bis 0.15 an die allgemeine Schnittstelle anschließen: derselbe
-   Agent für Spiel und Raum.
-5. Kernwissen über Objekte und Zahl ergänzen (Spelke 2022). Tauschen zeigt: Ohne passende
-   Form bleibt nur rohe Suche.
-6. Aus 0.15 offen: Teilprüfung früher auslösen (H16), gemeinsamer Mechanismus für Alltagswelt
-   und Spielwelt, Neustart-Taste lernen, dritte Ebene im Wach-Schlaf-Agenten.
+1. Raum aus der eigenen Bewegung lernen: welches Feld der Sicht neben welchem liegt, und
+   daraus Bedingungen wie „ein Zombie neben mir“, egal auf welcher Seite (Philipona 2003,
+   Laflaquière 2019). Das ist in Crafter die größte Lücke (Ergebnis 22).
+2. Erfahrung über mehrere Schritte: Abwehr und Ziele lernen bisher nur aus dem, was in den
+   nächsten Schritten passierte; Kämpfen (zum Gegner drehen, dann schlagen) braucht Folgen.
+3. Bei gleich vielen Schritten mit Agenten aus tiefem Lernen vergleichen (PPO, Neugier).
+4. Nacht als eigener Kontext (Detektor), später Pixel statt Crafters Karte.
+5. Aus 0.17 offen: Vorprüfung der Bibliothek lernen, auf Eis gezielt erkunden, Bayes-Faktor
+   schneller, 2D-Spielwelt an die allgemeine Schnittstelle.
