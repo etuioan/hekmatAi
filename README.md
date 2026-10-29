@@ -1,5 +1,7 @@
 # HekmatKI
 
+**English:** [short introduction below](#english) · [Why this project?](MOTIVATION.en.md)
+
 Ein offenes Experiment für eine andere Art von KI: kein großes Sprachmodell, sondern ein
 kleiner Agent, der Gemeinsamkeiten zwischen Situationen erkennt, Wissen wiederverwendet und
 lernt, welcher Kontext gerade passt. Hekmat bedeutet Weisheit.
@@ -34,6 +36,28 @@ warum etwas so nicht funktionieren kann. Wie das geht, steht in
 ## Lizenz
 
 [MIT](LICENSE)
+
+## English
+
+An open experiment in a different kind of AI: not a large language model, but a small agent
+that recognizes what situations have in common, reuses knowledge and learns which context
+fits right now. "Hekmat" means wisdom.
+
+**Why this project exists is told in [MOTIVATION.en.md](MOTIVATION.en.md).**
+Please read it first if you want to understand what it's about.
+
+- **Idea:** Similar situations (waiting at the doctor's, waiting for the train) lie on top of
+  each other like "slices". The agent learns what they share ("waiting") once and switches
+  between contexts.
+- **Status:** Research prototype in Python, standard library only, 217 tests.
+  Game worlds (similar to ARC-AGI-3) are the test bed, not the goal.
+- **Honest:** Nothing is claimed here that hasn't been measured. Refuted hypotheses are
+  reported just like supported ones (see "Grenzen", the limitations section below).
+- **Language:** The detailed results, specification and code comments are in German for now.
+  Questions, issues and pull requests in English are very welcome.
+
+Quick start: `PYTHONPATH=src python -m hekmatki` (Python 3.12+). How to contribute:
+[CONTRIBUTING.md](CONTRIBUTING.md#english). License: [MIT](LICENSE).
 
 ---
 

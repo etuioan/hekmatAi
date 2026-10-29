@@ -1,6 +1,7 @@
 # Warum dieses Projekt?
 
 *Ein persönlicher Text von Tenshira, der das Projekt begonnen hat.*
+*English version: [MOTIVATION.en.md](MOTIVATION.en.md)*
 
 Hallo zusammen!
 
