@@ -1,0 +1,82 @@
+# Crafter-Messung auf GitHub: ein Job pro Karte (Startwert), danach ein Sammel-Job.
+# Start: Reiter „Actions“ → „Crafter-Messung“ → „Run workflow“.
+# Ergebnis: Tabelle in der Zusammenfassung des Laufs, Rohdaten als Artefakt „crafter-messung“.
+name: Crafter-Messung
+
+on:
+  workflow_dispatch:
+    inputs:
+      startwerte:
+        description: "Anzahl Karten (Startwerte 0 bis n−1)"
+        type: number
+        default: 16
+      runden:
+        description: "Runden je Karte (die ersten 10 zählen nicht)"
+        type: number
+        default: 30
+
+env:
+  STARTWERTE: ${{ inputs.startwerte || 2 }}
+  RUNDEN: ${{ inputs.runden || 12 }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      seeds: ${{ steps.seeds.outputs.seeds }}
+    steps:
+      - id: seeds
+        run: echo "seeds=[$(seq -s, 0 $((STARTWERTE - 1)))]" >> "$GITHUB_OUTPUT"
+
+  play:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        seed: ${{ fromJSON(needs.plan.outputs.seeds) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[crafter]"
+      - run: python -m hekmatki.experiments.crafter_batch play ${{ matrix.seed }} teil-${{ matrix.seed }}.json --episodes "$RUNDEN"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: teil-${{ matrix.seed }}
+          path: teil-${{ matrix.seed }}.json
+
+  merge:
+    needs: play
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[crafter]"
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: teil-*
+          path: teile
+          merge-multiple: true
+      - run: python -m hekmatki.experiments.crafter_batch merge messung.json teile/*.json | tee bericht.txt
+      - name: Zusammenfassung
+        run: |
+          {
+            echo "## Crafter-Messung ($(ls teile | wc -l) Karten, $RUNDEN Runden, Commit ${GITHUB_SHA::7})"
+            echo '```text'
+            cat bericht.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: crafter-messung
+          path: |
+            messung.json
+            bericht.txt
