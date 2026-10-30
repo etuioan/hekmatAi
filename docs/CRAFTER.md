@@ -36,6 +36,16 @@ PYTHONPATH=src python -m hekmatki.experiments.crafter_run messung.json 8   # 8 K
 PYTHONPATH=src python -m hekmatki.experiments.crafter_replay docs/crafter.html messung.json
 ```
 
+Das Zusatzpaket bringt `numba` mit. Crafter baut jede Karte mit dem Paket `opensimplex`, das
+mit `numba` von selbst kompiliert: eine Karte dauert dann etwa 0,07 s statt 1,4 s, bei genau
+denselben Karten. Ohne `numba` war das Kartenbauen gut ein Viertel der ganzen Messzeit.
+
+Crafter ist nicht Schritt für Schritt wiederholbar, sobald sich irgendetwas am Programm
+ändert: Es merkt sich Tiere und Zombies in Mengen (`set`), deren Reihenfolge von
+Speicheradressen abhängt. Welcher Zombie verschwindet, hängt so davon ab, was sonst geladen
+ist (auch `numba`). Karten und Startfiguren bleiben gleich, der Spielverlauf nicht. Deshalb
+zählen nur Mittelwerte über viele Karten, nie einzelne Runden.
+
 Jeder Agent spielt 30 Runden hintereinander und behält sein Wissen; jede Runde ist eine neue
 Karte. Gezählt werden die Runden 11 bis 30. Wertung wie im Paper: geometrisches Mittel der
 Erfolgsquoten, `exp(mittel(ln(1 + 100·Quote))) − 1`.
