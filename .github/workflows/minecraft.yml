@@ -55,7 +55,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        agent: ["Zufall", "Tabelle", "Stand 0.20"]
+        agent: ["Zufall", "Tabelle", "Stand 0.21"]
         seed: ${{ fromJSON(needs.plan.outputs.seeds) }}
     steps:
       - uses: actions/checkout@v5

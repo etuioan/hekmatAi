@@ -24,7 +24,7 @@ import sys
 import time
 import urllib.request
 from pathlib import Path
-from typing import Any, Final, get_args
+from typing import Any, Final
 
 from hekmatki.adapters.minecraft import BRIDGE, BridgeProcess, MinecraftWorld
 from hekmatki.adapters.minecraft_server import offline_uuid, prepare
@@ -114,7 +114,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--eula-angenommen", dest="eula", action="store_true")
     parser.add_argument("--mein-name", dest="name", default=None)
-    parser.add_argument("--agent", choices=get_args(Agent), default="Stand 0.20")
+    parser.add_argument("--agent", choices=list(MAKERS), default="Stand 0.21")
     parser.add_argument("--startwert", dest="seed", type=int, default=0)
     parser.add_argument("--runden", dest="rounds", type=int, default=None)
     parser.add_argument("--ordner", dest="folder", type=Path, default=Path("minecraft-server"))

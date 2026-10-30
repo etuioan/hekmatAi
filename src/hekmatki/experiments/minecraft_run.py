@@ -10,7 +10,7 @@ enthält die Fortschritte, die man in den ersten Minuten ohne Reise schaffen kan
 der Auswertung; der Agent erfährt nur „ein neuer Fortschritt kam“.
 
 Eine Messung läuft in Teilen, weil jeder Teil einen eigenen Minecraft-Server braucht:
-`python -m hekmatki.experiments.minecraft_run play "Stand 0.20" 7 teil.json --port 25565`
+`python -m hekmatki.experiments.minecraft_run play "Stand 0.21" 7 teil.json --port 25565`
 `python -m hekmatki.experiments.minecraft_run merge messung.json teil-*.json`
 """
 
@@ -48,11 +48,12 @@ EPISODES: Final = 12
 WARMUP: Final = 4
 """Die ersten Runden zählen nicht: Da lernt der Agent erst."""
 
-Agent = Literal["Zufall", "Tabelle", "Stand 0.20"]
+Agent = Literal["Zufall", "Tabelle", "Stand 0.20", "Stand 0.21"]
+"""„Stand 0.20“ nur zum Lesen alter Messungen; gespielt wird der aktuelle Stand."""
 MAKERS: Final[dict[Agent, Callable[[int], Learner]]] = {
     "Zufall": RandomAgent,
     "Tabelle": TableAgent,
-    "Stand 0.20": lambda actions: GeneralAgent(actions, own_goals=True),
+    "Stand 0.21": lambda actions: GeneralAgent(actions, own_goals=True),
 }
 
 
@@ -233,7 +234,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     commands = parser.add_subparsers(dest="command", required=True)
     playing = commands.add_parser("play")
-    playing.add_argument("agent", choices=get_args(Agent))
+    playing.add_argument("agent", choices=list(MAKERS))
     playing.add_argument("seed", type=int)
     playing.add_argument("out", type=Path)
     playing.add_argument("--episodes", type=int, default=EPISODES)
