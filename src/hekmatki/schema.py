@@ -195,15 +195,16 @@ def fixed_schema_predictor(
 
     Die Beobachtungen dienen nur dazu, die Bindung zu finden.
     """
-    bound = [BoundSchema(schema, b) for b in _bindings_for(schema, alphabet)]
-    return _trained(OnlineMixture(bound), alphabet, observations)
+    symbols = _symbols(alphabet)
+    bound = [BoundSchema(schema, b) for b in _bindings_for(schema, symbols)]
+    return _trained(OnlineMixture(bound), symbols, observations)
 
 
 def adaptive_schema_model(
     schema: Schema, alphabet: Iterable[str], prior_strength: float = DEFAULT_PRIOR_STRENGTH
 ) -> OnlineMixture:
     """Lernendes Schema: Das Schema ist nur Vorwissen, Beobachtungen korrigieren es."""
-    return OnlineMixture(_schema_models(schema, alphabet, prior_strength))
+    return OnlineMixture(_schema_models(schema, _symbols(alphabet), prior_strength))
 
 
 def schema_or_flat_model(
@@ -229,7 +230,7 @@ def schemas_or_flat_model(
     """
     if not schemas:
         raise ValueError("Es wird mindestens ein Schema gebraucht.")
-    symbols = tuple(sorted(set(alphabet)))
+    symbols = _symbols(alphabet)
     models: list[LearningPredictor] = []
     log_priors: list[float] = []
     for schema in schemas:
@@ -249,8 +250,9 @@ def adaptive_schema_predictor(
     prior_strength: float = DEFAULT_PRIOR_STRENGTH,
 ) -> OnlineMixture:
     """`adaptive_schema_model`, das bereits aus `observations` gelernt hat."""
-    model = adaptive_schema_model(schema, alphabet, prior_strength)
-    return _trained(model, alphabet, observations)
+    symbols = _symbols(alphabet)
+    model = adaptive_schema_model(schema, symbols, prior_strength)
+    return _trained(model, symbols, observations)
 
 
 def schema_or_flat_predictor(
@@ -260,14 +262,20 @@ def schema_or_flat_predictor(
     prior_strength: float = DEFAULT_PRIOR_STRENGTH,
 ) -> OnlineMixture:
     """`schema_or_flat_model`, das bereits aus `observations` gelernt hat."""
-    model = schema_or_flat_model(schema, alphabet, prior_strength)
-    return _trained(model, alphabet, observations)
+    symbols = _symbols(alphabet)
+    model = schema_or_flat_model(schema, symbols, prior_strength)
+    return _trained(model, symbols, observations)
+
+
+def _symbols(alphabet: Iterable[str]) -> tuple[str, ...]:
+    """Das Alphabet einmal als feste, sortierte Folge: Ein Iterator ließe sich nur einmal lesen."""
+    return tuple(sorted(set(alphabet)))
 
 
 def _trained(
-    mixture: OnlineMixture, alphabet: Iterable[str], observations: Sequence[str]
+    mixture: OnlineMixture, symbols: Sequence[str], observations: Sequence[str]
 ) -> OnlineMixture:
-    unknown = set(observations) - set(alphabet)
+    unknown = set(observations) - set(symbols)
     if unknown:
         raise ValueError(f"Beobachtungen enthalten Symbole außerhalb des Alphabets: {unknown}.")
     mixture.observe_sequence(observations)
@@ -275,10 +283,10 @@ def _trained(
 
 
 def _schema_models(
-    schema: Schema, alphabet: Iterable[str], prior_strength: float
+    schema: Schema, symbols: Sequence[str], prior_strength: float
 ) -> list[MarkovModel]:
     """Ein Situationsmodell pro möglicher Bindung, jeweils mit dem Schema als Vorwissen."""
-    return [instantiate(schema, b, prior_strength) for b in _bindings_for(schema, alphabet)]
+    return [instantiate(schema, b, prior_strength) for b in _bindings_for(schema, symbols)]
 
 
 def instantiate(schema: Schema, binding: Binding, prior_strength: float) -> MarkovModel:
@@ -288,8 +296,11 @@ def instantiate(schema: Schema, binding: Binding, prior_strength: float) -> Mark
     """
     if prior_strength <= 0.0:
         raise ValueError(f"Die Stärke des Vorwissens muss positiv sein, war {prior_strength}.")
-    if set(binding.values()) != set(schema.roles):
-        raise ValueError("Die Bindung muss jede Rolle des Schemas genau einmal belegen.")
+    if sorted(binding.values()) != sorted(schema.roles):
+        raise ValueError(
+            f"Die Bindung muss jede Rolle des Schemas genau einmal belegen: {dict(binding)} "
+            f"für die Rollen {schema.roles}."
+        )
     symbol_of = {role: symbol for symbol, role in binding.items()}
     model = MarkovModel(binding.keys(), schema.model.pseudocount)
     for a in schema.roles:
@@ -299,8 +310,8 @@ def instantiate(schema: Schema, binding: Binding, prior_strength: float) -> Mark
     return model
 
 
-def _bindings_for(schema: Schema, alphabet: Iterable[str]) -> list[dict[str, str]]:
-    return all_bindings(tuple(sorted(set(alphabet))), schema.roles)
+def _bindings_for(schema: Schema, symbols: Sequence[str]) -> list[dict[str, str]]:
+    return all_bindings(symbols, schema.roles)
 
 
 def _normalized_weights(log_scores: Sequence[float]) -> list[float]:
