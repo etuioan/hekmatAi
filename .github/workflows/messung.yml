@@ -4,8 +4,6 @@
 name: Crafter-Messung
 
 on:
-  push:  # nur zum Ausprobieren, wird wieder entfernt
-    branches: [claude/project-thread-u1pywe]
   workflow_dispatch:
     inputs:
       startwerte:
