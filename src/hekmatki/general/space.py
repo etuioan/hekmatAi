@@ -18,7 +18,7 @@ mir“ eine Lage, egal auf welcher Seite (deiktische Darstellung, Agre & Chapman
 
 from collections import Counter, deque
 from collections.abc import Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Final
 
 from hekmatki.general.env import Observation, Transition
@@ -57,6 +57,10 @@ MAX_BOX: Final = 10_000
 """Größer darf das Gitter nicht sein, damit die Suche nach der Lücke schnell bleibt."""
 SETTLE: Final = 3
 """So oft rückt er Felder nach der Mehrheit ihrer Verschiebungen zurecht (ohne Grundlage)."""
+MIN_BLOCKED: Final = 5
+BLOCKING: Final = 0.8
+"""Ein Wert ist ein Hindernis, wenn er vor so einem Feld in mindestens `BLOCKING` der Fälle
+stehen blieb, ab `MIN_BLOCKED` Fällen (ab 0.20, ohne Grundlage)."""
 REFRESH: Final = 100
 """So oft (in Schritten) baut er das Gitter neu."""
 
@@ -71,8 +75,17 @@ class Layout:
     """Feld → seine Stelle im Gitter, vom eigenen Ort aus gemessen."""
     vectors: dict[int, Point] = field(default_factory=dict)
     """Taste → in welche Richtung er sich mit ihr bewegt."""
+    axes: tuple[int, ...] = ()
+    """Die Ortsgrößen, eine je Richtung des Gitters: Ein Schritt um +1 in Richtung k ändert
+    `axes[k]` um +1."""
     centred: bool = False
     """Ob er seinen eigenen Ort im Gitter gefunden hat (sonst gibt es keine Abstände)."""
+    obstacles: frozenset[int] = frozenset()
+    """Werte, in die er nicht hineingehen kann: Ging er auf so ein Feld zu, blieb er stehen."""
+    mirrors: dict[int, frozenset[Point]] = field(default_factory=dict)
+    """Größe → die Nachbarstellen, deren Wert sie zeigt, je nachdem, wohin er zuletzt ging
+    (ein Fühler wie „vorne“): Sie bekommt beim Gehen den Wert eines Nachbarn, ist aber kein
+    Feld des Gitters."""
 
     def distance(self, component: int) -> int | None:
         """Wie weit ein Feld von ihm weg ist (in Schritten), None: kein Feld oder unbekannt."""
@@ -117,12 +130,74 @@ class Layout:
 
     def fetch(self, observation: Partial, value: int, targets: Iterable[int]) -> int | None:
         """Die erste Taste, die etwas mit dem Wert `value`, das er gerade sieht, in eins der
-        Felder `targets` holt: hingehen, wo man es sieht."""
-        wanted = [c for c in targets if c in self.places]
-        sources = [c for c in self.places if observation[c] == value and c not in wanted]
-        if not wanted or not sources:
+        Felder `targets` holt: hingehen, wo man es sieht. Kennt er seine eigene Stelle, geht er
+        um Hindernisse herum (`walk`); ein Fühler wie „vorne“ zeigt `value`, wenn er neben
+        dem Ding steht und darauf zugeht."""
+        targets = list(targets)
+        if not self.centred:
+            wanted = [c for c in targets if c in self.places]
+            sources = [c for c in self.places if observation[c] == value and c not in wanted]
+            return self.route(sources, wanted) if wanted and sources else None
+        seen = [p for c, p in self.places.items() if observation[c] == value]
+        spots: set[Point] = set()
+        for target in targets:
+            if target in self.places:
+                spots |= {_minus(point, self.places[target]) for point in seen}
+            for near in self.mirrors.get(target, ()):
+                if near in seen:
+                    return self._toward(near)  # Daneben: hindrehen.
+                spots |= {_minus(point, near) for point in seen}
+        return self.walk(observation, spots)
+
+    def head(self, observation: Partial, where: Partial) -> int | None:
+        """Die erste Taste zu einem Ort (Werte der Ortsgrößen), auch wenn er ihn nicht sieht:
+        zu dem Feld, das er erreichen kann und das dem Ort am nächsten liegt, um Hindernisse
+        herum. None: Er ist schon da, kommt nicht näher oder kennt sein Gitter nicht."""
+        if not self.centred or not self.axes:
             return None
-        return self.route(sources, wanted)
+        goal: list[int] = []
+        for axis in self.axes:
+            now, then = observation[axis], where[axis]
+            if now is None or then is None:
+                return None
+            goal.append(then - now)
+        target = tuple(goal)
+        reach = self._reachable(observation)
+        best = min(
+            reach, key=lambda p: (sum(abs(a - b) for a, b in zip(p, target, strict=True)), p)
+        )
+        return reach[best]
+
+    def walk(self, observation: Partial, spots: set[Point]) -> int | None:
+        """Die erste Taste auf dem kürzesten Weg zu einer der Stellen `spots`, nur über
+        Felder, die er sieht und die kein Hindernis sind (Breitensuche); None: kein Weg."""
+        if not spots or not self.axes:
+            return None
+        reach = self._reachable(observation)
+        found = [p for p in spots if reach.get(p) is not None]
+        if not found:
+            return None
+        return reach[min(found, key=lambda p: (sum(abs(x) for x in p), p))]
+
+    def _reachable(self, observation: Partial) -> dict[Point, int | None]:
+        """Jede Stelle, die er über freie Felder im Blick erreicht, mit der ersten Taste
+        dorthin (None für die eigene Stelle)."""
+        origin = tuple(0 for _ in self.axes)
+        free = {point for c, point in self.places.items() if observation[c] not in self.obstacles}
+        first: dict[Point, int | None] = {origin: None}
+        frontier: deque[Point] = deque([origin])
+        while frontier:
+            here = frontier.popleft()
+            for action, vector in sorted(self.vectors.items()):
+                there = _plus(here, vector)
+                if there in first or there not in free:
+                    continue
+                first[there] = action if first[here] is None else first[here]
+                frontier.append(there)
+        return first
+
+    def _toward(self, point: Point) -> int | None:
+        return next((a for a, v in sorted(self.vectors.items()) if v == point), None)
 
     def relation(self, action: int, place: Point) -> str | None:
         """Bringt die Taste ihn näher zu `place` („hin“), weiter weg („weg“) oder keins von
@@ -169,6 +244,9 @@ class Space:
         self._agreed: Counter[tuple[int, int, int]] = Counter()
         """(Taste, i, j) → wie oft nach einem echten Schritt i den alten Wert von j hatte, auch
         wenn i gleich blieb: Ist er gegangen, ist das ganze Bild verschoben."""
+        self._blocked: Counter[int] = Counter()
+        self._passed: Counter[int] = Counter()
+        """Wert → wie oft er auf ein Feld mit diesem Wert zuging und stehen blieb, oder ging."""
         self._steps = 0
         self._layout = Layout()
 
@@ -191,13 +269,37 @@ class Space:
             if abs(new - old) == 1:
                 self._units[action, component, new - old] += 1
         walker = self._walkers.get(action)
-        if walker is not None and before[walker[0]] != after[walker[0]]:
-            self._walk(action, before, after, holders)
+        if walker is not None:
+            moved = before[walker[0]] != after[walker[0]]
+            if moved:
+                self._walk(action, before, after, holders)
+            self._bump(action, before, moved)
         if self._steps % REFRESH == 0:
             self._walkers = self._find_walkers()
-            layout = build(self._edges(), self._walkers)
+            edges, oneway = self._edges()
+            layout = build(edges, self._walkers, oneway)
             if layout.centred or not self._layout.centred:
                 self._layout = layout  # Ein Gitter mit Mitte gibt er nur für ein besseres her.
+            self._layout = replace(self._layout, obstacles=self._obstacles())
+
+    def _bump(self, action: int, before: Observation, moved: bool) -> None:
+        """Merkt sich, was auf dem Feld stand, auf das er zuging, und ob er hinkam."""
+        layout = self._layout
+        vector = layout.vectors.get(action)
+        if not layout.centred or vector is None:
+            return
+        ahead = next((c for c, place in layout.places.items() if place == vector), None)
+        if ahead is not None:
+            (self._passed if moved else self._blocked)[before[ahead]] += 1
+
+    def _obstacles(self) -> frozenset[int]:
+        """Werte, vor denen er fast immer stehen blieb (`BLOCKING`, ab `MIN_BLOCKED` Fällen):
+        Hindernisse lernt er wie alles andere aus seiner Bewegung."""
+        return frozenset(
+            value
+            for value, blocked in self._blocked.items()
+            if blocked >= MIN_BLOCKED and blocked >= BLOCKING * (blocked + self._passed[value])
+        )
 
     def _walk(
         self,
@@ -228,7 +330,10 @@ class Space:
     def _find_walkers(self) -> dict[int, tuple[int, int]]:
         """Für jede Taste die Größe, die sich bei ihr am öftesten um immer denselben Schritt
         ±1 ändert (in mindestens `STEADY` der Fälle, nach mindestens `WALKS` der Tasten) und
-        schon viele Werte hatte: Ein Ort hat viele Werte, eine Blickrichtung wenige."""
+        schon viele Werte hatte: Ein Ort hat viele Werte, eine Blickrichtung wenige. Und es
+        gibt eine Taste, die sie um den Schritt zurück ändert: Ein Ort ist, wohin man hin und
+        zurück gehen kann (ab 0.20). Ein Vorrat, der beim Schöpfen steigt und von selbst sinkt,
+        ist kein Ort."""
         best: dict[int, tuple[int, int, int]] = {}
         for (action, component, step), count in self._units.items():
             changed = self._changed[action, component]
@@ -238,12 +343,18 @@ class Space:
                 continue
             if action not in best or count > best[action][0]:
                 best[action] = (count, component, step)
-        return {action: (component, step) for action, (_, component, step) in best.items()}
+        found = {action: (component, step) for action, (_, component, step) in best.items()}
+        return {
+            action: (component, step)
+            for action, (component, step) in found.items()
+            if (component, -step) in found.values()
+        }
 
-    def _edges(self) -> list[Edge]:
+    def _edges(self) -> tuple[list[Edge], list[Edge]]:
         """Für jede Taste, mit der er geht, und jedes Feld i das Feld j, dessen Wert i nach
         einem echten Schritt fast immer hat (`FLOW_SHARE`), deutlich öfter als jedes andere
-        (`GAP`). Die Gegenrichtung zählt mit: Holt „links“ j nach i, holt „rechts“ i nach j."""
+        (`GAP`). Die Gegenrichtung zählt mit: Holt „links“ j nach i, holt „rechts“ i nach j.
+        Dazu die Verschiebungen, die nur in eine Richtung passen (Abbilder wie „vorne“)."""
         back = {
             action: other
             for action, (component, step) in self._walkers.items()
@@ -255,6 +366,7 @@ class Space:
             if source != target and target in self._mobile:
                 scores.setdefault((action, target), {})[source] = count
         edges: list[Edge] = []
+        oneway: list[Edge] = []
         for (action, target), found in scores.items():
             other = back.get(action)
             walked = self._walked[action] + (self._walked[other] if other is not None else 0)
@@ -270,16 +382,17 @@ class Space:
             )
             share, source = ranked[-1]
             second = ranked[-2][0] if len(ranked) > 1 else 0.0
+            if share < FLOW_SHARE or share - second < GAP:
+                continue
             if not self._fits_changes(action, target, source):
                 continue  # Wo sich i änderte, passte j zu selten.
+            edge = Edge(self._strength(action, target, source, other), action, source, target)
             if other is not None and not self._fits_changes(other, source, target):
-                continue  # In der Gegenrichtung passt es nicht: kein Nachbar, nur ein Abbild.
-            if share >= FLOW_SHARE and share - second >= GAP:
-                edges.append(
-                    Edge(self._strength(action, target, source, other), action, source, target)
-                )
+                oneway.append(edge)  # In der Gegenrichtung passt es nicht: nur ein Abbild.
+                continue
+            edges.append(edge)
         moving = Counter(edge.action for edge in edges)
-        return [edge for edge in edges if moving[edge.action] >= MIN_EDGES]
+        return [edge for edge in edges if moving[edge.action] >= MIN_EDGES], oneway
 
     def _strength(self, action: int, target: int, source: int, other: int | None) -> float:
         """Wie sicher die Verschiebung ist: wie oft bei echten Schritten, nach denen sich
@@ -303,9 +416,12 @@ class Space:
         return changed < MIN_FLOW or self._matched[action, target, source] >= CHANGE_SHARE * changed
 
 
-def build(edges: list[Edge], walkers: dict[int, tuple[int, int]]) -> Layout:
+def build(
+    edges: list[Edge], walkers: dict[int, tuple[int, int]], oneway: Iterable[Edge] = ()
+) -> Layout:
     """Das Gitter aus den Verschiebungen: Jede Ortsgröße ist eine Achse, jede Taste, mit der
-    er geht, ein Schritt auf ihr; der eigene Ort ist die Lücke."""
+    er geht, ein Schritt auf ihr; der eigene Ort ist die Lücke. Verschiebungen nur in eine
+    Richtung (`oneway`) machen eine Größe zum Abbild ihrer Nachbarn (`Layout.mirrors`)."""
     actions = {edge.action for edge in edges}
     axes = sorted({component for action, (component, _) in walkers.items() if action in actions})
     vectors = {
@@ -321,9 +437,25 @@ def build(edges: list[Edge], walkers: dict[int, tuple[int, int]]) -> Layout:
         flows.setdefault(edge.action, {})[edge.source] = edge.target
     centre = _gap(places)
     if centre is None:
-        return Layout(flows, places, vectors, centred=False)
+        return Layout(flows, places, vectors, tuple(axes), centred=False)
     shifted = {c: tuple(x - m for x, m in zip(p, centre, strict=True)) for c, p in places.items()}
-    return Layout(flows, shifted, vectors, centred=True)
+    mirrors = _mirrors(oneway, shifted, vectors)
+    return Layout(flows, shifted, vectors, tuple(axes), centred=True, mirrors=mirrors)
+
+
+def _mirrors(
+    oneway: Iterable[Edge], places: dict[int, Point], vectors: dict[int, Point]
+) -> dict[int, frozenset[Point]]:
+    """Größen außerhalb des Gitters, die nach einem Schritt den Wert eines Felds direkt neben
+    ihm zeigen: Sie liegen dort, wo die Verschiebung sie hinlegen würde, im Abstand 1."""
+    found: dict[int, set[Point]] = {}
+    for edge in oneway:
+        if edge.target in places or edge.source not in places or edge.action not in vectors:
+            continue
+        near = _minus(places[edge.source], vectors[edge.action])
+        if sum(abs(x) for x in near) == 1:
+            found.setdefault(edge.target, set()).add(near)
+    return {component: frozenset(points) for component, points in found.items()}
 
 
 def _places(edges: list[Edge], vectors: dict[int, Point]) -> tuple[dict[int, Point], list[Edge]]:

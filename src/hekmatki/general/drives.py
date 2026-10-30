@@ -76,8 +76,10 @@ GOALS_PER_STEP: Final = 4
 """So viele neue Ziele probiert er je Schritt, ob er einen Weg weiß (Rechenzeit)."""
 COUNTING: Final = 0.8
 """Eine Menge ändert sich in mindestens diesem Anteil der Fälle um genau 1 (ohne Grundlage)."""
-HARM_WINDOW: Final = 5
-"""So viele Schritte nach einer Abwehr zählt der Schaden (ohne Grundlage)."""
+HARM_WINDOW: Final = 8
+"""So lange bleibt er bei einer Antwort auf eine Gefahr, und so viele Schritte zählt danach
+der Schaden. Manches wirkt erst nach mehreren Schritten (ein Gegner fällt erst nach mehreren
+Schlägen); ab 0.20, vorher 5 Schritte ohne Dabeibleiben (ohne Grundlage)."""
 HURT: Final = 0.5
 """Sinkt eine Größe nach so einem Anteil der oft gedrückten Tasten, achtet er darauf, wann
 (ohne Grundlage)."""
@@ -112,6 +114,17 @@ TRIES: Final = 5
 wirkt erst nach mehreren Schlägen (von Hand gewählt, ohne Grundlage)."""
 RETRY: Final = 10
 """Weiß er für ein Ziel keinen Weg, fragt er erst nach so vielen Schritten wieder."""
+
+
+@dataclass
+class Guard:
+    """Eine Antwort auf eine Gefahr, bei der er bleibt, bis die Gefahr vorbei ist oder
+    `HARM_WINDOW` Schritte um sind: eine Option mit Abbruchbedingung (Sutton, Precup & Singh
+    1999), abgerechnet als Ganzes (H32)."""
+
+    danger: tuple[Literal, ...]
+    answer: str
+    until: int
 
 
 @dataclass
@@ -153,7 +166,11 @@ class Drives:
         """Wie oft er an jedem Punkt seiner Karte war, an diesem Ort (für das Erkunden)."""
         self._at: Counter[tuple[Partial, int]] = Counter()
         """Wie oft er an jedem Punkt jede Taste gedrückt hat, an diesem Ort."""
-        self._with: Counter[tuple[int, int, int]] = Counter()
+        self._with: Counter[tuple[int, int, int, tuple[int, ...]]] = Counter()
+        """(Taste, Größe, Wert, was er besitzt) → wie oft er die Taste dort probiert hat."""
+        self._kit: frozenset[int] = frozenset()
+        """Mengen, die er besitzt und die keine Bedürfnisse sind (Holz, eine Spitzhacke): Mit
+        etwas Neuem in der Hand wirkt eine Taste vielleicht anders (ab 0.20, H33)."""
         self._pressed: Counter[int] = Counter()
         self._rises: Counter[tuple[int, int]] = Counter()
         """(Taste, Größe) → wie oft die Größe nach der Taste stieg."""
@@ -180,6 +197,8 @@ class Drives:
         self._pending: deque[tuple[int, tuple[Literal, ...], str, int]] = deque()
         """Abwehr, deren Folgen noch nicht abgerechnet sind: Schritt, Lage, Antwort, Gesundheit.
         Die Antwort ist eine Taste oder, ab 0.19, eine Richtung zur Gefahr („hin“, „weg“)."""
+        self._guard: Guard | None = None
+        """Die Antwort, bei der er gerade bleibt (ab 0.20)."""
         self._hurt_cache: list[int] = []
         self._where: dict[int, Observation] = {}
         """Größe → die Beobachtung, nach der sie an diesem Ort zuletzt stieg."""
@@ -199,6 +218,7 @@ class Drives:
         self._heading = (-1, 0)
         self._where.clear()
         self.pursuit = None
+        self._guard = None
 
     def observe(self, transition: Transition) -> None:
         """Lernt aus einem Schritt: Rekorde, was von selbst sinkt, was er schon gesehen hat."""
@@ -208,7 +228,7 @@ class Drives:
         for component, (old, new) in enumerate(zip(before, after, strict=True)):
             self.first.setdefault(component, old)
             self._seen[component, old] += 1
-            self._with[action, component, old] += 1
+            self._with[action, component, old, self._carried(before)] += 1
             if new != old:
                 self._all_changes[component] += 1
                 self._unit_changes[component] += abs(new - old) == 1
@@ -259,7 +279,9 @@ class Drives:
             self._operands_due = self.steps + REVIEW
         plan = _Plan(knowledge, world, form, self._where)
         choices: tuple[tuple[str, Callable[[], int | None]], ...]
-        harmed = self._hurt(knowledge, body, set(self.needs(knowledge, own)))
+        needs = set(self.needs(knowledge, own))
+        self._kit = frozenset(own - needs)
+        harmed = self._hurt(knowledge, body, needs)
         risky = self.risky(knowledge, observation, harmed)
         defence = self._defend(knowledge, world, observation, body, harmed, risky, rng)
         if defence is not None:
@@ -365,24 +387,96 @@ class Drives:
         """
         dangers = self.dangers(knowledge, body, harmed)
         layout = knowledge.space.layout
+        safe = [a for a in world if a not in risky] or list(world)
+        held = self._hold(layout, safe, observation)
+        if held is not None:
+            return held
         for danger in dangers:
             if all(literal.holds(observation) for literal in danger):
-                place = _nearest(layout, danger, observation)
-                safe = [a for a in world if a not in risky] or list(world)
-                answers = {a: self._answer(layout, a, place, danger, observation) for a in safe}
+                options = self._options(layout, safe, danger, observation)
                 cost = {
-                    a: (
-                        self._expected_harm(danger, answers[a]),
-                        _holding(dangers, imagine(world, observation, a)),
+                    answer: (
+                        self._expected_harm(danger, answer),
+                        _holding(dangers, imagine(world, observation, step)),
                     )
-                    for a in safe
+                    for answer, step in options.items()
                 }
                 least = min(cost.values())
-                step = rng.choice([a for a in safe if cost[a] == least])
+                answer = rng.choice([a for a in options if cost[a] == least])
                 self._hurt_cache = harmed
                 health = sum(observation[c] for c in harmed)
-                self._pending.append((self.steps, danger, answers[step], health))
-                return step
+                self._pending.append((self.steps, danger, answer, health))
+                self._guard = Guard(danger, answer, self.steps + HARM_WINDOW)
+                return options[answer]
+        return None
+
+    def _options(
+        self,
+        layout: Layout,
+        safe: list[int],
+        danger: tuple[Literal, ...],
+        observation: Observation,
+    ) -> dict[str, int]:
+        """Die Antworten, die er auf diese Gefahr geben kann, je mit ihrer ersten Taste.
+
+        Weiß er, wo die Gefahr ist, sind das wenige (ab 0.20): hin, weg, quer, und jede Taste
+        mit Wirkung, die an der Gefahr wirken kann („Taste a daran“: Woran sie wirkt, hat den
+        Wert der Gefahr schon einmal gezeigt). Tiere lernen Abwehr leicht nur aus wenigen
+        angeborenen Antworten, Flucht, Erstarren, Kampf (Bolles 1970); eine beliebige Taste
+        als Antwort zu finden dauert zu lange. Weiß er nicht, wo sie ist, ist jede Taste eine
+        Antwort."""
+        place = _nearest(layout, danger, observation)
+        anything = {self._answer(layout, a, place, danger, observation): a for a in safe}
+        if place is None:
+            return anything
+        values = _values(danger)
+        toward = [a for a in safe if layout.relation(a, place) == "hin"]
+        options: dict[str, int] = {}
+        for action in safe:
+            relation = layout.relation(action, place)
+            operands = self._operands.get(action, set())
+            if relation is not None:
+                options.setdefault(relation, action)
+            elif any(self._seen[c, v] for c in operands for v in values):
+                at = any(observation[c] in values for c in operands)
+                if at or toward:
+                    options[f"Taste {action} daran"] = action if at else toward[0]
+        return options or anything
+
+    def _hold(self, layout: Layout, safe: list[int], observation: Observation) -> int | None:
+        """Bleibt bei der Antwort von eben, solange ihre Gefahr gilt und die Zeit nicht um ist
+        (H32): Ein Gegner fällt erst nach mehreren Schlägen, und wer nach jedem Schlag etwas
+        anderes probiert, lernt nie, dass Schlagen hilft. Die Taste dafür sucht er in der Lage
+        von jetzt: „hin“ ist nach einem Schritt eine andere Taste, wenn der Gegner mitläuft;
+        „Taste a daran“ heißt erst hingehen, bis die Gefahr dort ist, woran a wirkt."""
+        guard = self._guard
+        if guard is None:
+            return None
+        if self.steps >= guard.until or not all(lit.holds(observation) for lit in guard.danger):
+            self._guard = None
+            return None
+        place = _nearest(layout, guard.danger, observation)
+        step = self._realize(layout, safe, place, guard, observation)
+        if step is None:
+            self._guard = None
+        return step
+
+    def _realize(
+        self,
+        layout: Layout,
+        safe: list[int],
+        place: Point | None,
+        guard: Guard,
+        observation: Observation,
+    ) -> int | None:
+        """Eine Taste, die jetzt die Antwort `guard.answer` gibt (None: keine)."""
+        toward = [a for a in safe if place is not None and layout.relation(a, place) == "hin"]
+        for action in safe:
+            answer = self._answer(layout, action, place, guard.danger, observation)
+            if answer == guard.answer:
+                return action
+            if guard.answer == f"Taste {action} daran" and toward:
+                return toward[0]  # Erst hin, bis die Gefahr dort ist, woran die Taste wirkt.
         return None
 
     def _answer(
@@ -400,7 +494,7 @@ class Drives:
         relation = None if place is None else layout.relation(action, place)
         if relation is not None:
             return relation
-        values = {literal.value for literal in danger if literal.kind is not Kind.AT_LEAST}
+        values = _values(danger)
         at = any(observation[c] in values for c in self._operands.get(action, ()))
         return f"Taste {action} daran" if at else f"Taste {action}"
 
@@ -581,15 +675,22 @@ class Drives:
         sein Körper), probiert er es bis zu `TRIES`-mal: Manches wirkt erst beim dritten
         Schlag (H31)."""
         rare = [c for c, value in enumerate(observation) if self._seen[c, value] <= RARE]
+        carried = self._carried(observation)
         fresh = [
             action
             for action in range(self.actions)
             if any(
-                self._with[action, c, observation[c]] < self._tries(action, c, body)
+                self._with[action, c, observation[c], carried] < self._tries(action, c, body)
                 for c in (rare if action in self._unknown else self._operands.get(action, ()))
             )
         ]
         return rng.choice(fresh) if fresh else None
+
+    def _carried(self, observation: Partial) -> tuple[int, ...]:
+        """Welche seiner Mengen er gerade hat (mehr als 0): Ein Versuch, der ohne Spitzhacke
+        nichts brachte, zählt mit Spitzhacke neu. Was etwas einem anbietet, hängt vom
+        Handelnden ab (Affordanz: Gibson 1979; Şahin u. a. 2007)."""
+        return tuple(c for c in sorted(self._kit) if (observation[c] or 0) > 0)
 
     def _tries(self, action: int, component: int, body: set[int]) -> int:
         """Wie oft er eine Taste an einem Wert probiert: mehrmals an dem, was er sieht."""
@@ -610,13 +711,15 @@ class Drives:
             ),
         )
         asked = 0
+        carried = self._carried(observation)
         for action, operands in sorted(self._operands.items()):
             if action in self._unknown:
                 continue
             looking = operands - set(layout.places) - body - set(self._axes(plan.knowledge))
             for component in sorted(looking):
                 for value in visible:
-                    if self._with[action, component, value] >= TRIES or asked == GOALS_PER_STEP:
+                    tried = self._with[action, component, value, carried]
+                    if tried >= TRIES or asked == GOALS_PER_STEP:
                         continue
                     goal = Literal(component, value)
                     if self._retry_goal.get(goal, 0) > self.steps:
@@ -694,8 +797,13 @@ class _Plan:
         if step is not None:
             return step
         remembered = self.where.get(goal.component)
+        if remembered is None:
+            return None
+        layout = self.knowledge.space.layout
+        if layout.centred and layout.axes:
+            return layout.head(observation, remembered)  # Um Hindernisse herum (ab 0.20).
         axes = self.form.of_kind(*STEPPED)
-        if remembered is None or not axes:
+        if not axes:
             return None
         wanted = {axis.component: remembered[axis.component] for axis in axes}
         return plan_space(axes, wanted, self.knowledge, observation)
@@ -712,6 +820,11 @@ def _nearest(layout: Layout, danger: tuple[Literal, ...], observation: Observati
     if not places:
         return None
     return min(places, key=lambda p: sum(abs(x) for x in p))
+
+
+def _values(danger: tuple[Literal, ...]) -> set[int]:
+    """Die Werte, an denen man die Gefahr erkennt (ein Gegner hat die Nummer 15)."""
+    return {literal.value for literal in danger if literal.kind is not Kind.AT_LEAST}
 
 
 def _holding(situations: list[tuple[Literal, ...]], observation: Partial) -> int:

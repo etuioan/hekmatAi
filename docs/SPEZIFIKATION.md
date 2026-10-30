@@ -237,7 +237,7 @@ Neue Kontexte starten aus allen Schemata zugleich (`schemas_or_flat_model`): Vor
 
 **Experiment Kontexterkennung.** In drei Welten (Pendeln wie H12; Lampen mit Arzt, U-Bahn, Gate; Lampen mit drei Wartesituationen und drei Gesprächen) wird gezählt, welcher Anteil der Übergänge im richtigen Kontext landet. Weil der Agent die wahren Situationen nicht kennt, bekommt jede Situation höchstens einen Kontext und umgekehrt, gierig nach Häufigkeit. 20 Zufallsstarts, Blöcke à 150 Schritte.
 
-## 9. Der allgemeine Agent (ab 0.16, erweitert in 0.17 bis 0.19)
+## 9. Der allgemeine Agent (ab 0.16, erweitert in 0.17 bis 0.20)
 
 Paket `general/`. Ein Agent, der keine Welt kennt. Er sieht nur ein Tupel ganzer Zahlen und
 wählt eine Taste aus `0 … n−1`. Jede Welt mischt Reihenfolge der Größen und Tasten neu
@@ -457,6 +457,44 @@ Neugier, Rekord, Pflege, Erkunden. Versuche wiederholt er bis zu 5-mal (manches 
 nach mehreren Schlägen), bei unbekannten Tasten und Körpergrößen einmal. Der Ort zählt nicht
 zum Körper.
 
+### 9.4 Neu in 0.20: Überleben und Wege (H32 bis H34)
+
+**Abwehr als Option** (`drives.Guard`, `Drives._hold`, H32): Hat er eine Antwort auf eine
+Gefahr gewählt, bleibt er dabei, bis die Gefahr nicht mehr gilt oder `HARM_WINDOW` = 8
+Schritte um sind (Option mit Abbruchbedingung: Sutton, Precup & Singh 1999; zeitlich
+ausgedehntes Ausprobieren: Dabney, Ostrovski & Barreto 2021). Die Taste dafür sucht er in
+jedem Schritt neu (`_realize`): „hin“ ist nach einem Schritt eine andere Taste, wenn der
+Gegner mitläuft. Abgerechnet wird die ganze Option: Schaden in den 8 Schritten, dazu 1, wenn
+die Gefahr danach noch gilt. Weiß er, wo die Gefahr ist, hat er nur wenige Antworten
+(`_options`): hin, weg, quer, und „Taste a daran“ für jede Taste, an deren Wirkungsfeld schon
+einmal der Wert der Gefahr stand; dafür geht er erst hin und drückt dann (Bolles 1970). Sonst
+ist jede Taste eine Antwort.
+
+**Neuer Besitz, neuer Versuch** (`Drives._carried`, H33): Versuche und Neugier zählen je
+Taste, Wert und dem, was er gerade bei sich hat: Größen, die er besitzt und die keine
+Bedürfnisse sind, jeweils nur, ob sie über 0 sind. Mit Holz in der Tasche ist dieselbe Lage
+wieder neu (Gibson 1979; Şahin u. a. 2007: was eine Lage bietet, hängt vom Handelnden ab).
+
+**Ort nur, wo es zurückgeht** (`Space._find_walkers`): Eine Größe ist nur dann Ort, wenn eine
+andere Taste sie um den Gegenschritt ändert. Bis 0.19 galt ein Vorrat, der beim Schöpfen um 1
+steigt, als Ort; dann zählte er nicht zum Körper und wurde nie ein Bedürfnis.
+
+**Hindernisse aus eigener Bewegung** (`Space._bump`, `Space._obstacles`, H34): Nach jeder Taste
+mit Schritt sieht er nach, welcher Wert im Feld in Schrittrichtung stand und ob er wirklich
+ging. Ein Wert ist ein Hindernis ab 5 gescheiterten Schritten, wenn mindestens 80 % der
+Schritte auf ihn scheiterten. Hingehen (`Layout.fetch`, `walk`): Breitensuche über die freien
+Felder seines Gitters zur nächsten Stelle, an der das Gesuchte direkt neben ihm wäre. Zu
+einem gemerkten Ort außer Sicht (`Layout.head`) nimmt er den freien Weg zu dem Feld, das dem
+Ort am nächsten liegt. Teilziele (`subgoals._achieve`): Fehlt einer Ursache nur ein Literal
+und sieht er, was fehlt, geht er hin.
+
+**Fühler** (`space._mirrors`): Eine Verschiebung, die nur in eine Richtung passt (das Feld
+„vorne“ übernimmt beim Gehen den Nachbarn, gibt ihn in der Gegenrichtung aber nicht zurück),
+sagt: Diese Größe zeigt das Nachbarfeld in Gehrichtung. Steht der gesuchte Wert in einem
+Nachbarfeld, nimmt er die Taste in diese Richtung (in Crafter dreht ihn das zum Baum, ohne
+dass er geht). Was ein Sinn meldet, folgt aus dem, was beim Bewegen passiert (O'Regan & Noë
+2001).
+
 ## 10. Qualitätsregeln für den Code
 
 - Lesbarkeit und Einfachheit vor Cleverness (KISS, Zen of Python).
@@ -468,6 +506,14 @@ zum Körper.
 - Bezeichner auf Englisch (Python-Konvention), Dokumentation und Ausgaben auf Deutsch.
 
 ## 11. Änderungen
+
+### Version 0.20
+
+- Abwehr als Option, neuer Besitz, neuer Versuch, Ort nur mit Gegenschritt, Hindernisse aus
+  eigener Bewegung, Wege um sie herum, Fühler (Abschnitt 9.4).
+- Crafter-Messung mit „Stand 0.20“; die Zeilen von 0.18 und 0.19 kommen aus der gespeicherten
+  Messung.
+- Ohne `own_goals` gleiche Ausgabe wie 0.19 (Ergebnisse 17 bis 21 Zeichen für Zeichen).
 
 ### Version 0.19
 
