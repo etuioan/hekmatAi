@@ -326,8 +326,8 @@ class Knowledge:
         return copy.deepcopy(self, memo={} if library is None else {id(library): library})
 
     def learn(self, transition: Transition) -> None:
-        """Lernt aus einem Schritt: Regeln, Ziel und Karte. Ab 0.22 der einzige Weg, auf dem
-        eine Karte lernt, damit alle Teile immer denselben Schritt kennen."""
+        """Lernt aus einem Schritt: Regeln, Ziel und Karte. Seit dem Review nach 0.21 der
+        einzige Weg, auf dem eine Karte lernt, damit alle Teile immer dieselben Schritte kennen."""
         self._notice(transition)
         self._learn_rules(transition)
 

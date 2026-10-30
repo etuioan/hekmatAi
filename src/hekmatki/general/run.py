@@ -1,9 +1,10 @@
 """Runden spielen und messen, für jeden Agenten mit derselben Schnittstelle (ab 0.16).
 
-Ab 0.22 haben Welt und Agent getrennte Zufallsquellen (`Chance`): Jede Runde bekommt ihren
-eigenen Zufall für die Welt, vorab aus einem festen Startwert gezogen. So spielen alle Agenten
-mit gleichem Startwert dieselben Aufgaben, egal wie oft sie selbst würfeln oder wie lange eine
-Runde dauert. Vorher teilten sich beide einen Zufall, und die Aufgaben hingen vom Agenten ab.
+Seit dem Review nach 0.21 haben Welt und Agent getrennte Zufallsquellen (`Chance`): Jede
+Runde bekommt ihren eigenen Zufall für die Welt, vorab aus einem festen Startwert gezogen. So
+spielen alle Agenten mit gleichem Startwert dieselben Aufgaben, egal wie oft sie selbst würfeln
+oder wie lange eine Runde dauert. Vorher teilten sich beide einen Zufall, und die Aufgaben
+hingen vom Agenten ab.
 
 Zum Vergleich gibt es zwei Agenten ohne Regeln:
 - `RandomAgent`: drückt zufällige Tasten.

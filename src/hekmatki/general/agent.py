@@ -96,13 +96,13 @@ class GeneralAgent:
         self._this_round: Counter[tuple[Observation, int]] = Counter()
         self._held: deque[Lesson] = deque()
         """Überraschende Schritte, aus denen noch keine Karte gelernt hat. Zurückgehalten wird
-        alles: Regeln, Ziel und Karte (ab 0.22, vorher nur die Regeln)."""
+        alles: Regeln, Ziel und Karte (seit dem Review nach 0.21, vorher nur die Regeln)."""
         self._start: Observation | None = None
         """Erste Beobachtung der Runde, solange noch kein Schritt zeigt, ob die Karte gilt."""
         self._trial: tuple[int, Knowledge, int] | None = None
         """Verfeinerung auf Probe: Karte, ihr ganzer Stand davor, Schritt. Folgt binnen eines
         Fensters doch ein Kartenwechsel, war es keine Verfeinerung, und der alte Stand gilt
-        wieder: Regeln, Ziel und Karte (ab 0.22, vorher nur die Regeln)."""
+        wieder: Regeln, Ziel und Karte (seit dem Review nach 0.21, vorher nur die Regeln)."""
 
     @property
     def knowledge(self) -> Knowledge:
@@ -132,8 +132,8 @@ class GeneralAgent:
         if self.detector is None:
             self.knowledge.start(observation)
         else:
-            # Ab 0.22 erst mit dem ersten Schritt: In einer neuen Welt kann schon der Start
-            # nach dem alten Ziel aussehen und das Ziel der alten Karte verderben.
+            # Seit dem Review nach 0.21 erst mit dem ersten Schritt: In einer neuen Welt kann
+            # schon der Start nach dem alten Ziel aussehen und das Ziel der alten Karte verderben.
             self._start = observation
 
     def act(self, observation: Observation, rng: random.Random) -> int:
