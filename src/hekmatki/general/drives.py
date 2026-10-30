@@ -56,6 +56,7 @@ from hekmatki.general.form import STEPPED, Axis, Form
 from hekmatki.general.knowledge import Knowledge
 from hekmatki.general.planner import plan_space
 from hekmatki.general.programs import Becomes, Copy, leaves
+from hekmatki.general.space import Layout, Point
 from hekmatki.general.subgoals import Model, achieve, imagine, model
 
 PATIENCE: Final = 60
@@ -86,6 +87,9 @@ SMALL: Final = 2
 """Größen wie Gesundheit ändern sich meist um höchstens so viel (ohne Grundlage)."""
 DANGER_HITS: Final = 5
 """Eine gefährliche Lage braucht so viele Fälle mit Schaden; seltener ist es oft Zufall."""
+LINGER: Final = 1
+"""Ist die Gefahr nach `HARM_WINDOW` Schritten noch da, zählt das wie so viel Schaden: Gut
+ist, was die Gefahr beendet (Mowrer 1947); von Hand gewählt, ohne Grundlage."""
 RISK: Final = 0.5
 """Eine Taste meidet er, wo danach mindestens so oft Gesundheit sank (ohne Grundlage)."""
 URGENT: Final = 0.5
@@ -103,6 +107,9 @@ STUCK: Final = 3
 CURIOUS: Final = 0.15
 """Beim Erkunden drückt er so oft die Taste, die er an diesem Punkt am seltensten probiert hat,
 statt weiterzugehen (von Hand gewählt, ohne Grundlage)."""
+TRIES: Final = 5
+"""So oft probiert er eine Taste mit Wirkung an einem Wert aus, bevor er aufgibt: Manches
+wirkt erst nach mehreren Schlägen (von Hand gewählt, ohne Grundlage)."""
 RETRY: Final = 10
 """Weiß er für ein Ziel keinen Weg, fragt er erst nach so vielen Schritten wieder."""
 
@@ -153,7 +160,9 @@ class Drives:
         self._all_rises: Counter[int] = Counter()
         self._unknown: set[int] = set(range(actions))
         self._retry: dict[int, int] = {}
+        self._retry_goal: dict[Literal, int] = {}
         self._operands: dict[int, set[int]] = {}
+        self._operands_due = 0
         """Taste → die Größen, an denen sie wirkt (aus ihren Ursachen, ab und zu neu gelernt)."""
         self._forms: WeakKeyDictionary[Knowledge, Form] = WeakKeyDictionary()
         """Die stetige Form je Karte: Wechselt der Agent die Karte, gilt deren Form."""
@@ -163,12 +172,14 @@ class Drives:
         self._last_point: Partial = ()
         self._repeats = 0
         self._last_choice: tuple[Observation, int] | None = None
-        self._harm: Counter[tuple[tuple[Literal, ...], int]] = Counter()
-        self._tried_in: Counter[tuple[tuple[Literal, ...], int]] = Counter()
-        self._harm_any: Counter[int] = Counter()
-        self._tried_any: Counter[int] = Counter()
-        self._pending: deque[tuple[int, tuple[Literal, ...], int, int]] = deque()
-        """Abwehr, deren Folgen noch nicht abgerechnet sind: Schritt, Lage, Taste, Gesundheit."""
+        self._harm: Counter[tuple[tuple[Literal, ...], str]] = Counter()
+        """(Lage, Antwort) → Schaden danach, samt `LINGER` für eine Gefahr, die blieb."""
+        self._tried_in: Counter[tuple[tuple[Literal, ...], str]] = Counter()
+        self._harm_any: Counter[str] = Counter()
+        self._tried_any: Counter[str] = Counter()
+        self._pending: deque[tuple[int, tuple[Literal, ...], str, int]] = deque()
+        """Abwehr, deren Folgen noch nicht abgerechnet sind: Schritt, Lage, Antwort, Gesundheit.
+        Die Antwort ist eine Taste oder, ab 0.19, eine Richtung zur Gefahr („hin“, „weg“)."""
         self._hurt_cache: list[int] = []
         self._where: dict[int, Observation] = {}
         """Größe → die Beobachtung, nach der sie an diesem Ort zuletzt stieg."""
@@ -221,14 +232,17 @@ class Drives:
             self._review()
 
     def _settle(self, observation: Observation, everything: bool = False) -> None:
-        """Rechnet ab, wie viel nach einer Abwehr in `HARM_WINDOW` Schritten verloren ging."""
+        """Rechnet ab, wie viel nach einer Abwehr in `HARM_WINDOW` Schritten verloren ging, und
+        ob die Gefahr dann noch da ist (ab 0.19)."""
         while self._pending and (everything or self._pending[0][0] <= self.steps - HARM_WINDOW):
-            _, danger, action, health = self._pending.popleft()
+            _, danger, answer, health = self._pending.popleft()
             now = sum(observation[c] for c in self._hurt_cache)
-            self._harm[danger, action] += max(0, health - now)
-            self._tried_in[danger, action] += 1
-            self._harm_any[action] += max(0, health - now)
-            self._tried_any[action] += 1
+            lingers = all(literal.holds(observation) for literal in danger)
+            cost = max(0, health - now) + LINGER * int(lingers)
+            self._harm[danger, answer] += cost
+            self._tried_in[danger, answer] += 1
+            self._harm_any[answer] += cost
+            self._tried_any[answer] += 1
 
     def choose(
         self, knowledge: Knowledge, form: Form, observation: Observation, rng: random.Random
@@ -240,6 +254,9 @@ class Drives:
         form = self.steady(knowledge, form)
         body = self.body(knowledge, form)
         own = self.owned(knowledge, form)
+        if self.steps >= self._operands_due:
+            self._operands = {a: knowledge.causes.operands(a, own) for a in range(self.actions)}
+            self._operands_due = self.steps + REVIEW
         plan = _Plan(knowledge, world, form, self._where)
         choices: tuple[tuple[str, Callable[[], int | None]], ...]
         harmed = self._hurt(knowledge, body, set(self.needs(knowledge, own)))
@@ -251,7 +268,8 @@ class Drives:
         choices = (
             ("Bedürfnis", lambda: self._need(plan, observation, own)),
             ("Ziel", lambda: self._continue(plan, observation, own)),
-            ("Versuch", lambda: self._trial(knowledge, observation, own, rng)),
+            ("Versuch", lambda: self._trial(knowledge, observation, body, own, rng)),
+            ("Neugier", lambda: self._curious(plan, observation, body)),
             ("Rekord", lambda: self._record(plan, observation, own)),
             ("Pflege", lambda: self._need(plan, observation, own, TOP_UP)),
             ("Erkunden", lambda: self._explore(form, world, observation, rng)),
@@ -292,12 +310,16 @@ class Drives:
         """Lagen, nach denen eine Menge oft sank, die nach vielen Tasten sinken kann (etwa
         Gesundheit): die Bedingungen der Ursachen von „sinkt“, egal nach welcher Taste. Nur
         Bedingungen über das, was er sieht; Bedingungen über seine Mengen (Durst ist 0) stillt
-        er als Bedürfnis, nicht durch Abwehr."""
+        er als Bedürfnis, nicht durch Abwehr. Ab 0.19 auch über Gruppen von Feldern („ein
+        Gegner irgendwo direkt neben mir“, aus `space`)."""
         seen = frozenset(range(knowledge.rules.width)) - body - set(self._axes(knowledge))
+        groups = knowledge.space.layout.groups()
         return [
             cause.literals
             for component in harmed
-            for cause in knowledge.causes.conditions(Event(component, Change.FALLS), DANGER, seen)
+            for cause in knowledge.causes.conditions(
+                Event(component, Change.FALLS), DANGER, seen, groups
+            )
             if cause.hits >= DANGER_HITS
         ]
 
@@ -325,26 +347,32 @@ class Drives:
         risky: set[int],
         rng: random.Random,
     ) -> int | None:
-        """In einer gefährlichen Lage die Taste, nach der bisher am wenigsten Schaden folgte;
+        """In einer gefährlichen Lage die Antwort, nach der bisher am wenigsten Schaden folgte;
         bei Gleichstand die, nach der er sich außer Gefahr denkt.
 
         Gefährlich ist eine Lage, nach der eine Menge wie Gesundheit oft sank (`dangers`). Was
         dagegen hilft, kann sein Modell nicht vorhersagen (ein Gegner läuft hinterher). Darum
-        lernt er es aus Erfahrung: Für jede gefährliche Lage und Taste zählt er, wie viel in den
-        nächsten `HARM_WINDOW` Schritten verloren ging. Was er dort noch nie probiert hat, gilt
-        als harmlos, damit er es probiert (modellfreies neben modellbasiertem Lernen: Daw, Niv &
-        Dayan 2005; Vermeiden lernen: Mowrer 1947). Bei Gleichstand denkt er einen Schritt
-        voraus (`imagine`): Nach welcher Taste gelten die wenigsten gefährlichen Lagen? Läuft er
-        weg, wandert ein Gegner im Blick mit, und „Gegner direkt neben mir“ gilt nicht mehr.
-        Tasten, die hier selbst schaden (`risky`), nimmt er nicht.
+        lernt er es aus Erfahrung: Für jede gefährliche Lage und Antwort zählt er, wie viel in
+        den nächsten `HARM_WINDOW` Schritten verloren ging und ob die Gefahr dann noch da war.
+        Was er dort noch nie probiert hat, gilt als harmlos, damit er es probiert
+        (modellfreies neben modellbasiertem Lernen: Daw, Niv & Dayan 2005; Vermeiden lernen:
+        Mowrer 1947, Herrnstein 1969).
+
+        Ab 0.19 ist eine Antwort, wo er die Gefahr im Blick hat, keine Taste mehr, sondern eine
+        Richtung: „hin“, „weg“ oder „quer“ (aus `space`). Was gegen einen Gegner links hilft,
+        hilft dann auch gegen einen rechts. Tasten, die hier selbst schaden (`risky`), nimmt
+        er nicht.
         """
         dangers = self.dangers(knowledge, body, harmed)
+        layout = knowledge.space.layout
         for danger in dangers:
             if all(literal.holds(observation) for literal in danger):
+                place = _nearest(layout, danger, observation)
                 safe = [a for a in world if a not in risky] or list(world)
+                answers = {a: self._answer(layout, a, place, danger, observation) for a in safe}
                 cost = {
                     a: (
-                        self._expected_harm(danger, a),
+                        self._expected_harm(danger, answers[a]),
                         _holding(dangers, imagine(world, observation, a)),
                     )
                     for a in safe
@@ -353,18 +381,46 @@ class Drives:
                 step = rng.choice([a for a in safe if cost[a] == least])
                 self._hurt_cache = harmed
                 health = sum(observation[c] for c in harmed)
-                self._pending.append((self.steps, danger, step, health))
+                self._pending.append((self.steps, danger, answers[step], health))
                 return step
         return None
 
-    def _expected_harm(self, danger: tuple[Literal, ...], action: int) -> float:
-        """Mittlerer Schaden nach dieser Taste in dieser Lage, zum Mittel über alle gefährlichen
-        Lagen hin gezogen (`SHRINK` gedachte Fälle): Was gegen einen Gegner links hilft, hilft
-        oft auch gegen einen rechts (Schrumpfen zum gemeinsamen Mittel, Efron & Morris 1975).
-        Nie probiert heißt Schaden 0, damit er es probiert."""
-        pooled = self._harm_any[action] / (self._tried_any[action] + 1)
-        return (self._harm[danger, action] + SHRINK * pooled) / (
-            self._tried_in[danger, action] + SHRINK
+    def _answer(
+        self,
+        layout: Layout,
+        action: int,
+        place: Point | None,
+        danger: tuple[Literal, ...],
+        observation: Observation,
+    ) -> str:
+        """Die Antwort auf eine Gefahr: eine Richtung zu ihr hin oder von ihr weg, wenn die
+        Taste ihn bewegt und er weiß, wo die Gefahr ist. Sonst die Taste selbst, und ob sie
+        gerade an der Gefahr wirkt: Steht dort, woran sie wirkt (`operands`, etwa das Feld vor
+        ihm), der Wert der Gefahr, ist „Taste daran“ etwas anderes als „Taste“ (H30)."""
+        relation = None if place is None else layout.relation(action, place)
+        if relation is not None:
+            return relation
+        values = {literal.value for literal in danger if literal.kind is not Kind.AT_LEAST}
+        at = any(observation[c] in values for c in self._operands.get(action, ()))
+        return f"Taste {action} daran" if at else f"Taste {action}"
+
+    @property
+    def tried(self) -> dict[tuple[tuple[Literal, ...], str], int]:
+        """(Lage, Antwort) → wie oft er sie in dieser gefährlichen Lage gegeben hat."""
+        return dict(self._tried_in)
+
+    def cost(self, danger: tuple[Literal, ...], answer: str) -> float:
+        """Was danach im Mittel geschah: Schaden, und `LINGER`, wenn die Gefahr blieb."""
+        return self._harm[danger, answer] / max(self._tried_in[danger, answer], 1)
+
+    def _expected_harm(self, danger: tuple[Literal, ...], answer: str) -> float:
+        """Mittlerer Schaden nach dieser Antwort in dieser Lage, zum Mittel über alle
+        gefährlichen Lagen hin gezogen (`SHRINK` gedachte Fälle): Was gegen einen Gegner hilft,
+        hilft oft auch gegen einen anderen (Schrumpfen zum gemeinsamen Mittel, Efron & Morris
+        1975). Nie probiert heißt Schaden 0, damit er es probiert."""
+        pooled = self._harm_any[answer] / (self._tried_any[answer] + 1)
+        return (self._harm[danger, answer] + SHRINK * pooled) / (
+            self._tried_in[danger, answer] + SHRINK
         )
 
     def harmed(self, knowledge: Knowledge, form: Form) -> list[int]:
@@ -397,11 +453,13 @@ class Drives:
         return known
 
     def body(self, knowledge: Knowledge, form: Form) -> set[int]:
-        """Größen, die weder Ort (eine Achse) noch Blick sind: keine Regel „übernimmt“ oder
-        „wird“. Ohne Form weiß er noch nicht, was Ort ist (leere Menge)."""
+        """Größen, die weder Ort (eine Achse, ab 0.19 auch was sich beim Gehen um 1 ändert, aus
+        `space`) noch Blick sind: keine Regel „übernimmt“ oder „wird“. Ohne Form weiß er noch
+        nicht, was Ort ist (leere Menge)."""
         if not form.axes:
             return set()
-        body = set(range(knowledge.rules.width)) - {axis.component for axis in form.axes}
+        place = {axis.component for axis in form.axes} | knowledge.space.whereabouts
+        body = set(range(knowledge.rules.width)) - place
         for (_, component), found in knowledge.rules.found.items():
             if found.program is not None and any(
                 isinstance(leaf, Copy | Becomes) for leaf in leaves(found.program)
@@ -481,7 +539,7 @@ class Drives:
         pursuit = self.pursuit
         if pursuit is None:
             return None
-        if pursuit.goal.component not in own:
+        if pursuit.goal.component not in own and pursuit.reason != "Neugier":
             self.pursuit = None  # Doch nur Blick: kein Ziel.
             return None
         if self.steps - pursuit.since > PATIENCE:
@@ -511,22 +569,65 @@ class Drives:
         return None
 
     def _trial(
-        self, knowledge: Knowledge, observation: Observation, own: set[int], rng: random.Random
+        self,
+        knowledge: Knowledge,
+        observation: Observation,
+        body: set[int],
+        own: set[int],
+        rng: random.Random,
     ) -> int | None:
         """Eine Taste ohne eigene Wirkung bei etwas Seltenem, das sie noch nie sah, oder eine
-        mit Wirkung bei einem neuen Wert dort, woran sie wirkt."""
+        mit Wirkung bei einem Wert dort, woran sie wirkt. Ist das etwas, das er sieht (nicht
+        sein Körper), probiert er es bis zu `TRIES`-mal: Manches wirkt erst beim dritten
+        Schlag (H31)."""
         rare = [c for c, value in enumerate(observation) if self._seen[c, value] <= RARE]
         fresh = [
             action
             for action in range(self.actions)
             if any(
-                self._with[action, c, observation[c]] == 0
+                self._with[action, c, observation[c]] < self._tries(action, c, body)
                 for c in (rare if action in self._unknown else self._operands.get(action, ()))
             )
         ]
-        if self.steps % REVIEW == 0:
-            self._operands = {a: knowledge.causes.operands(a, own) for a in range(self.actions)}
         return rng.choice(fresh) if fresh else None
+
+    def _tries(self, action: int, component: int, body: set[int]) -> int:
+        """Wie oft er eine Taste an einem Wert probiert: mehrmals an dem, was er sieht."""
+        return 1 if action in self._unknown or component in body else TRIES
+
+    def _curious(self, plan: "_Plan", observation: Observation, body: set[int]) -> int | None:
+        """Hingehen, um etwas auszuprobieren: Sieht er im Blick einen Wert, den eine Taste mit
+        Wirkung dort, woran sie wirkt (etwa am Feld vor ihm), noch nie hatte, macht er das zum
+        Ziel (H31). Kinder greifen nach Neuem, um zu sehen, was es tut (Piaget 1952: Zirkuläre
+        Reaktionen; Stahl & Feigenson 2015)."""
+        layout = plan.knowledge.space.layout
+        if not layout.centred:
+            return None  # Erst wenn er das Gitter kennt, weiß er, was „vor ihm“ und was Blick ist.
+        visible = sorted(
+            {observation[c] for c in layout.places},
+            key=lambda v: min(
+                layout.distance(c) or 0 for c in layout.places if observation[c] == v
+            ),
+        )
+        asked = 0
+        for action, operands in sorted(self._operands.items()):
+            if action in self._unknown:
+                continue
+            looking = operands - set(layout.places) - body - set(self._axes(plan.knowledge))
+            for component in sorted(looking):
+                for value in visible:
+                    if self._with[action, component, value] >= TRIES or asked == GOALS_PER_STEP:
+                        continue
+                    goal = Literal(component, value)
+                    if self._retry_goal.get(goal, 0) > self.steps:
+                        continue
+                    asked += 1
+                    step = plan.toward(observation, goal)
+                    if step is not None:
+                        self._pursue(goal, "Neugier")
+                        return step
+                    self._retry_goal[goal] = self.steps + RETRY
+        return None
 
     def _explore(
         self, form: Form, world: Model, observation: Observation, rng: random.Random
@@ -598,6 +699,19 @@ class _Plan:
             return None
         wanted = {axis.component: remembered[axis.component] for axis in axes}
         return plan_space(axes, wanted, self.knowledge, observation)
+
+
+def _nearest(layout: Layout, danger: tuple[Literal, ...], observation: Observation) -> Point | None:
+    """Wo im Blick die Gefahr am nächsten ist; None, wenn sie nicht im Gitter liegt."""
+    places = [
+        layout.places[c]
+        for literal in danger
+        for c in literal.where(observation)
+        if c in layout.places and layout.centred
+    ]
+    if not places:
+        return None
+    return min(places, key=lambda p: sum(abs(x) for x in p))
 
 
 def _holding(situations: list[tuple[Literal, ...]], observation: Partial) -> int:

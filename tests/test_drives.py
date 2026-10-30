@@ -7,7 +7,7 @@ from pathlib import Path
 
 from hekmatki.general.agent import GeneralAgent
 from hekmatki.general.causes import Change, Event, Kind, Literal, cover
-from hekmatki.general.drives import Drives
+from hekmatki.general.drives import LINGER, Drives
 from hekmatki.general.env import Observation, Outcome, Transition
 from hekmatki.general.form import find_form
 from hekmatki.general.knowledge import Knowledge
@@ -213,11 +213,11 @@ def test_harm_after_a_defence_is_counted_when_the_round_ends() -> None:
     danger = (Literal(1, 15),)
     drives.observe(Transition((9, 15), 0, (9, 15), False))
     drives._hurt_cache = [0]
-    drives._pending.append((drives.steps, danger, 1, 9))
+    drives._pending.append((drives.steps, danger, "Taste 1", 9))
     drives.observe(Transition((9, 15), 1, (0, 15), False))  # Die Figur stirbt.
     drives.new_place()
-    assert drives._harm[danger, 1] == 9
-    assert drives._tried_in[danger, 1] == 1
+    assert drives._harm[danger, "Taste 1"] == 9 + LINGER  # Die Gefahr ist noch da.
+    assert drives._tried_in[danger, "Taste 1"] == 1
 
 
 # Trennung: Der Agent kennt keine Welt

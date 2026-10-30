@@ -13,7 +13,7 @@ Bitte lies das zuerst, wenn du verstehen willst, worum es mir geht.
   „Scheiben“ übereinander. Der Agent lernt das Gemeinsame („Warten“) einmal und wechselt
   zwischen den Kontexten.
 - **Stand:** Forschungsprototyp in Python, nur Standardbibliothek (Crafter als freiwilliges
-  Zusatzpaket), 260 Tests.
+  Zusatzpaket), 271 Tests.
   Spielwelten (ähnlich ARC-AGI-3) sind das Testfeld, nicht das Ziel.
 - **Ehrlich:** Hier wird nichts behauptet, was nicht gemessen ist. Widerlegte Hypothesen
   stehen genauso im README wie gestützte (siehe [Grenzen](#grenzen)).
@@ -51,8 +51,10 @@ Please read it first if you want to understand what it's about.
   each other like "slices". The agent learns what they share ("waiting") once and switches
   between contexts.
 - **Status:** Research prototype in Python, standard library only (Crafter as an optional
-  extra), 260 tests. Since 0.18 the general agent sets its own goals and plays Crafter, a
+  extra), 271 tests. Since 0.18 the general agent sets its own goals and plays Crafter, a
   small 2D Minecraft, through a separate adapter: [docs/crafter.html](docs/crafter.html).
+  Since 0.19 it finds out by itself which of its numbers form a picture around it and where
+  it stands in it (space from its own movement), with no knowledge of the game.
   Game worlds (similar to ARC-AGI-3) are the test bed, not the goal.
 - **Honest:** Nothing is claimed here that hasn't been measured. Refuted hypotheses are
   reported just like supported ones (see "Grenzen", the limitations section below).
@@ -64,7 +66,7 @@ Quick start: `PYTHONPATH=src python -m hekmatki` (Python 3.12+). How to contribu
 
 ---
 
-## HekmatKI Prototyp 0.18: Schema-Stapel, Kontextwechsel, Weltmodell und ein Agent mit eigenen Zielen
+## HekmatKI Prototyp 0.19: Schema-Stapel, Kontextwechsel, Weltmodell und ein Agent mit eigenen Zielen, der Raum aus eigener Bewegung lernt
 
 Ein kleiner, vollständig nachvollziehbarer Test der Idee, ähnliche Alltagssituationen als
 übereinanderliegende „Scheiben“ zu modellieren und zwischen ihnen zu wechseln.
@@ -930,6 +932,8 @@ und behält sein Wissen; gezählt werden die Runden 11 bis 30, über 16 Karten-S
 | Stand 0.17 | 1,6 % | 1,41 ± 0,07 % | 2,38 | 169 | 8 |
 | **Stand 0.18** | **2,0 %** | 1,49 ± 0,16 % | 1,86 | 174 | 10 |
 
+(Stand 0.18; wie es mit 0.19 weitergeht, steht in Ergebnis 23.)
+
 Wertung wie im Crafter-Paper: geometrisches Mittel der Erfolgsquoten über alle 22 Erfolge,
 über alle Runden zusammen; daneben das Mittel der Wertungen je Startwert mit Standardfehler.
 
@@ -968,17 +972,86 @@ Zum Anschauen: [docs/crafter.html](docs/crafter.html) zeigt eine Runde Schritt f
 (was um die Figur ist, Inventar, Taste und Grund), die Erfolge aller Agenten, die Lernkurve
 und was er selbst herausgefunden hat.
 
+## Ergebnis 23: Raum aus eigener Bewegung (neu in 0.19, H29 bis H31)
+
+Bis 0.18 hingen seine Gefahren und Ursachen an einzelnen Zahlen: „Zombie im Feld über mir“
+war für ihn etwas ganz anderes als „Zombie im Feld links von mir“. Er wusste nicht, dass 63
+seiner 85 Zahlen ein Bild um ihn herum sind. Jetzt findet er das selbst heraus
+(`general/space.py`), ohne etwas über Crafter zu wissen:
+
+- **Wo bin ich?** Eine Zahl, die sich bei einer Taste fast immer um genau 1 ändert und
+  viele Werte hat, ist sein Ort. Ändert sie sich, ist er wirklich gegangen.
+- **Was liegt neben was?** Nach einem echten Schritt hat Zahl i fast immer den Wert, den
+  eben noch Zahl j hatte: Also liegt j in Schrittrichtung neben i. Gezählt wird vor allem,
+  wenn sich i änderte, denn im Gras passt fast alles.
+- **Ein Gitter daraus:** die sichersten Nachbarschaften zuerst; was nicht passt, fällt weg,
+  einzelne Felder rückt er nach der Mehrheit zurecht.
+- **Ich bin die Lücke:** Eine Stelle im Gitter hat kein Feld, denn sein eigenes Feld wandert
+  nie mit. Von dort misst er Abstände (Philipona 2003, Pierce & Kuipers 1997).
+
+Damit kann er sagen „irgendwo direkt neben mir ist ein Zombie“, egal auf welcher Seite
+(H29), zu dem hingehen, was er sieht und braucht, sich bei Gefahr hin, weg oder zur Seite
+bewegen oder eine Taste an der Gefahr drücken (H30), und gezielt Neues anfassen, um zu
+sehen, was es tut (H31).
+
+Gleiche Messung wie in Ergebnis 22 (30 Runden, gezählt 11 bis 30, 16 Karten-Startwerte;
+die Zeilen der anderen Agenten sind dieselben):
+
+| Agent | Wertung | Mittel je Startwert | verschiedene Erfolge je Runde | Runde dauert | Erfolgsarten |
+|---|---:|---:|---:|---:|---:|
+| Zufall | 1,6 % | 1,36 ± 0,08 % | 2,23 | 165 | 8 |
+| Stand 0.18 | 2,0 % | 1,49 ± 0,16 % | 1,86 | 174 | 10 |
+| **Stand 0.19** | **2,5 %** | **1,92 ± 0,13 %** | 2,39 | 175 | 10 |
+
+| Erfolg | Zufall | Stand 0.18 | Stand 0.19 |
+|---|---:|---:|---:|
+| Holz sammeln | 25 % | 39 % | **59 %** |
+| Werkbank bauen | 5 % | 8 % | **21 %** |
+| Holzschwert | 1 % | 2 % | **7 %** |
+| Holzspitzhacke | 1 % | 2 % | **4 %** |
+| Trinken | 8 % | 27 % | **32 %** |
+| Kuh essen | 0 % | 2 % | 3 % |
+| Zombie besiegen | 0 % | 3 % | 2 % |
+| aufwachen | 94 % | 41 % | 59 % |
+| Setzling sammeln | 47 % | 43 % | 38 % |
+| pflanzen | 43 % | 19 % | 15 % |
+
+- **Der Vorsprung ist jetzt deutlich:** je Startwert 1,92 ± 0,13 % gegen 1,36 ± 0,08 %
+  (Zufall), etwa vier Standardfehler. Gegen 0.18 sind es gut zwei. Er sammelt mehr als
+  doppelt so oft Holz wie Zufall, baut viermal so oft eine Werkbank und siebenmal so oft
+  ein Schwert. Neun Messungen mit fast demselben Code (beim Bau von 0.19) ergaben 2,4 bis
+  2,7 %; eine einzelne Messung schwankt also um etwa 0,2 Punkte.
+- **Das Gitter findet er selbst:** In zwei Prüfläufen hatte er nach 10 Runden auf 10
+  bzw. 11 von 16 Karten ein Gitter mit eigener Stelle, meist ab Runde 6 bis 9, fast immer mit
+  allen 62 Feldern an der richtigen Stelle (bis auf Drehen und Spiegeln: Welche Richtung er „x“
+  nennt, ist seine Sache). In etwa jedem zehnten Fall war darin ein Block um ein Feld
+  verschoben; dann irrt er sich, wo er selbst steht. Zwei Ursachen dafür sind behoben: Das
+  Feld „vorne“ sah wie ein Nachbar aus (es fliegt jetzt heraus, weil es in der Gegenrichtung
+  nicht passt), und das Feld hinter ihm bekommt beim Gehen, worauf er stand, was wie das Feld
+  vor ihm aussieht.
+- **Er stirbt so früh wie vorher** (nach etwa 175 Schritten). Gefahren kann er jetzt als
+  Gruppe lernen; auf 2 von 8 geprüften Karten tat er das („ein Zombie irgendwo im Abstand
+  ≤ 3“), auf den anderen blieb es bei einzelnen Feldern („Zombie rechts neben mir“). Was
+  dagegen hilft, lernt er kaum: Weglaufen nützt wenig, weil Zombies nachkommen, Kämpfen
+  gelingt selten (2 % der Runden), und als „beste Antwort“ steht oft eine Taste, die gar
+  nichts tut. H28 bleibt nicht gestützt.
+- **Die alten Welten sind unverändert:** Ohne eigene Ziele ist die Ausgabe der Ergebnisse 17
+  bis 21 Zeichen für Zeichen dieselbe wie mit 0.18.
+
+Zum Anschauen: [docs/crafter.html](docs/crafter.html) zeigt jetzt auch das Gitter, das er
+gelernt hat, mit der Stelle „ich“ in der Mitte, und was gegen Gefahren hilft.
+
 ## Grenzen
 
-- In Crafter (Ergebnis 22) ist der Vorsprung in der Wertung klein und unsicher, und er
-  stirbt so früh wie Zufall. Gefahren und Ursachen hängen an
-  einzelnen Feldern der Sicht; Raum aus der eigenen Bewegung (welches Feld neben welchem
-  liegt) lernt er noch nicht. Seine Wahrnehmung ist geschenkt (Crafters Karte als Nummern,
-  dazu das Feld vor ihm), nicht das Bild. Er spielt nur etwa 5000 Schritte; ein Vergleich
-  mit tiefem Lernen bei gleich vielen Schritten fehlt.
-- Die eigenen Ziele haben viele Schwellen von Hand (Hälfte für „dringend“, 60 Schritte
-  Geduld, 5 Schritte für Schaden, 3 Literale je Ursache …). Sie stehen als „ohne Grundlage“
-  in der Paper-Zuordnung.
+- In Crafter (Ergebnis 22 und 23) ist der Vorsprung mit 0.19 deutlich, aber klein (2,5 statt
+  1,6 %), und er stirbt so früh wie Zufall. Das Gitter findet er nicht auf jeder Karte, und
+  manchmal liegt ein Block darin um ein Feld verschoben. Die Ursachen einer Taste nutzen
+  Gruppen („irgendwo neben mir“) noch nicht, nur die Gefahren. Seine Wahrnehmung ist
+  geschenkt (Crafters Karte als Nummern, dazu das Feld vor ihm), nicht das Bild. Er spielt
+  nur etwa 5000 Schritte; ein Vergleich mit tiefem Lernen bei gleich vielen Schritten fehlt.
+- Die eigenen Ziele und der Raum haben viele Schwellen von Hand (Hälfte für „dringend“, 60
+  Schritte Geduld, 5 Schritte für Schaden, 3 Literale je Ursache, 90 % für einen Nachbarn,
+  5 Versuche …). Sie stehen als „ohne Grundlage“ in der Paper-Zuordnung.
 
 - Der allgemeine Agent (Ergebnisse 17 bis 21) setzt Formen aus vier Achsenarten zusammen
   (Kette, Ring, Rutschbahn, Ordnung). Bäume, Graphen mit Türen oder Objekte kennt er nicht;
@@ -1046,7 +1119,7 @@ PYTHONPATH=src python -m hekmatki
 Qualitätsprüfungen (einmalig `pip install -e ".[dev]"`):
 
 ```bash
-pytest            # 260 Tests (6 davon nur mit Crafter)
+pytest            # 271 Tests (6 davon nur mit Crafter)
 mypy              # strikte Typprüfung
 ruff check .      # Linter
 ruff format --check .
@@ -1079,7 +1152,7 @@ Ein Modul, eine Aufgabe:
 | `online.py` | Protokolle `LearningPredictor`/`OnlineLearner`, Vergleichsagent mit einem Modell |
 | `evaluation.py` | Gemeinsame Schnittstelle `Predictor` und ehrliche Bewertung |
 | `experiments/` | Ein Modul pro Experiment: `schema_learning` (H11, Härtetest), `forgetting` (H12), `sleep` (Kontextwechsel, Wach-Schlaf, mehrere Schemata), `traffic_light` (Ampelspiel), `recognition` (Kontexterkennung), `meta_schema` (dritte Ebene, H13), `discovery` (Spielefamilie), `exploration` (Neugier), `rule_transfer` (Regeln statt Zustände), `grid_transfer` (2D-Welt), `grid_mechanics` (Weltmodell), `grid_roles` (Rollen-Weltmodell), `grid_foreign` (Gegenprobe mit fremder Mechanik), `cross_world` (Spielwelt gegen Alltagswelt), `grid_replay` (Wiedergabe-Seite), `general_worlds`, `library_transfer`, `new_world`, `new_forms`, `world_stream`, `general_replay` (allgemeiner Agent, Seite „Ein Agent, sechs Welten“), `crafter_run` und `crafter_replay` (Crafter, Seite [docs/crafter.html](docs/crafter.html)), dazu `blocks` mit gemeinsamen Werkzeugen |
-| `general/` | Allgemeiner Agent ab 0.16: `env` (Schnittstelle, Mischung, Auffüllen), `worlds` (Raum, Würfel, Suchbaum, Eis, Drehscheiben, Tauschen), `programs` (Bausteine), `synthesis` (kürzestes Programm), `library` (Bibliothek), `knowledge` (Regelbuch, Ziel), `form` (Form der Welt), `planner` (Wege auf Achsen, Ringen und Rutschbahnen, Eingrenzen, Suche im Modell), `detector` (neue Umgebung), `causes` (Ursachen, ab 0.18), `subgoals` (Teilziele), `drives` (eigene Ziele), `agent` (der Agent), `run` (Runden, Vergleichsagenten) |
+| `general/` | Allgemeiner Agent ab 0.16: `env` (Schnittstelle, Mischung, Auffüllen), `worlds` (Raum, Würfel, Suchbaum, Eis, Drehscheiben, Tauschen), `programs` (Bausteine), `synthesis` (kürzestes Programm), `library` (Bibliothek), `knowledge` (Regelbuch, Ziel), `form` (Form der Welt), `planner` (Wege auf Achsen, Ringen und Rutschbahnen, Eingrenzen, Suche im Modell), `detector` (neue Umgebung), `causes` (Ursachen, ab 0.18), `subgoals` (Teilziele), `drives` (eigene Ziele), `space` (Raum aus eigener Bewegung, ab 0.19), `agent` (der Agent), `run` (Runden, Vergleichsagenten) |
 | `adapters/` | Ab 0.18: Zugänge zu fremden Welten, getrennt vom Agenten: `crafter` (Crafter an der allgemeinen Schnittstelle) |
 | `general_report.py` | Ausgabe der Ergebnisse 17 bis 21 |
 | `__main__.py` | Ausgabe der Ergebnisse |
@@ -1088,6 +1161,21 @@ Grundsätze: Lesbarkeit vor Cleverness, nur Standardbibliothek, vollständige
 Typannotationen (`mypy --strict`), ungültige Eingaben lösen immer einen `ValueError` mit
 verständlicher Meldung aus, Zufall nur über einen übergebenen `random.Random`.
 Bezeichner sind englisch (Python-Konvention), Dokumentation und Ausgaben deutsch.
+
+## Änderungen in 0.19
+
+- Raum aus eigener Bewegung (`general/space.py`): Ort, Nachbarschaften, Gitter, eigene
+  Stelle, Gruppen nach Abstand.
+- Ursachen kennen Gruppen-Literale „irgendein Feld der Gruppe hat den Wert v“
+  (`causes.Kind.SOME`); Gefahren nutzen sie.
+- Teilziele: Steht, was er braucht, irgendwo im Blick, geht er so, dass es zu ihm wandert
+  (`Layout.fetch`).
+- Abwehr mit Richtung (hin, weg, zur Seite, Taste an der Gefahr); gut ist, was die Gefahr
+  beendet. Neugier auf Sichtfelder; Versuche bis zu fünfmal; der Ort zählt nicht zum
+  Körper.
+- Crafter-Messung mit „Stand 0.19“ (Ergebnis 23). Den Code von 0.18 gibt es nur noch in der
+  Geschichte des Repos; seine Zeilen kommen aus der gespeicherten Messung.
+- Gegenprobe der alten Welten: Ergebnisse 17 bis 21 sind Zeichen für Zeichen gleich.
 
 ## Änderungen in 0.18
 
@@ -1273,11 +1361,13 @@ Bezeichner sind englisch (Python-Konvention), Dokumentation und Ausgaben deutsch
 
 ## Nächste Schritte
 
-1. Raum aus der eigenen Bewegung lernen: welches Feld der Sicht neben welchem liegt, und
-   daraus Bedingungen wie „ein Zombie neben mir“, egal auf welcher Seite (Philipona 2003,
-   Laflaquière 2019). Das ist in Crafter die größte Lücke (Ergebnis 22).
-2. Erfahrung über mehrere Schritte: Abwehr und Ziele lernen bisher nur aus dem, was in den
-   nächsten Schritten passierte; Kämpfen (zum Gegner drehen, dann schlagen) braucht Folgen.
+1. Überleben: Kämpfen als Folge lernen (zum Gegner drehen, dann mehrmals schlagen) und
+   Schutz bauen (etwas zwischen sich und den Gegner setzen). Erfahrung über mehrere
+   Schritte statt nur über die nächsten fünf. Das ist in Crafter jetzt die größte Lücke
+   (Ergebnis 23).
+2. Gruppen auch in den Ursachen einer Taste („Holz steigt, wenn irgendwo neben mir ein Baum
+   ist und ich hinschaue“), und das Gitter auf allen Karten richtig: verschobene Blöcke
+   erkennen, statt nur einzelne Felder zurechtzurücken.
 3. Bei gleich vielen Schritten mit Agenten aus tiefem Lernen vergleichen (PPO, Neugier).
 4. Nacht als eigener Kontext (Detektor), später Pixel statt Crafters Karte.
 5. Aus 0.17 offen: Vorprüfung der Bibliothek lernen, auf Eis gezielt erkunden, Bayes-Faktor
