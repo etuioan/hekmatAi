@@ -170,8 +170,9 @@ class Player {
   async step (action, record) {
     const name = ACTIONS[action]
     if (name === undefined) throw new Error(`Taste ${action} gibt es nicht`)
-    if (this.dead) await this.respawn()
-    await this.act(name)
+    // Stirbt die Figur zwischen zwei Befehlen, endet die Runde mit dieser Antwort; Mineflayer
+    // lässt sie von selbst wieder erscheinen, und `reset` beginnt die nächste Runde.
+    if (!this.dead) await this.act(name)
     return this.answer(record ? name : null)
   }
 
@@ -221,12 +222,12 @@ class Player {
     const block = this.bot.blockAtCursor(REACH)
     const isBlock = item && this.bot.registry.blocksByName[item.name] !== undefined
     try {
-      if (item && isBlock && block) {
+      if (item && this.bot.registry.foodsByName[item.name] && this.bot.food < 20) {
+        await withTimeout(this.bot.consume(), 4000)
+      } else if (item && isBlock && block) {
         await withTimeout(this.bot.placeBlock(block, new Vec3(0, 1, 0)), 2000)
       } else if (block && !isBlock) {
         await withTimeout(this.bot.activateBlock(block), 2000)
-      } else if (item && this.bot.registry.foodsByName[item.name] && this.bot.food < 20) {
-        await withTimeout(this.bot.consume(), 4000)
       } else {
         this.bot.activateItem()
         await this.ticks(MOVE_TICKS)
@@ -251,12 +252,6 @@ class Player {
       break
     }
     return this.ticks(1)
-  }
-
-  async respawn () {
-    // Nach dem Tod wartet die Brücke, bis die Figur wieder da ist (Runde ist ohnehin vorbei).
-    await new Promise(resolve => this.bot.once('spawn', resolve))
-    this.dead = false
   }
 
   entityInSight () {
