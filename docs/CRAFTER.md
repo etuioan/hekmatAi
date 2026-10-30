@@ -44,6 +44,23 @@ Zum Vergleich die Werte aus dem Crafter-Paper nach einer Million Schritten (nich
 nachgemessen): Zufall 1,6 %, Plan2Explore 2,1 %, RND 2,0 %, PPO 4,6 %, DreamerV2 10,0 %,
 Menschen 50,5 %. Unser Agent spielt nur etwa 5000 Schritte.
 
+### Auf GitHub messen
+
+Der Workflow „Crafter-Messung“ (`.github/workflows/messung.yml`) verteilt die Messung: ein Job
+pro Karte, bis zu 20 gleichzeitig, danach führt ein Sammel-Job alles zusammen. Start im Reiter
+„Actions“ mit „Run workflow“; Anzahl Karten und Runden sind wählbar. Die Tabelle steht in der
+Zusammenfassung des Laufs, mit der Wertung je Karte (Mittel ± Streuung), die Rohdaten im
+Artefakt `crafter-messung`. Für öffentliche Repos kostet das nichts.
+
+Dieselben zwei Befehle laufen auch auf eigenen Rechnern:
+
+```bash
+python -m hekmatki.experiments.crafter_batch play 7 teil-7.json          # eine Karte, alle Agenten
+python -m hekmatki.experiments.crafter_batch merge messung.json teil-*.json
+```
+
+Die Ergebnisse sind nicht ganz deterministisch: Dieselbe Karte kann leicht andere Zahlen geben.
+
 ## Minecraft und andere Spiele
 
 Für MineRL oder MineDojo gilt dasselbe Muster: ein eigener Adapter in `hekmatki.adapters`,
