@@ -175,7 +175,7 @@ class Player {
       const z = Math.floor((random() - 0.5) * 20000)
       await this.command(`/spreadplayers ${x} ${z} 0 50 false ${this.bot.username}`)
       await this.ticks(40) // bis die Chunks am neuen Ort da sind
-      await this.bot.waitForChunksToLoad()
+      await this.chunks()
       if (this.goodStart()) return
     }
   }
@@ -386,6 +386,16 @@ class Player {
     inner.push(Math.floor(((bot.time && bot.time.timeOfDay) || 0) / 1000))
     if (inner.length !== LAYOUT.length) throw new Error(`Beobachtung hat ${inner.length} statt ${LAYOUT.length} Zahlen`)
     return inner
+  }
+
+  async chunks () {
+    // Wie bei `ticks`: Hinkt der Server, sind die Chunks nach Mineflayers Frist noch nicht da.
+    // Das beendet nicht die Messung; `goodStart` prüft den Ort dann eben mit dem, was da ist.
+    try {
+      await this.bot.waitForChunksToLoad()
+    } catch (error) {
+      if (!/Timeout waiting for/.test(error.message)) throw error
+    }
   }
 
   async ticks (count) {
