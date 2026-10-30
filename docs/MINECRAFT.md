@@ -67,6 +67,13 @@ Starten (Windows: Eingabeaufforderung, Mac: Terminal, jeweils im Repo-Ordner):
 python -m hekmatki.experiments.minecraft_live --eula-angenommen --mein-name DEIN_MINECRAFT_NAME
 ```
 
+Auf dem Mac geht die Einrichtung mit Homebrew: `brew install python@3.12 node git` und
+`brew install --cask temurin@21`, danach im Repo-Ordner `python3.12 -m venv .venv`,
+`source .venv/bin/activate` und `pip install -e .`.
+
+Der Server ist Version **1.20.4**: Im Minecraft-Launcher unter „Installationen“ eine
+Installation mit dieser Version anlegen, sonst lässt der Server dich nicht hinein.
+
 Beim ersten Mal lädt das Skript den Server von Mojang und installiert die Brücke. Sobald
 „Server bereit“ erscheint: Minecraft starten → Mehrspieler → Direkt verbinden → `localhost`.
 Dann im Chat `/gamemode spectator` und `/spectate hekmat`, um ihm über die Schulter zu schauen.
