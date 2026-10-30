@@ -13,7 +13,7 @@ Bitte lies das zuerst, wenn du verstehen willst, worum es mir geht.
   „Scheiben“ übereinander. Der Agent lernt das Gemeinsame („Warten“) einmal und wechselt
   zwischen den Kontexten.
 - **Stand:** Forschungsprototyp in Python, nur Standardbibliothek (Crafter als freiwilliges
-  Zusatzpaket), 284 Tests.
+  Zusatzpaket), 306 Tests.
   Spielwelten (ähnlich ARC-AGI-3) sind das Testfeld, nicht das Ziel.
 - **Ehrlich:** Hier wird nichts behauptet, was nicht gemessen ist. Widerlegte Hypothesen
   stehen genauso im README wie gestützte (siehe [Grenzen](#grenzen)).
@@ -51,7 +51,7 @@ Please read it first if you want to understand what it's about.
   each other like "slices". The agent learns what they share ("waiting") once and switches
   between contexts.
 - **Status:** Research prototype in Python, standard library only (Crafter as an optional
-  extra), 284 tests. Since 0.18 the general agent sets its own goals and plays Crafter, a
+  extra), 306 tests. Since 0.18 the general agent sets its own goals and plays Crafter, a
   small 2D Minecraft, through a separate adapter: [docs/crafter.html](docs/crafter.html).
   Since 0.19 it finds out by itself which of its numbers form a picture around it and where
   it stands in it (space from its own movement), with no knowledge of the game. Since 0.20
@@ -59,6 +59,9 @@ Please read it first if you want to understand what it's about.
   with a defence until the danger is over. Since 0.21 it judges dangers with their
   uncertainty (Beta distribution) and lives about 10 steps longer (Crafter score 3.0 % vs.
   1.6 % for random).
+  Since 0.22 it stops pressing keys that never do anything (with the same things in hand). It
+  also plays real Minecraft through a separate bridge, but there it is still no better than
+  random: it cannot yet tell where it is when the view turns with it.
   Game worlds (similar to ARC-AGI-3) are the test bed, not the goal.
 - **Honest:** Nothing is claimed here that hasn't been measured. Refuted hypotheses are
   reported just like supported ones (see "Grenzen", the limitations section below).
@@ -70,7 +73,7 @@ Quick start: `PYTHONPATH=src python -m hekmatki` (Python 3.12+). How to contribu
 
 ---
 
-## HekmatKI Prototyp 0.21: Schema-Stapel, Kontextwechsel, Weltmodell und ein Agent mit eigenen Zielen, der Raum und Wege aus eigener Bewegung lernt
+## HekmatKI Prototyp 0.22: Schema-Stapel, Kontextwechsel, Weltmodell und ein Agent mit eigenen Zielen, der Raum und Wege aus eigener Bewegung lernt
 
 Ein kleiner, vollständig nachvollziehbarer Test der Idee, ähnliche Alltagssituationen als
 übereinanderliegende „Scheiben“ zu modellieren und zwischen ihnen zu wechseln.
@@ -1151,6 +1154,62 @@ Gleiche Messung wie in Ergebnis 24, dazu 16 Karten, die beim Bauen nie benutzt w
 
 Zum Anschauen: [docs/crafter.html](docs/crafter.html).
 
+## Ergebnis 26: Tasten ohne Wirkung nicht endlos probieren (neu in 0.22, H36)
+
+Warum spielt er Minecraft nicht einmal halbwegs? Eine Aufzeichnung der Gründe für jeden
+Schritt (Testserver, 6 Runden) zeigte: Bis zu 90 % seiner Schritte waren „Versuche“, und
+zwar fast nur mit den Rezept-Tasten, die ohne Holz nichts tun. Ein Versuch lohnt sich, wenn
+gerade etwas Seltenes zu sehen ist. In einer großen Welt ist aber immer etwas selten
+(Position, Uhrzeit, neues Gelände), also probierte er dieselbe nutzlose Taste immer wieder.
+Bei Neugier heißt das „rauschender Fernseher“ (Burda u. a. 2019).
+
+Jetzt zählt er, wie oft er eine Taste ohne eigene Wirkung mit demselben Besitz gedrückt hat.
+Nach 20 Mal probiert er sie erst wieder, wenn er etwas anderes bei sich hat
+(`Drives.futile`). Das folgt der Idee „Lernfortschritt statt Neuheit“ (Oudeyer & Kaplan
+2007): Wo nichts mehr zu lernen ist, lohnt Neugier nicht. In einer Testwelt mit zwei
+nutzlosen Tasten sinken die Versuche in 2000 Schritten von 1314 auf 47. Auf dem Testserver
+fällt der Anteil der Versuche ab der zweiten Runde auf 2 bis 50 %.
+
+Damit man Fortschritt sieht, bevor ein Erfolg kommt, zählt die Minecraft-Messung zwei
+Zwischenstände: wie oft ein Block im Fadenkreuz ist (die Voraussetzung für Abbauen) und wie
+viele verschiedene Dinge er in der Schnellleiste hat.
+
+**Crafter** (16 Karten, 30 Runden, gleiche Messung wie Ergebnis 25; 0.21 auf `main` im selben
+Durchgang neu gemessen):
+
+| Agent | Wertung | Mittel je Startwert | Erfolge je Runde | Runde dauert |
+|---|---:|---:|---:|---:|
+| Zufall | 1,4 % | 1,27 ± 0,23 % | 2,26 | 168 |
+| Stand 0.21 | 2,8 % | 2,24 ± 0,50 % | 3,22 | 176 |
+| **Stand 0.22** | **3,0 %** | **2,54 ± 0,39 %** | **3,26** | **179** |
+
+**Minecraft** (echter Server 1.20.4, 16 Karten, 8 Runden zu 1000 Schritten, gezählt ab
+Runde 5; 0.21 ist derselbe Code ohne die Grenze, beide mit derselben Brücke):
+
+| Agent | Wertung | Fortschritte je Runde | Block im Blick | Dinge | Runde dauert |
+|---|---:|---:|---:|---:|---:|
+| Zufall | 0,2 % | 0,03 | 51 % | 1,4 | 863 |
+| Tabelle | 0,2 % | 0,06 | 54 % | 1,6 | 913 |
+| Stand 0.21 | 0,4 % | 0,09 | 35 % | 1,0 | 859 |
+| **Stand 0.22** | **0,4 %** | **0,09** | **43 %** | **1,3** | **788** |
+
+- **Crafter wird nicht schlechter:** Wertung 3,0 statt 2,8 %, je Startwert 2,54 ± 0,39 gegen
+  2,24 ± 0,50, also innerhalb der Streuung. Er baut öfter eine Werkbank (17 statt 9 %) und
+  sammelt öfter Holz (62 statt 55 %), sammelt aber seltener Setzlinge (65 statt 73 %).
+- **In Minecraft hilft es allein nicht:** Karte für Karte hat er 6,6 ± 4,6 Prozentpunkte
+  öfter einen Block im Blick und 0,27 ± 0,24 Dinge mehr, beides innerhalb der Streuung.
+  Er hat weiter seltener einen Block im Blick als der Zufall (7,6 ± 3,1 Punkte weniger).
+  Die Fortschritte sind nur „Minecraft“ (eine Werkbank im Inventar, in 6 % der Runden,
+  so oft wie die Tabelle) und „Abenteuer“ (etwas töten oder getötet werden).
+- **Was jetzt fehlt:** Statt der Versuche treiben ihn jetzt „Rekorde“ an: neue Höchstwerte
+  bei Position, Blickwinkel oder gewähltem Fach. Den Raum findet er in Minecraft gar nicht:
+  Ein Schritt „vor“ verschiebt das Bild je nach Blickrichtung anders, und so findet
+  `space.py` kein Gitter. Ohne Gitter fehlen Neugier auf Felder, Erkunden und Gefahren in
+  der Nähe. Das ist der nächste Schritt (Raum mit Blickrichtung).
+
+Zum Anschauen: die Wiedergabe der letzten Runde jedes Agenten liegt auf dem Branch
+`minecraft-messungen`, Ordner `lauf-41128050734`, Datei `minecraft.html`.
+
 ## Grenzen
 
 - In Crafter (Ergebnis 22 bis 25) ist der Vorsprung mit 0.21 deutlich, aber klein (3,0 statt
@@ -1161,6 +1220,8 @@ Zum Anschauen: [docs/crafter.html](docs/crafter.html).
   Gruppen („irgendwo neben mir“) noch nicht, nur die Gefahren. Seine Wahrnehmung ist
   geschenkt (Crafters Karte als Nummern, dazu das Feld vor ihm), nicht das Bild. Er spielt
   nur etwa 5000 Schritte; ein Vergleich mit tiefem Lernen bei gleich vielen Schritten fehlt.
+- In Minecraft (Ergebnis 26) ist er nicht besser als der Zufall. Er findet dort keinen Raum,
+  weil sich die Sicht mit ihm dreht, und hat seltener einen Block im Blick als der Zufall.
 - Die eigenen Ziele und der Raum haben viele Schwellen von Hand (Hälfte für „dringend“, 60
   Schritte Geduld, 8 Schritte für Schaden und Abwehr, 5 Stöße und 80 % für ein Hindernis, 95 % Sicherheit und
   15 % für eine Gefahr, 3 Literale je Ursache, 90 % für einen Nachbarn,
@@ -1232,7 +1293,7 @@ PYTHONPATH=src python -m hekmatki
 Qualitätsprüfungen (einmalig `pip install -e ".[dev]"`):
 
 ```bash
-pytest            # 284 Tests (9 davon nur mit Crafter)
+pytest            # 306 Tests (9 davon nur mit Crafter)
 mypy              # strikte Typprüfung
 ruff check .      # Linter
 ruff format --check .
@@ -1274,6 +1335,17 @@ Grundsätze: Lesbarkeit vor Cleverness, nur Standardbibliothek, vollständige
 Typannotationen (`mypy --strict`), ungültige Eingaben lösen immer einen `ValueError` mit
 verständlicher Meldung aus, Zufall nur über einen übergebenen `random.Random`.
 Bezeichner sind englisch (Python-Konvention), Dokumentation und Ausgaben deutsch.
+
+## Änderungen in 0.22
+
+- Tasten ohne Wirkung nicht endlos probieren (`Drives.futile`, `FUTILE = 20`): Eine Taste,
+  die mit demselben Besitz 20-mal nichts Eigenes bewirkt hat, probiert er erst mit neuem
+  Besitz wieder. `GeneralAgent(futile=None)` verhält sich wie 0.21.
+- Minecraft-Messung: Zwischenstände „Block im Blick“ und „Dinge“; „Stand 0.21“ und
+  „Stand 0.22“ spielen in derselben Messung. Die Brücke bricht nicht mehr ab, wenn beim
+  Rundenstart Teile der Welt nicht rechtzeitig laden.
+- Crafter-Messung mit „Stand 0.22“ (Ergebnis 26); die Zeile von 0.21 kommt aus einer
+  Messung auf `main` im selben Durchgang.
 
 ## Änderungen nach dem Code-Review (nach 0.21)
 
@@ -1551,16 +1623,20 @@ Ein Review fand fünf Fehler. Alle sind behoben und haben Tests.
 
 ## Nächste Schritte
 
-1. Gefahren noch sicherer erkennen: Noch kommt die Hälfte der Zombie-Treffer ohne Abwehr
+1. Raum mit Blickrichtung (Minecraft, Ergebnis 26): Wenn ein Schritt das Bild je nach
+   Blickrichtung anders verschiebt, soll er das als Bewegung erkennen, die von einer
+   eigenen Zahl abhängt (Kopfrichtungszellen, Wegintegration), statt kein Gitter zu finden.
+   Danach Rekorde nur für Zahlen, die er selbst ändern kann und die etwas bringen.
+2. Gefahren noch sicherer erkennen: Noch kommt die Hälfte der Zombie-Treffer ohne Abwehr
    davor (Ergebnis 25). Das Gitter auf allen Karten finden (dann gibt es die Gruppen „nah bei
    mir“ überall), und was er an einem Feld über eine Gefahr gelernt hat, auf die Felder im
    gleichen Abstand übertragen. Danach Schutz für den Schlaf (etwas zwischen sich und den
    Gegner setzen).
-2. Klären, warum er mit 0.20 seltener eine Werkbank baut.
-3. Gruppen auch in den Ursachen einer Taste („Holz steigt, wenn irgendwo neben mir ein Baum
+3. Klären, warum er mit 0.20 seltener eine Werkbank baut.
+4. Gruppen auch in den Ursachen einer Taste („Holz steigt, wenn irgendwo neben mir ein Baum
    ist und ich hinschaue“), und das Gitter auf allen Karten richtig: verschobene Blöcke
    erkennen, statt nur einzelne Felder zurechtzurücken.
-4. Bei gleich vielen Schritten mit Agenten aus tiefem Lernen vergleichen (PPO, Neugier).
-5. Nacht als eigener Kontext (Detektor), später Pixel statt Crafters Karte.
-6. Aus 0.17 offen: Vorprüfung der Bibliothek lernen, auf Eis gezielt erkunden, Bayes-Faktor
+5. Bei gleich vielen Schritten mit Agenten aus tiefem Lernen vergleichen (PPO, Neugier).
+6. Nacht als eigener Kontext (Detektor), später Pixel statt Crafters Karte.
+7. Aus 0.17 offen: Vorprüfung der Bibliothek lernen, auf Eis gezielt erkunden, Bayes-Faktor
    schneller, 2D-Spielwelt an die allgemeine Schnittstelle.

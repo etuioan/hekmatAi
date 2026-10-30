@@ -51,6 +51,19 @@ python -m hekmatki.experiments.minecraft_run play "Stand 0.22" 0 teil.json --epi
 Zum Ausprobieren ohne Mojangs Server gibt es `minecraft_bridge/testserver.js` (flying-squid,
 frei, `npm ci` mit Entwicklungspaketen). Er ist stark vereinfacht und taugt nicht zum Messen.
 
+### Ergebnis mit 0.22 (16 Karten, 8 Runden zu 1000 Schritten, gezählt ab Runde 5)
+
+| Agent | Wertung | Fortschritte je Runde | Block im Blick | Dinge |
+|---|---:|---:|---:|---:|
+| Zufall | 0,2 % | 0,03 | 51 % | 1,4 |
+| Tabelle | 0,2 % | 0,06 | 54 % | 1,6 |
+| Stand 0.21 | 0,4 % | 0,09 | 35 % | 1,0 |
+| Stand 0.22 | 0,4 % | 0,09 | 43 % | 1,3 |
+
+„Block im Blick“ ist der Anteil der Schritte mit einem Block im Fadenkreuz, „Dinge“ die Zahl
+verschiedener Dinge in der Schnellleiste. Er ist noch nicht besser als der Zufall: Er findet
+keinen Raum, weil sich die Sicht mit ihm dreht (README, Ergebnis 26).
+
 ## Live zuschauen (auf dem eigenen Rechner)
 
 Server und Agent laufen bei dir, du schaust mit deiner eigenen **Minecraft Java Edition** zu

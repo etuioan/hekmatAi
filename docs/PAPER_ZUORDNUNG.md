@@ -1,11 +1,11 @@
 # Paper-Zuordnung: Welches Modul stützt sich auf welche Forschung?
 
-Stand: Prototyp 0.21, Dossier Runde 7 (29. Oktober 2026, 221 Paper) plus Paper zu 0.18 bis 0.21 (siehe unten).
+Stand: Prototyp 0.22, Dossier Runde 7 (29. Oktober 2026, 221 Paper) plus Paper zu 0.18 bis 0.22 (siehe unten).
 Dossier: https://claude.ai/artifact/Sghxz5AxhcHgCKY9dtGSM5, Abschnitt „Paper ↔ Prototyp“.
 
 **Regel:** Jede neue Version aktualisiert diese Datei. Ideen, die zuerst im Code entstehen,
 bekommen den Vermerk **ohne Grundlage**. Sie sind der Suchauftrag für die nächste Paper-Runde.
-P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers, H25–H28 neu mit 0.18, H29–H31 mit 0.19, H32–H34 mit 0.20, H35 mit 0.21 (siehe unten).
+P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers, H25–H28 neu mit 0.18, H29–H31 mit 0.19, H32–H34 mit 0.20, H35 mit 0.21, H36 mit 0.22 (siehe unten).
 
 ## Module und ihre Grundlagen
 
@@ -44,7 +44,7 @@ P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers, H25–H28 neu
 | `general/subgoals.py` | Teilziele und Vorstellen mit Lücken (ab 0.18) | Mittel-Ziel-Analyse (Newell & Simon 1961), STRIPS (Fikes & Nilsson 1971), Optionen (Sutton, Precup, Singh 1999), Raum aus Sensomotorik (Philipona 2003, Laflaquière 2019); Tiefe 3, 200 vorgestellte Zustände und „seltene Ursache ab 5 %“ sind **ohne Grundlage** | P2, P5, H25, H26 |
 | `general/space.py` | Raum aus eigener Bewegung: welches Sichtfeld neben welchem liegt, eigene Stelle als Lücke, Gruppen nach Abstand (ab 0.19) | Philipona, O'Regan & Nadal 2003 (Raum aus Sensomotorik), Pierce & Kuipers 1997 (Karten aus uninterpretierten Sinnen und Tasten), Laflaquière & Garcia Ortiz 2019, Kruskal 1956 (stärkste Kanten zuerst), deiktische Darstellung (Agre & Chapman 1987); ab 0.20 Hindernisse aus eigener Bewegung und Fühler („vorne“): sensomotorische Kontingenzen (O'Regan & Noë 2001); Gegenstimme Finney, Gardiol, Kaelbling & Oates 2002; alle Schwellen (90 %, 80 %, 95 %, 20 Schritte, 6 Werte, 90 % Kasten, 3 Ringe, ab 0.20 5 Stöße und 80 % für ein Hindernis) sind **ohne Grundlage** | P2, H29, H34 |
 | `general/cues.py` | Gefahren als Hinweisreize: Schadensquote je Aussage mit Unsicherheit (ab 0.21) | Beta-Binomial-Angstlernen (Tzovara, Korn & Bach 2018); gelernter Schutz vor Katastrophen-Aktionen (Shperberg, Liu & Stone 2022); Gegenstimmen: Übergeneralisieren der Angst (Lissek u. a. 2005), Reize konkurrieren um die Vorhersage (Rescorla & Wagner 1972, hier nicht abgebildet); 95 % Sicherheit ist **ohne Grundlage** | P5, H35 |
-| `general/drives.py` | Eigene Ziele: Bedürfnisse, Rekorde, Versuche, Erkunden, Abwehr (ab 0.18) | Homöostase (Keramati & Gutkin 2014), intrinsisch motivierte Zielprozesse (Forestier, Portelas, Mollard, Oudeyer 2022; Oudeyer & Kaplan 2007), Zählen als Neugier (Strehl & Littman 2008, Bellemare 2016), Go-Explore (Ecoffet 2021), Vermeiden lernen (Mowrer 1947; ab 0.19 „gut ist, was die Gefahr beendet“, Gegenstimme Herrnstein 1969), Neugier auf Neues zum Anfassen (ab 0.19: Piaget 1952, Stahl & Feigenson 2015), Abwehr als Option (ab 0.20: Sutton, Precup & Singh 1999, Dabney, Ostrovski & Barreto 2021; wenige Antworten: Bolles 1970), neuer Besitz, neuer Versuch (ab 0.20: Gibson 1979, Şahin u. a. 2007), modellfrei neben modellbasiert (Daw, Niv & Dayan 2005), Schrumpfen zum Mittel (Efron & Morris 1975), Zahl und Ort als Kernsysteme (Spelke 2022, Dehaene 2011); Gegenstimmen siehe unten; fast alle Schwellen sind **ohne Grundlage** | P5, H27, H28, H30 bis H33 |
+| `general/drives.py` | Eigene Ziele: Bedürfnisse, Rekorde, Versuche, Erkunden, Abwehr (ab 0.18) | Homöostase (Keramati & Gutkin 2014), intrinsisch motivierte Zielprozesse (Forestier, Portelas, Mollard, Oudeyer 2022; Oudeyer & Kaplan 2007), Zählen als Neugier (Strehl & Littman 2008, Bellemare 2016), Go-Explore (Ecoffet 2021), Vermeiden lernen (Mowrer 1947; ab 0.19 „gut ist, was die Gefahr beendet“, Gegenstimme Herrnstein 1969), Neugier auf Neues zum Anfassen (ab 0.19: Piaget 1952, Stahl & Feigenson 2015), Abwehr als Option (ab 0.20: Sutton, Precup & Singh 1999, Dabney, Ostrovski & Barreto 2021; wenige Antworten: Bolles 1970), neuer Besitz, neuer Versuch (ab 0.20: Gibson 1979, Şahin u. a. 2007), modellfrei neben modellbasiert (Daw, Niv & Dayan 2005), Schrumpfen zum Mittel (Efron & Morris 1975), Zahl und Ort als Kernsysteme (Spelke 2022, Dehaene 2011); ab 0.22 keine Versuche mehr, wo nichts zu lernen ist (Lernfortschritt: Oudeyer & Kaplan 2007; rauschender Fernseher: Burda u. a. 2019); Gegenstimmen siehe unten; fast alle Schwellen sind **ohne Grundlage** | P5, H27, H28, H30 bis H33, H36 |
 | `adapters/crafter.py`, `experiments/crafter_run.py`, `experiments/crafter_replay.py` | Prüfstein Crafter, Adapter getrennt vom Agenten (ab 0.18) | Crafter (Hafner 2021), Wertung wie dort; MineRL/MineDojo erst später (Prüfung vom 29.10.2026) | G4 |
 | `adapters/minecraft.py`, `adapters/minecraft_bridge/`, `experiments/minecraft_run.py` | Prüfstein echtes Minecraft, Adapter getrennt vom Agenten wie bei Crafter (nach 0.20) | Mineflayer (PrismarineJS) als Spieler-Client; Ziel-Signal sind Minecrafts eigene Fortschritte. Vergleich: MineRL (Guss 2019), MineDojo (Fan 2022), Voyager (Wang 2023) nutzen Pixel oder Sprachmodelle mit Spielwissen, hier bewusst keins. Wertung wie Crafter (Hafner 2021) | G4 |
 | `experiments/` | Messung, ab 0.15 auch Schaden durch Vorwissen | Tastendrücke bis zum ersten Sieg; ARC-AGI-3 misst RHAE; negative Übertragung: Wang 2019; Vergleich Spielwelt–Alltagswelt: Runde 5 G4 | H11–H17 |
@@ -58,6 +58,34 @@ P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers, H25–H28 neu
 | Sprachorgan (LLM) | bewusst weggelassen | LILO; Tycho und Kepler zeigen, dass LLMs Weltmodelle als Code schreiben |
 | Lehrplan-Generator | fehlt | Absolute Zero, Oudeyer 2007, POET |
 | Kontext-Inferenz und Schlaf in der 2D-Welt | Kontext-Inferenz ab 0.16 im allgemeinen Agenten (`general/detector.py`), Schlaf fehlt | COIN, Bhattarai 2026; Runde 6: Sanders, Wilson, Gershman 2020, Yu & Dayan 2002 |
+
+## Umgesetzt in 0.22 (Tasten ohne Wirkung, H36)
+
+Abgeleitet aus der Frage, warum er Minecraft nicht spielt. Eine Aufzeichnung der Gründe auf
+dem Testserver: bis zu 90 % der Schritte waren Versuche mit Tasten ohne Wirkung (meist
+Rezepte ohne Holz), weil in einer großen Welt immer etwas selten ist. Das ist das Problem
+des „rauschenden Fernsehers“: Neuheit, die nie verschwindet, zieht die Neugier für immer an
+(Burda, Edwards, Pathak u. a. 2019; Pathak u. a. 2017). Die Antwort aus dem Dossier ist
+Lernfortschritt statt Neuheit (Oudeyer & Kaplan 2007, Gottlieb & Oudeyer 2018): Wo sich die
+Vorhersage nicht mehr verbessert, ist nichts zu lernen.
+
+| Hypothese | Stand |
+|---|---|
+| H36: Eine Taste, die mit demselben Besitz oft genug nichts Eigenes bewirkt hat, verdient keinen Versuch mehr, bis sich der Besitz ändert (eine einfache Form von Lernfortschritt) | **teilweise gestützt** (Ergebnis 26): Der Mechanismus wirkt (Testwelt: 47 statt 1314 Versuche in 2000 Schritten; Testserver: Versuche ab Runde 2 bei 2 bis 50 % statt bis zu 90 %). Crafter wird nicht schlechter (3,0 statt 2,8 %, innerhalb der Streuung). In Minecraft aber kein messbarer Gewinn: gleiche Wertung (0,4 %), „Block im Blick“ +6,6 ± 4,6 Punkte, weiter unter dem Zufall. An die Stelle der Versuche treten Rekorde bei Position und Blickwinkel; der eigentliche Engpass ist der fehlende Raum |
+
+**Gegenstimmen und Warnungen zu 0.22:**
+- Maier & Seligman 2016 (erlernte Hilflosigkeit, neu gelesen): Wer lernt, dass Handeln
+  nichts bewirkt, gibt auch dort auf, wo es später wirken würde. Hier hängt das Aufgeben nur
+  am Besitz; hängt die Wirkung am Ort (Wasser vor ihm, Werkbank daneben), gibt er zu früh
+  auf. Gegenprobe in Crafter: Trinken und Werkbank werden nicht seltener (44 statt 43 %,
+  17 statt 9 %).
+- Schmidhuber 1991 und Oudeyer & Kaplan 2007 messen Lernfortschritt als Verbesserung der
+  Vorhersage, nicht als Zählung. Die feste Zahl 20 ist ein grober Ersatz.
+- Burda u. a. 2019: Auch Neugier mit gelernten Merkmalen bleibt an echtem Rauschen hängen.
+  Dasselbe passiert jetzt bei den Rekorden (Position, Blickwinkel); H36 behebt das nicht.
+
+**Ohne Grundlage (neu in 0.22):** 20 Versuche ohne Wirkung je Besitz (`FUTILE`); „Besitz“
+als einziger Zusammenhang, in dem neu gezählt wird.
 
 ## Umgesetzt in 0.21 (Gefahren mit Unsicherheit, H35)
 
