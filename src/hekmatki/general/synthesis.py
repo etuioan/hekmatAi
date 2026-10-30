@@ -9,8 +9,8 @@ Ausnahme, kann keine längere sie schlagen, und die Suche hört dort auf.
 `tested` zählt die geprüften Programme. Das ist das Maß für Rechenaufwand, an dem die
 Bibliothek sich messen lassen muss (Berlot-Attwell 2026: Vergleich bei gleicher Rechenzeit).
 
-Ab 0.17 (`extended`) kommen Übernehmen, Ring und Schleife dazu. Auch sie werden aus den
-Daten vorgeschlagen, nicht blind aufgezählt: Übernehmen nur von Größen, die bei jedem
+Ab 0.17 (`extended`) kommen Übernehmen, Ring und Schleife dazu, ab 0.18 „wird v“. Auch sie
+werden aus den Daten vorgeschlagen, nicht blind aufgezählt: Übernehmen nur von Größen, die bei jedem
 Wechsel den neuen Wert hatten, eine Schleife nur, wenn Sprünge über mehr als einen Schritt
 vorkommen, ein Ring nur, wenn es Sprünge zurück an den Anfang gibt.
 
@@ -29,6 +29,7 @@ from hekmatki.general.env import Observation
 from hekmatki.general.library import CALL_COST, Library, Vocabulary, instances, plausible
 from hekmatki.general.programs import (
     LOOP_COST,
+    Becomes,
     Copy,
     Cycle,
     Falls,
@@ -53,6 +54,10 @@ MAX_SHIFTS: Final = 4
 """Höchstens so viele verschiedene Schritte kommen als `Shift` in Frage."""
 MAX_SOURCES: Final = 4
 """Höchstens so viele Größen kommen als Quelle für `Copy` in Frage."""
+COPY_SHARE: Final = 0.9
+"""Übernehmen trotz Rauschen: Die Quelle muss bei so vielen Wechseln stimmen (ohne Grundlage)."""
+MIN_NOISY: Final = 10
+"""Übernehmen trotz Rauschen erst ab so vielen Wechseln."""
 MIN_RING: Final = 3
 """Ein Ring hat mindestens drei Werte (zwei wären ein Umschalter; ohne Grundlage)."""
 
@@ -109,7 +114,8 @@ def vocabulary(
     leaves: tuple[Leaf, ...] = (Keep(), *(Shift(by) for by in shifts), Rises(), Falls())
     if not extended:
         return Vocabulary(leaves, dict(sensors), shifts, changes=changes)
-    extra = tuple(Copy(source) for source in _sources(examples, component))
+    copies = (Copy(source) for source in _sources(examples, component))
+    extra: tuple[Leaf, ...] = (*copies, *_becomes(examples, component))
     loops: tuple[Leaf, ...] = (*_rings(shifts), *_loops(moves, sensors, component))
     return Vocabulary(leaves, dict(sensors), shifts, extra, loops, changes)
 
@@ -196,6 +202,9 @@ def _borrowed(words: Vocabulary, component: int, library: Library) -> list[Candi
 def _sources(examples: Sequence[Example], component: int) -> list[int]:
     """Größen, deren alter Wert bei jedem echten Wechsel der neue Wert war.
 
+    Ab 0.18 auch in einer Welt mit Rauschen (Tiere laufen durchs Bild): Dann reicht es, wenn
+    die Quelle bei `COPY_SHARE` der Wechsel stimmt, aus mindestens `MIN_NOISY` Wechseln.
+
     Nur ein Wechsel als Beleg reicht nicht: Bei Schaltern mit zwei Werten passt dann fast
     immer irgendeine Größe zufällig, und die Regel bricht beim nächsten Wechsel. Ebenso wenig
     reicht es, wenn der neue Wert immer derselbe war: Dann passt jede Größe, die zufällig
@@ -207,14 +216,35 @@ def _sources(examples: Sequence[Example], component: int) -> list[int]:
         return []  # Ein fester neuer Wert ist kein Beleg fürs Übernehmen.
     width = len(changing[0].before)
     seen = [{value for e in examples for value in (e.before[i], e.after[i])} for i in range(width)]
-    found = [
-        source
-        for source in range(width)
-        if source != component
-        and seen[component] <= seen[source]
-        and all(e.after[component] == e.before[source] for e in changing)
-    ]
-    return found[:MAX_SOURCES]
+    exact, close = [], []
+    for source in range(width):
+        if source == component:
+            continue
+        matches = sum(e.after[component] == e.before[source] for e in changing)
+        if matches == len(changing) and seen[component] <= seen[source]:
+            exact.append(source)
+        elif (
+            len(changing) >= MIN_NOISY
+            and matches >= COPY_SHARE * len(changing)
+            and _covered(examples, component, seen[source]) >= COPY_SHARE
+        ):
+            close.append((-matches, source))
+    return [*exact, *(source for _, source in sorted(close))][:MAX_SOURCES]
+
+
+def _covered(examples: Sequence[Example], component: int, values: set[int]) -> float:
+    """Anteil der Schritte, in denen die Größe einen Wert hatte, den die Quelle auch zeigte.
+    Beim Übernehmen trotz Rauschen darf nur Seltenes fehlen (ein Tier, das nur hier vorbeikam)."""
+    return sum(e.before[component] in values for e in examples) / len(examples)
+
+
+def _becomes(examples: Sequence[Example], component: int) -> list[Becomes]:
+    """„Wird v“: nur wenn jeder echte Wechsel bei demselben Wert endete, von mindestens zwei
+    verschiedenen Werten aus. Von nur einem Wert aus wäre es ein fester Schritt (`Shift`)."""
+    changing = [e for e in examples if e.after[component] != e.before[component]]
+    ends = {e.after[component] for e in changing}
+    starts = {e.before[component] for e in changing}
+    return [Becomes(ends.pop())] if len(ends) == 1 and len(starts) >= 2 else []
 
 
 def _rings(shifts: Sequence[int]) -> list[Cycle]:

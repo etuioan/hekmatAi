@@ -19,6 +19,10 @@ Neu in 0.17 (Runde 7, H21 und H22):
   Abbruchbedingung (Sutton 1999, Bacon 2017); Schleifen nur in dieser engen Form, weil
   freie Schleifen die Suche sprengen (Gulwani 2017).
 
+Neu in 0.18:
+- `Becomes(value)`: Sie wird `value`, egal was vorher war (eine Blickrichtung nach einem Schritt,
+  ein Schalter, den eine Taste immer auf denselben Wert stellt).
+
 Grundlage: Begriffe als Programme aus einer kleinen Grammatik (Piantadosi 2012,
 Ullman 2012, Rule 2020 und 2024), Weltmodelle als Programme (Tycho, Kepler, Schema 2026),
 Schleifen als Kompression (Ellis 2018), Bausteine höherer Ordnung (Cropper 2020).
@@ -59,6 +63,13 @@ class Copy:
 
 
 @dataclass(frozen=True)
+class Becomes:
+    """Die Größe wird `value`, egal was vorher war."""
+
+    value: int
+
+
+@dataclass(frozen=True)
 class Cycle:
     """Ring: Die Größe ändert sich um `by`, gezählt im Kreis über `modulus` Werte."""
 
@@ -85,10 +96,10 @@ class When:
     otherwise: "Program"
 
 
-type Leaf = Keep | Shift | Rises | Falls | Copy | Cycle | Until
+type Leaf = Keep | Shift | Rises | Falls | Copy | Becomes | Cycle | Until
 type Program = Leaf | When
 
-LEAF_TYPES = (Keep, Shift, Rises, Falls, Copy, Cycle, Until)
+LEAF_TYPES = (Keep, Shift, Rises, Falls, Copy, Becomes, Cycle, Until)
 LOOP_COST = 2
 """Ring und Schleife kosten zwei Bausteine: Schritt plus Rand oder Abbruchbedingung."""
 
@@ -114,6 +125,8 @@ def fits(program: Program, before: Observation, after: Observation, component: i
             return new < old
         case Copy(source):
             return new == before[source]
+        case Becomes(value):
+            return new == value
         case Cycle(by, modulus):
             return new == (old + by) % modulus
         case Until(by, sensor, value):
@@ -133,6 +146,8 @@ def predict(program: Program, before: Observation, component: int) -> int | None
             return old + by
         case Copy(source):
             return before[source]
+        case Becomes(value):
+            return value
         case Cycle(by, modulus):
             return (old + by) % modulus
         case Until(_, sensor, value) if before[sensor] == value:
@@ -154,6 +169,8 @@ def direction(program: Program, before: Observation, component: int) -> int:
             return -1
         case Copy(source):
             return _sign(before[source] - before[component])
+        case Becomes(value):
+            return _sign(value - before[component])
         case Until(by, sensor, value):
             return 0 if before[sensor] == value else _sign(by)
 
@@ -187,7 +204,7 @@ def can_change(leaf: Leaf, delta: int) -> bool:
             return delta > 0
         case Falls():
             return delta < 0
-        case Copy():
+        case Copy() | Becomes():
             return True
         case Cycle(by, modulus):
             return delta in (by, by - modulus, by + modulus)
@@ -222,6 +239,8 @@ def describe(program: Program | None) -> str:
             return "fällt"
         case Copy(source):
             return f"übernimmt G{source}"
+        case Becomes(value):
+            return f"wird {value}"
         case Cycle(by, modulus):
             return f"{by:+d} im Ring aus {modulus} Werten"
         case Until(by, sensor, value):

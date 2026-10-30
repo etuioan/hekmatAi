@@ -7,6 +7,10 @@ erkundet er: Er drückt die Taste, die er hier am seltensten probiert hat.
 Ab 0.17 kennt er mehr Bausteine (Übernehmen, Ring, Schleife) und sucht, wo keine Form passt,
 direkt in seinem Modell (`extended`, `search_model`; beide aus für den Stand von 0.16).
 
+Ab 0.18 kann er sich eigene Ziele setzen (`own_goals`, siehe `drives`): Weiß er für das Ziel
+der Welt keinen Weg, oder kennt er es noch nicht, hält er Bedürfnisse oben, jagt Rekorde und
+probiert unbekannte Tasten aus. Den Weg dahin plant er über Teilziele (`subgoals`).
+
 Mit einem `Detector` hält er mehrere Karten und erkennt, wann er in einer anderen Umgebung
 ist (H18). Eine neue Karte beginnt leer, ab 0.17 auch ohne das alte Ziel: In einer ganz
 anderen Welt führte das alte Ziel in die Irre (Ergebnis 21), und eine neue Welt ist eine neue
@@ -23,6 +27,7 @@ from enum import StrEnum
 from typing import Final
 
 from hekmatki.general.detector import Decision, Detector, Kind
+from hekmatki.general.drives import Drives
 from hekmatki.general.env import Observation, Transition
 from hekmatki.general.form import Form, find_form
 from hekmatki.general.knowledge import Knowledge, RuleBook
@@ -65,12 +70,14 @@ class GeneralAgent:
         detector: Detector | None = None,
         extended: bool = True,
         search_model: bool = True,
+        own_goals: bool = False,
     ) -> None:
         if actions < 1:
             raise ValueError("Der Agent braucht mindestens eine Taste.")
         self.actions, self.planning = actions, planning
         self.library, self.budget, self.detector = library, budget, detector
         self.extended, self.search_model = extended, search_model
+        self.drives = Drives(actions) if own_goals else None
         self.maps = [self._fresh_map()]
         self.current = 0
         self.events: list[MapEvent] = []
@@ -92,7 +99,8 @@ class GeneralAgent:
         """Die Form der Umgebung nach den verlässlichen Regeln der jetzigen Karte."""
         rules = self.knowledge.rules
         tolerance = 2.0 * rules.noise_floor() + NOISE_MARGIN
-        reliable = rules.programs(max_error_rate=tolerance)
+        # Ab 0.18 zählen gesperrte Schritte nicht als Ausnahme (siehe `blocked_moves`).
+        reliable = {**rules.blocked_moves(tolerance), **rules.programs(max_error_rate=tolerance)}
         exact = rules.programs(max_error_rate=0.0)
         return find_form(reliable, exact, self.actions, rules.width, set(rules.sensors()))
 
@@ -101,6 +109,8 @@ class GeneralAgent:
         self._tried.clear()
         for knowledge in self.maps:
             knowledge.forget_place()
+        if self.drives is not None:
+            self.drives.new_place()
 
     def begin(self, observation: Observation) -> None:
         """Beginn einer Runde."""
@@ -109,12 +119,17 @@ class GeneralAgent:
 
     def act(self, observation: Observation, rng: random.Random) -> int:
         """Wählt eine Taste."""
+        form = self.form()
         if self.planning is Planning.FORM:
-            choice = plan(self.form(), self.knowledge, observation, self.actions, self.search_model)
+            choice = plan(form, self.knowledge, observation, self.actions, self.search_model)
         else:
             choice = plan_greedy(self.knowledge, observation, self.actions, rng)
-        if choice is None or self._this_round[observation, choice] >= STUCK:
-            choice = self._explore(observation, rng)  # Kein Rat, oder der Rat führt im Kreis.
+        if choice is not None and self._this_round[observation, choice] >= STUCK:
+            choice = None  # Der Rat führt im Kreis.
+        if choice is None and self.drives is not None:
+            choice = self.drives.choose(self.knowledge, form, observation, rng)
+        if choice is None:
+            choice = self._explore(observation, rng)
         self._tried[observation, choice] += 1
         self._this_round[observation, choice] += 1
         return choice
@@ -122,6 +137,8 @@ class GeneralAgent:
     def learn(self, transition: Transition) -> None:
         """Lernt aus einem Schritt, nachdem er geprüft hat, ob die Karte noch gilt."""
         self.steps += 1
+        if self.drives is not None:
+            self.drives.observe(transition)
         if self.detector is None:
             self.knowledge.learn(transition)
             return

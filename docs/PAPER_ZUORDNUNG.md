@@ -1,11 +1,11 @@
 # Paper-Zuordnung: Welches Modul stützt sich auf welche Forschung?
 
-Stand: Prototyp 0.17, Dossier Runde 7 (29. Oktober 2026, 221 Paper).
+Stand: Prototyp 0.21, Dossier Runde 7 (29. Oktober 2026, 221 Paper) plus Paper zu 0.18 bis 0.21 (siehe unten).
 Dossier: https://claude.ai/artifact/Sghxz5AxhcHgCKY9dtGSM5, Abschnitt „Paper ↔ Prototyp“.
 
 **Regel:** Jede neue Version aktualisiert diese Datei. Ideen, die zuerst im Code entstehen,
 bekommen den Vermerk **ohne Grundlage**. Sie sind der Suchauftrag für die nächste Paper-Runde.
-P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers.
+P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers, H25–H28 neu mit 0.18, H29–H31 mit 0.19, H32–H34 mit 0.20, H35 mit 0.21 (siehe unten).
 
 ## Module und ihre Grundlagen
 
@@ -40,6 +40,12 @@ P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers.
 | `general/form.py`, `general/planner.py` | Form der Welt als Grammatik (Kette, Ring, Rutschbahn, Ordnung), Karte mit Bezugssystem; ohne Form Suche im gelernten Modell | Kemp & Tenenbaum 2008, Duvenaud 2013, Grosse 2012, Constantinescu 2016, Bellmund 2018, Aronov 2017; Runde 7: Mahadevan & Maggioni 2007, Stachenfeld 2017, Mark 2020 | P2, H19, H21 |
 | `general/knowledge.py` | Regelbuch und Ziel je Karte | Collins & Frank 2013 (Kontext-Karten), Gershman 2010 | P7 |
 | `general/detector.py`, `general/agent.py` | Neue Umgebung erkennen: erwartete gegen unerwartete Unsicherheit, ab 0.17 per Bayes-Faktor | Yu & Dayan 2002, Sanders 2020, Heald 2021 (COIN), Stahl & Feigenson 2015; Runde 7: Adams & MacKay 2007, Liakoni 2021, Wald 1945 (sequentieller Test), Kass & Raftery 1995 (Schwelle), Dawid 1984 (prequentielle Wertung); Fenster 20 und Wechselrate 1/1000 sind **ohne Grundlage** | P7, H18, H23 |
+| `general/causes.py` | Ursachen: unter welcher Bedingung eine Taste etwas bewirkt (ab 0.18) | Regeln lernen durch schrittweises Abdecken (Michalski 1969, CN2: Clark & Niblett 1989), Literal-Wahl nach gewichteter relativer Genauigkeit (Lavrač, Flach & Zupan 1999), Schema Networks 2017 (Bedingung → Wirkung); höchstens 3 Literale, 4 Ursachen, 2 Treffer, Genauigkeit 0,34 sind **ohne Grundlage** | P1, P4, H25 |
+| `general/subgoals.py` | Teilziele und Vorstellen mit Lücken (ab 0.18) | Mittel-Ziel-Analyse (Newell & Simon 1961), STRIPS (Fikes & Nilsson 1971), Optionen (Sutton, Precup, Singh 1999), Raum aus Sensomotorik (Philipona 2003, Laflaquière 2019); Tiefe 3, 200 vorgestellte Zustände und „seltene Ursache ab 5 %“ sind **ohne Grundlage** | P2, P5, H25, H26 |
+| `general/space.py` | Raum aus eigener Bewegung: welches Sichtfeld neben welchem liegt, eigene Stelle als Lücke, Gruppen nach Abstand (ab 0.19) | Philipona, O'Regan & Nadal 2003 (Raum aus Sensomotorik), Pierce & Kuipers 1997 (Karten aus uninterpretierten Sinnen und Tasten), Laflaquière & Garcia Ortiz 2019, Kruskal 1956 (stärkste Kanten zuerst), deiktische Darstellung (Agre & Chapman 1987); ab 0.20 Hindernisse aus eigener Bewegung und Fühler („vorne“): sensomotorische Kontingenzen (O'Regan & Noë 2001); Gegenstimme Finney, Gardiol, Kaelbling & Oates 2002; alle Schwellen (90 %, 80 %, 95 %, 20 Schritte, 6 Werte, 90 % Kasten, 3 Ringe, ab 0.20 5 Stöße und 80 % für ein Hindernis) sind **ohne Grundlage** | P2, H29, H34 |
+| `general/cues.py` | Gefahren als Hinweisreize: Schadensquote je Aussage mit Unsicherheit (ab 0.21) | Beta-Binomial-Angstlernen (Tzovara, Korn & Bach 2018); gelernter Schutz vor Katastrophen-Aktionen (Shperberg, Liu & Stone 2022); Gegenstimmen: Übergeneralisieren der Angst (Lissek u. a. 2005), Reize konkurrieren um die Vorhersage (Rescorla & Wagner 1972, hier nicht abgebildet); 95 % Sicherheit ist **ohne Grundlage** | P5, H35 |
+| `general/drives.py` | Eigene Ziele: Bedürfnisse, Rekorde, Versuche, Erkunden, Abwehr (ab 0.18) | Homöostase (Keramati & Gutkin 2014), intrinsisch motivierte Zielprozesse (Forestier, Portelas, Mollard, Oudeyer 2022; Oudeyer & Kaplan 2007), Zählen als Neugier (Strehl & Littman 2008, Bellemare 2016), Go-Explore (Ecoffet 2021), Vermeiden lernen (Mowrer 1947; ab 0.19 „gut ist, was die Gefahr beendet“, Gegenstimme Herrnstein 1969), Neugier auf Neues zum Anfassen (ab 0.19: Piaget 1952, Stahl & Feigenson 2015), Abwehr als Option (ab 0.20: Sutton, Precup & Singh 1999, Dabney, Ostrovski & Barreto 2021; wenige Antworten: Bolles 1970), neuer Besitz, neuer Versuch (ab 0.20: Gibson 1979, Şahin u. a. 2007), modellfrei neben modellbasiert (Daw, Niv & Dayan 2005), Schrumpfen zum Mittel (Efron & Morris 1975), Zahl und Ort als Kernsysteme (Spelke 2022, Dehaene 2011); Gegenstimmen siehe unten; fast alle Schwellen sind **ohne Grundlage** | P5, H27, H28, H30 bis H33 |
+| `adapters/crafter.py`, `experiments/crafter_run.py`, `experiments/crafter_replay.py` | Prüfstein Crafter, Adapter getrennt vom Agenten (ab 0.18) | Crafter (Hafner 2021), Wertung wie dort; MineRL/MineDojo erst später (Prüfung vom 29.10.2026) | G4 |
 | `experiments/` | Messung, ab 0.15 auch Schaden durch Vorwissen | Tastendrücke bis zum ersten Sieg; ARC-AGI-3 misst RHAE; negative Übertragung: Wang 2019; Vergleich Spielwelt–Alltagswelt: Runde 5 G4 | H11–H17 |
 
 ## Was aus der Architektur v0.3 noch fehlt
@@ -51,6 +57,129 @@ P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers.
 | Sprachorgan (LLM) | bewusst weggelassen | LILO; Tycho und Kepler zeigen, dass LLMs Weltmodelle als Code schreiben |
 | Lehrplan-Generator | fehlt | Absolute Zero, Oudeyer 2007, POET |
 | Kontext-Inferenz und Schlaf in der 2D-Welt | Kontext-Inferenz ab 0.16 im allgemeinen Agenten (`general/detector.py`), Schlaf fehlt | COIN, Bhattarai 2026; Runde 6: Sanders, Wilson, Gershman 2020, Yu & Dayan 2002 |
+
+## Umgesetzt in 0.21 (Gefahren mit Unsicherheit, H35)
+
+Abgeleitet aus Ergebnis 24 und einem Vorschlag aus der Auswertung des Active-Inference-Agenten:
+Die Quote war schon ein Beta-Mittel ((Treffer + 1) / (Fälle + 2)), aber die feste Schwelle von
+5 Treffern und das Abdecken über viele Literale verwarfen die Unsicherheit. Eine Prüfung auf 8
+Karten: Vor 255 Zombie-Treffern war er 113-mal in Abwehr, 109-mal galt eine falsche gelernte
+Lage (oft Gras), 33-mal kannte er keine.
+
+| Hypothese | Stand |
+|---|---|
+| H35: Eine Gefahr ist eine einzelne Aussage, deren Schadensquote mit Sicherheit über einer Schwelle liegt (Beta-Verteilung), statt einer Bedingung aus dem Abdecken mit fester Trefferzahl | **teilweise gestützt** (Ergebnis 25): Er lebt etwa 10 Schritte länger (bekannte Karten +12,8 ± 3,7, neue Karten +7,7 ± 4,2, Karte für Karte gegen 0.20). Keine Treffer mehr ohne bekannte Gefahr (vorher 33 von 255). Wertung nur innerhalb der Streuung besser (3,0 statt 2,7 % auf bekannten Karten, auf neuen gleich). Die Hälfte der Treffer kommt weiter ohne Abwehr, weil die gelernte Gefahr gerade nicht galt (oft kein Gitter, also keine Gruppe „nah bei mir“) |
+
+**Gegenstimmen und Warnungen zu 0.21:**
+- Lissek u. a. 2005 (Metaanalyse zur Angstkonditionierung bei Angststörungen): Wer Gefahr zu
+  leicht annimmt, verallgemeinert die Angst und meidet zu viel. Gegenprobe: Abwehr nimmt 7 %
+  seiner Schritte ein (0.20: 6 %), und die Wertung sinkt nicht.
+- Nesse 2005 (Rauchmelder-Prinzip): Ist die Abwehr billig und der Schaden teuer, sind viele
+  Fehlalarme richtig. Das spricht für eine niedrige Schwelle; wie billig die Abwehr hier ist,
+  misst er nicht, darum bleibt die Schwelle fest.
+- Rescorla & Wagner 1972, Kamin 1969 (Blockieren): Reize teilen sich die Vorhersage; wer jeden
+  Reiz einzeln zählt, hält auch Begleiter der Gefahr für gefährlich (vereinzelte
+  Zufallstreffer wie „eine Werkbank fünf Felder entfernt“). Nicht abgebildet.
+
+**Ohne Grundlage (neu in 0.21):** 95 % Sicherheit (`CONFIDENCE`); die Schwelle 15 %
+(`DANGER`) gab es schon.
+
+## Umgesetzt in 0.20 (Überleben und Wege, H32 bis H34)
+
+Abgeleitet aus Ergebnis 23: Er starb so früh wie der Zufall, als beste Abwehr stand oft eine
+Taste ohne Wirkung, und auf dem Weg zum Wasser lief er in 55 % der Schritte gegen etwas.
+
+| Hypothese | Stand |
+|---|---|
+| H32: Abwehr als Option (bei einer Antwort bleiben, bis die Gefahr vorbei ist; als Ganzes abrechnen), mit wenigen Antworten | **teilweise gestützt** (Ergebnis 24): Er besiegt Zombies in 8 % der Runden statt 2 bis 3 % (0.19, zwei Messungen). Er lebt aber nicht länger (171 statt 175 Schritte): 7 von 10 Zombie-Treffern kommen ohne Abwehr in den drei Schritten davor, weil er die Gefahr nicht erkennt. Die Option hilft also, wo die Gefahr erkannt ist; das Erkennen ist die Lücke |
+| H33: Neuer Besitz, neuer Versuch (Versuche zählen je nach dem, was er bei sich hat) | **offen**: Nur zusammen mit dem Ort-Fehler gemessen; zusammen stiegen die Erfolge je Runde von 2,4 auf 2,9. Werkbank und Werkzeug wurden dabei nicht häufiger |
+| H34: Hindernisse aus eigener Bewegung, Wege um sie herum, „vorne“ als Fühler | **gestützt für die Wege**: Anteil der Schritte gegen ein Hindernis beim Trinken von 55 auf etwa 35 %, Trinken in 43 statt 32 bis 38 % der Runden. Gesamt (alle drei): Wertung 2,7 statt 2,5 %, je Startwert 2,24 ± 0,11 gegen 1,9 bis 2,0 %, 3,0 statt 2,4 bis 2,6 Erfolge je Runde. Werkbank seltener (9 statt 14 bis 21 %), Ursache offen |
+
+**Gegenstimmen und Warnungen zu 0.20:**
+- Bolles 1970 (artspezifische Abwehrreaktionen): Vermeiden lernen Tiere leicht nur, wenn die
+  verlangte Antwort zu Flucht, Erstarren oder Kampf gehört; eine beliebige Antwort lernen sie
+  kaum. Das spricht gegen „jede Taste ist eine Antwort“ (0.19) und für eine kleine Auswahl,
+  aber auch dagegen, dass ein Agent ohne solche angeborenen Antworten sie schnell findet. Hier
+  ist die Auswahl (hin, weg, quer, Taste daran) eine Annahme, keine gelernte.
+- Harb, Bacon, Klissarov & Precup 2018 (Abwägungskosten bei Optionen): Zu lange Optionen
+  verlieren Reaktionsfähigkeit, zu kurze bringen nichts. Darum bricht die Option ab, sobald
+  die Gefahr nicht mehr gilt, und dauert höchstens 8 Schritte (ohne Grundlage).
+- Eigener Gegenversuch: Gesundheit sinkt auch bei leerem Bedürfnis. Solche Fälle aus dem
+  Lernen der Gefahren herauszunehmen, ließ zu wenige Fälle übrig, und die gelernten Gefahren
+  wurden schlechter. Nicht übernommen.
+
+**Ohne Grundlage (neu in 0.20), Suchauftrag für Runde 8:**
+- Abwehr: Option und Schadensfenster 8 Schritte (`HARM_WINDOW`).
+- Hindernis: ab 5 gescheiterten Schritten (`MIN_BLOCKED`) und 80 % gescheitert (`BLOCKING`).
+- Neuer Besitz: nur „über 0 oder nicht“, nicht wie viel.
+
+## Umgesetzt in 0.19 (Raum aus eigener Bewegung, H29 bis H31)
+
+Abgeleitet aus Ergebnis 22: Gefahren und Ursachen hingen an einzelnen Feldern der Sicht.
+
+| Hypothese | Stand |
+|---|---|
+| H29: Raum aus eigener Bewegung (welches Sichtfeld neben welchem liegt, die eigene Stelle als Lücke) macht Bedingungen unabhängig von der Seite | **gestützt für den Raum, teilweise für die Bedingungen** (Ergebnis 23): Nach 10 Runden hat er auf 10 bis 11 von 16 Karten ein Gitter mit eigener Stelle, fast immer alle 62 Felder richtig; in etwa jedem zehnten Fall ist ein Block um ein Feld verschoben. Gefahren als Gruppe („Zombie irgendwo im Abstand ≤ 3“) auf 2 von 8 geprüften Karten. Wertung 2,5 statt 2,0 % (0.18), je Startwert 1,92 ± 0,13 gegen 1,49 ± 0,16 %; Holz 59 statt 39 %, Werkbank 21 statt 8 % |
+| H30: Abwehr mit Richtung (hin, weg, quer, Taste an der Gefahr), gut ist, was die Gefahr beendet | **nicht gestützt**: Er stirbt so früh wie vorher (175 Schritte). Als beste Antwort steht oft eine Taste ohne Wirkung; Zombies laufen nach. Beim Prüfen der Einzeländerungen verdreifachte „Taste an der Gefahr“ die besiegten Zombies (5 bis 6 statt 2 %), in der Endmessung waren es 2 % |
+| H31: Neugier auf Sichtfelder (hingehen, um Neues anzufassen) | **offen**: Teil des Pakets, das Holz, Werkbank und Werkzeug häufiger macht; einzeln ohne messbaren Unterschied (innerhalb der Streuung) |
+
+**Gegenstimmen und Warnungen zu 0.19:**
+- Finney, Gardiol, Kaelbling & Oates 2002 („The thing that we tried didn't work very well:
+  deictic representation in reinforcement learning“): Eine Sicht „vom Agenten aus“ macht
+  Lagen ununterscheidbar, die verschieden behandelt werden müssen, und kann das Lernen
+  verschlechtern. Darum ersetzen die Gruppen hier die einzelnen Felder nicht, sondern kommen
+  als weitere Literale dazu; das Abdecken wählt.
+- Herrnstein 1969: Vermeiden wird nicht (nur) dadurch belohnt, dass die Gefahr endet,
+  sondern dadurch, dass weniger Schaden folgt. Darum zählt hier beides: Schaden und ob die
+  Gefahr noch da ist.
+- Eigene Beobachtung: Im Gras passt beim Zählen „hat i den Wert von j“ fast alles. Die
+  Arbeiten zum Raum aus Sensomotorik (Philipona 2003, Laflaquière 2019) nutzen reiche,
+  veränderliche Eindrücke; erst das Zählen nur bei Änderungen trennt hier Nachbarn von
+  Zufallstreffern.
+
+**Ohne Grundlage (neu in 0.19), Suchauftrag für Runde 8:**
+- Raum: Nachbar ab 90 % (`FLOW_SHARE`), bei Änderungen 80 % (`CHANGE_SHARE`, ab 4
+  Änderungen), Abstand 0,01 zum Zweitbesten, Ort bei 95 % gleichem Schritt nach 20 % der
+  Drücke und 6 Werten, 20 echte Schritte, 4 Verschiebungen je Taste, 90 % des Kastens,
+  dreimal zurechtrücken, Gruppen bis Abstand 3, Neubau alle 100 Schritte.
+- Abwehr: Die Gefahr, die nach 5 Schritten noch da ist, kostet so viel wie 1 Schaden.
+- Neugier: 5 Versuche je Taste und Wert.
+
+## Umgesetzt in 0.18 (eigene Ziele und Crafter, H25 bis H28)
+
+Neue Hypothesen, abgeleitet aus der Crafter-Prüfung vom 29. Oktober 2026 (dort hieß der
+Vorschlag „Nacht als Kontext“ noch H27; er ist verschoben):
+
+| Hypothese | Stand |
+|---|---|
+| H25: Ziele und Teilziele aus gelernten Ursachen (Mittel-Ziel-Analyse über Bedingungen, die der Agent selbst findet) | **gestützt in der Testwelt, teilweise in Crafter** (Ergebnis 22): Er lernt etwa „Holz steigt nach Taste X, wenn vorne ein Baum ist“ (32 von 32 auf der Seite) und „Holzspitzhacke steigt, wenn vorne eine Werkbank ist und Holz ≥ 1“, und sammelt Holz öfter (39 statt 25 %), Werkbank und Werkzeug nur wenig öfter (8 statt 5 %, je 2 statt 1 %). Viele Ursachen bleiben übergenau (zufällige Nebenfelder als Literal); längere Ketten (Stein-, Eisenwerkzeug) schafft er nicht |
+| H26: Ein mitwanderndes Sichtfeld als „übernimmt den Nachbarn“, Planen mit Lücken | **teilweise**: Mit Rauschen (Tiere) braucht Übernehmen eine Toleranz; die strenge Fassung lässt viele Sichtfelder ohne Regel. Raum (welches Feld neben welchem) folgt daraus noch nicht |
+| H27: Eigene Ziele (Bedürfnisse, Rekorde, Versuche) bringen ohne äußere Belohnung voran | **teilweise** (Ergebnis 22, 16 Startwerte): Was er sich vornimmt, schafft er öfter (Trinken 27 statt 8 %, Holz 39 statt 28 % gegen 0.17), in der Wertung aber nur 2,0 statt 1,6 %, je Startwert innerhalb der Streuung, weil er leichte Zufallserfolge verliert. In der Testwelt „Quelle“ hebt er einen Vorrat, den ihm niemand als Ziel nennt (Test). Gegenstimme bestätigt: Neugier allein bleibt in Crafter bei etwa 2 % (Hafner 2021, Plan2Explore, RND) |
+| H28: Gefahren lernen und meiden | **nicht gestützt**: Er stirbt so früh wie Zufall (etwa 170 Schritte). Gefahren hängen an einzelnen Feldern; Flucht hilft nicht, weil Zombies hinterherlaufen |
+
+**Gegenstimmen und Warnungen zu 0.18:**
+- Burda u. a. 2019 (Neugier im großen Maßstab): Neugier allein scheitert an Zufall im Bild
+  („rauschender Fernseher“). Unsere Neugier ist Zählen, nicht Vorhersagefehler; bei Tieren im
+  Bild bleibt das Risiko.
+- Sutton 2019 („The Bitter Lesson“): Von Hand gebaute Antriebe skalieren schlechter als
+  allgemeine Lernverfahren. Die Antriebe hier sind allgemein (keine Spielnamen), aber ihre
+  Reihenfolge ist von Hand.
+- Pyke 2015: Die Lévy-Hypothese bei Tieren ist umstritten. Wir nutzen nur gerade Strecken
+  zufälliger Länge, ohne Anspruch auf Optimalität.
+- Hafner 2021: Erfolge in Crafter hängen am Überleben; ohne Abwehr bleibt jede Wertung klein.
+
+**Ohne Grundlage (neu in 0.18), Suchauftrag für Runde 8:**
+- Ursachen: höchstens 3 Literale (`MAX_LITERALS`), 4 Ursachen (`MAX_CAUSES`), mindestens
+  2 Treffer (`MIN_HITS`), Genauigkeit 0,34 (`MIN_PRECISION`), seltene Ursache ab 5 % (`WEAK`),
+  Gedächtnis 400 Schritte je Taste, Neulernen alle 100 bzw. 250 Schritte.
+- Teilziele: Tiefe 3, drei Ursachen je Teilziel, 200 vorgestellte Zustände.
+- Eigene Ziele: dringend ab der Hälfte, Pflege ab 90 %, 60 Schritte Geduld, „sinkt nach 75 %
+  der Tasten“ = Bedürfnis, „nach 50 %“ = Schaden, Mengen ändern sich in 80 % der Fälle um 1,
+  Schaden in 5 Schritten, Gefahr ab 15 % und 5 Treffern, Taste meiden ab 50 %, 3 gedachte
+  Fälle beim Schrumpfen, Strecken von 4 bis 12 Schritten, 15 % Neugier beim Erkunden.
+- Synthese: Übernehmen trotz Rauschen ab 90 % von 10 Wechseln; Regeln mit Ausnahmen nach 200
+  Schritten neu suchen.
+- Die Reihenfolge der Antriebe (Abwehr, Bedürfnis, Ziel, Versuch, Rekord, Pflege, Erkunden).
 
 ## Umgesetzt in 0.17 (Test von H21 bis H24 nach Runde 7)
 

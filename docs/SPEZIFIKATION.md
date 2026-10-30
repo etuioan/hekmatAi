@@ -1,4 +1,4 @@
-# HekmatKI Prototyp 0.17: Schema-Stapel, Weltmodell und ein allgemeiner Agent für fremde Welten
+# HekmatKI Prototyp 0.19: Schema-Stapel, Weltmodell und ein allgemeiner Agent für fremde Welten
 
 Dieser Prototyp prüft zwei Hypothesen aus dem Forschungsdossier, mit möglichst wenig Code:
 
@@ -237,7 +237,7 @@ Neue Kontexte starten aus allen Schemata zugleich (`schemas_or_flat_model`): Vor
 
 **Experiment Kontexterkennung.** In drei Welten (Pendeln wie H12; Lampen mit Arzt, U-Bahn, Gate; Lampen mit drei Wartesituationen und drei Gesprächen) wird gezählt, welcher Anteil der Übergänge im richtigen Kontext landet. Weil der Agent die wahren Situationen nicht kennt, bekommt jede Situation höchstens einen Kontext und umgekehrt, gierig nach Häufigkeit. 20 Zufallsstarts, Blöcke à 150 Schritte.
 
-## 9. Der allgemeine Agent (ab 0.16, erweitert in 0.17)
+## 9. Der allgemeine Agent (ab 0.16, erweitert in 0.17 bis 0.21)
 
 Paket `general/`. Ein Agent, der keine Welt kennt. Er sieht nur ein Tupel ganzer Zahlen und
 wählt eine Taste aus `0 … n−1`. Jede Welt mischt Reihenfolge der Größen und Tasten neu
@@ -364,6 +364,150 @@ gilt, alle zurückgehaltenen Schritte mit Regeln, Orten und Ziel.
 (Ergebnis 21, H23); `library_transfer.py` hat die Bedingung „ohne Vorprüfung“ (H24),
 `new_world.py` den Umgang „Bayes-Faktor“.
 
+### 9.2 Neu in 0.18: eigene Ziele und Crafter (H25 bis H28)
+
+**Baustein „wird v“** (`programs.Becomes`): Die Größe bekommt den Wert v, egal welchen sie
+hatte. Vorgeschlagen nur, wenn jeder Wechsel bei demselben Wert endete, von mindestens zwei
+Werten aus. **Übernehmen trotz Rauschen** (`synthesis._sources`): Stimmt eine Quelle bei 90 %
+von mindestens 10 Wechseln, und hatte die Größe in 90 % der Schritte einen Wert, den die
+Quelle auch zeigte, kommt `Copy` in Frage (ein Tier läuft durchs Bild). **Gesperrte Schritte**
+(`RuleBook.blocked_moves`): Eine Bewegung, die nur danebenliegt, weil die Größe blieb (gegen
+einen Baum gelaufen), zählt für die Form als verlässlich. Regeln mit Ausnahmen sucht er nach
+200 neuen Schritten der Taste neu (`REFRESH`).
+
+**Ursachen** (`causes.py`, H25): Für jedes Ereignis (Größe steigt, sinkt, wird v) und jede
+Taste lernt er Bedingungen aus Literalen `Gi = v` und `Gi ≥ v`: schrittweises Abdecken, je
+Literal das mit der besten gewichteten relativen Genauigkeit (Lavrač 1999), höchstens drei
+Literale und vier Ursachen. Eine Ursache zählt ab zwei Treffern und einer Genauigkeit von
+0,34 (Laplace). Für Ereignisse, die die Welt bewirkt (ein Angriff), dieselbe Suche über alle
+Tasten zusammen (`conditions`). Rechnet mit Bitmengen.
+
+**Teilziele** (`subgoals.py`, H25, H26): Er stellt sich vor, was eine Taste bewirkt; was er
+nicht vorhersagen kann, wird „unbekannt“ und erfüllt kein Literal. Breitensuche (höchstens
+200 Zustände) zu einem Zustand, in dem das Ziel gilt, oder in dem eine Ursache bereit ist.
+Sonst macht er die fehlenden Literale der ersten drei Ursachen zu Teilzielen, bis Tiefe 3.
+Gibt es keine verlässliche Ursache, nimmt er auch seltene (ab 5 %).
+
+**Eigene Ziele** (`drives.py`, H27, H28), eingeschaltet mit `GeneralAgent(own_goals=True)`.
+Reihenfolge je Schritt:
+1. *Abwehr:* Gilt eine gefährliche Lage (danach sank Gesundheit oft, egal nach welcher
+   Taste), die Taste mit dem kleinsten gelernten Schaden in den nächsten 5 Schritten
+   (geschrumpft zum Mittel über alle Lagen), bei Gleichstand die, nach der er sich außer
+   Gefahr denkt.
+2. *Bedürfnis:* Eine Menge, die nach fast jeder Taste schon sank, ist auf die Hälfte gefallen.
+3. *Ziel:* das Ziel von eben, höchstens 60 Schritte.
+4. *Versuch:* eine Taste an einem Wert, den er mit ihr noch nie sah.
+5. *Rekord:* eine Menge höher bringen als je zuvor an diesem Ort.
+6. *Pflege:* ein Bedürfnis schon unter 90 % heben.
+7. *Erkunden:* auf der Karte seiner Form geradeaus in eine Richtung (4 bis 12 Schritte), ab
+   und zu die am seltensten probierte Taste.
+Weiß er für ein Ziel keinen Weg, geht er dorthin zurück, wo die Größe zuletzt stieg. Tasten,
+nach denen hier meist Gesundheit sank, nimmt er nie. Mengen sind Größen ohne `Copy`- oder
+`Becomes`-Regel, keine Achse, die sich in 80 % der Fälle um genau 1 ändern.
+
+**Crafter** (`adapters/crafter.py`, `experiments/crafter_run.py`, `crafter_replay.py`): siehe
+[CRAFTER.md](CRAFTER.md). Der Agent importiert nie etwas aus `adapters`.
+
+### 9.3 Neu in 0.19: Raum aus eigener Bewegung (H29 bis H31)
+
+**Ort** (`space.Space._find_walkers`): Für jede Taste die Größe, die sich bei ihr in
+mindestens 95 % ihrer Änderungen um denselben Schritt ±1 ändert, nach mindestens 20 % der
+Drücke, und die schon mindestens 6 verschiedene Werte hatte (eine Blickrichtung hat weniger).
+Ändert sie sich, ist er wirklich gegangen. Zwei Tasten mit derselben Größe und
+entgegengesetztem Schritt sind Gegenrichtungen; ihre Belege zählen zusammen.
+
+**Verschiebungen** (`Space._edges`): Nach jedem echten Schritt zählt er für jede Größe i und
+jede Größe j, ob i jetzt den alten Wert von j hat, einmal über alle Schritte und einmal nur
+über die, nach denen sich i änderte. Eine Verschiebung „j nach i“ gilt ab 20 echten Schritten
+in beide Richtungen, wenn j in 90 % der Schritte passt, öfter als jede andere Größe, und bei
+den Änderungen in 80 % (in beiden Richtungen: Ein Feld wie „vorne“ übernimmt beim Gehen
+einen Nachbarn, gibt ihn in der Gegenrichtung aber nicht zurück). Eine Taste verschiebt den
+Blick, wenn sie einen Ort hat und mindestens 4 Verschiebungen. Sicherheit einer Verschiebung:
+Anteil der passenden Änderungen in beiden Richtungen, geglättet nach Laplace.
+
+**Gitter** (`space.build`): Jede Ortsgröße ist eine Achse, jede Taste ein Schritt auf ihr. Die
+sichersten Verschiebungen zuerst; eine, die nicht zum schon Gebauten passt oder zwei Felder
+auf eine Stelle legen würde, fällt weg (Kruskal 1956). Danach rückt er bis zu dreimal jedes
+Feld an die Stelle, für die die Mehrheit seiner Verschiebungen spricht, wenn sie frei ist.
+Es bleibt das größte Stück, darin nur Felder mit mindestens zwei passenden Verschiebungen.
+Alle 100 Schritte baut er neu; ein Gitter mit eigener Stelle ersetzt er nur durch ein
+anderes mit eigener Stelle.
+
+**Eigene Stelle** (`space._gap`): Kennt er mindestens 90 % des umgebenden Kastens, ist seine
+Stelle die einzige freie im Inneren, und alle ihre Nachbarn sind Felder. Am Rand darf etwas
+fehlen. Von ihr aus misst er Abstände (Summe der Beträge). Gruppen: alle Felder im Abstand
+≤ 1, ≤ 2, ≤ 3.
+
+**Gruppen in Ursachen** (`causes.Literal.some`, H29): Ein Literal „irgendein Feld der Gruppe
+hat den Wert v“ (`Kind.SOME`). Gefahren (`conditions`) nutzen es, die Ursachen einer Taste
+noch nicht. Als Teilziel geht er hin (`Layout.fetch`): Breitensuche über die Verschiebungen,
+bis der Wert, den er irgendwo sieht, im Zielfeld oder in einem Feld der Gruppe steht.
+
+**Abwehr mit Richtung** (`drives`, H30): Antworten auf eine Gefahr sind jetzt „hin“, „weg“
+oder „quer“ zur nächsten Gefahr (`Layout.relation`), oder „Taste a an der Gefahr“, wenn eine
+Taste mit Wirkung gerade auf eine Gefahr zeigt (ein Feld, von dem ihre Ursachen abhängen,
+hat den Wert der Gefahr), sonst „Taste a“. Kosten einer Antwort: Schaden in den nächsten
+5 Schritten, dazu 1, wenn die Gefahr danach noch da ist (Mowrer 1947).
+
+**Neugier auf Sichtfelder** (`drives._curious`, H31), nur mit eigener Stelle: Hängt eine
+Taste mit Wirkung von einer Größe außerhalb des Gitters ab (etwa „vorne“; ohne Ort und
+Körper), und sieht er im Gitter einen Wert, den diese Größe bei der Taste noch nicht 5-mal
+hatte, macht er „Größe = Wert“ zum Ziel, das Nächste zuerst. Reihenfolge der Antriebe jetzt: Abwehr, Bedürfnis, Ziel, Versuch,
+Neugier, Rekord, Pflege, Erkunden. Versuche wiederholt er bis zu 5-mal (manches wirkt erst
+nach mehreren Schlägen), bei unbekannten Tasten und Körpergrößen einmal. Der Ort zählt nicht
+zum Körper.
+
+### 9.4 Neu in 0.20: Überleben und Wege (H32 bis H34)
+
+**Abwehr als Option** (`drives.Guard`, `Drives._hold`, H32): Hat er eine Antwort auf eine
+Gefahr gewählt, bleibt er dabei, bis die Gefahr nicht mehr gilt oder `HARM_WINDOW` = 8
+Schritte um sind (Option mit Abbruchbedingung: Sutton, Precup & Singh 1999; zeitlich
+ausgedehntes Ausprobieren: Dabney, Ostrovski & Barreto 2021). Die Taste dafür sucht er in
+jedem Schritt neu (`_realize`): „hin“ ist nach einem Schritt eine andere Taste, wenn der
+Gegner mitläuft. Abgerechnet wird die ganze Option: Schaden in den 8 Schritten, dazu 1, wenn
+die Gefahr danach noch gilt. Weiß er, wo die Gefahr ist, hat er nur wenige Antworten
+(`_options`): hin, weg, quer, und „Taste a daran“ für jede Taste, an deren Wirkungsfeld schon
+einmal der Wert der Gefahr stand; dafür geht er erst hin und drückt dann (Bolles 1970). Sonst
+ist jede Taste eine Antwort.
+
+**Neuer Besitz, neuer Versuch** (`Drives._carried`, H33): Versuche und Neugier zählen je
+Taste, Wert und dem, was er gerade bei sich hat: Größen, die er besitzt und die keine
+Bedürfnisse sind, jeweils nur, ob sie über 0 sind. Mit Holz in der Tasche ist dieselbe Lage
+wieder neu (Gibson 1979; Şahin u. a. 2007: was eine Lage bietet, hängt vom Handelnden ab).
+
+**Ort nur, wo es zurückgeht** (`Space._find_walkers`): Eine Größe ist nur dann Ort, wenn eine
+andere Taste sie um den Gegenschritt ändert. Bis 0.19 galt ein Vorrat, der beim Schöpfen um 1
+steigt, als Ort; dann zählte er nicht zum Körper und wurde nie ein Bedürfnis.
+
+**Hindernisse aus eigener Bewegung** (`Space._bump`, `Space._obstacles`, H34): Nach jeder Taste
+mit Schritt sieht er nach, welcher Wert im Feld in Schrittrichtung stand und ob er wirklich
+ging. Ein Wert ist ein Hindernis ab 5 gescheiterten Schritten, wenn mindestens 80 % der
+Schritte auf ihn scheiterten. Hingehen (`Layout.fetch`, `walk`): Breitensuche über die freien
+Felder seines Gitters zur nächsten Stelle, an der das Gesuchte direkt neben ihm wäre. Zu
+einem gemerkten Ort außer Sicht (`Layout.head`) nimmt er den freien Weg zu dem Feld, das dem
+Ort am nächsten liegt. Teilziele (`subgoals._achieve`): Fehlt einer Ursache nur ein Literal
+und sieht er, was fehlt, geht er hin.
+
+**Fühler** (`space._mirrors`): Eine Verschiebung, die nur in eine Richtung passt (das Feld
+„vorne“ übernimmt beim Gehen den Nachbarn, gibt ihn in der Gegenrichtung aber nicht zurück),
+sagt: Diese Größe zeigt das Nachbarfeld in Gehrichtung. Steht der gesuchte Wert in einem
+Nachbarfeld, nimmt er die Taste in diese Richtung (in Crafter dreht ihn das zum Baum, ohne
+dass er geht). Was ein Sinn meldet, folgt aus dem, was beim Bewegen passiert (O'Regan & Noë
+2001).
+
+### 9.5 Neu in 0.21: Gefahren mit Unsicherheit (H35)
+
+**Hinweisreize** (`cues.Cues`): Nach jedem Schritt zählt er für jedes Literal, das vorher galt
+(jede Größe mit ihrem Wert, jede Gruppe aus `space` mit jedem Wert darin), dass es galt, und
+für jede Größe, die sank, dass sie danach sank. Gefahren (`drives.dangers`) sind die Literale
+über das, was er sieht (nicht Körper, nicht Ort), nach denen eine Größe wie Gesundheit
+mindestens zweimal sank und deren Schadensquote mit 95 % Sicherheit (`CONFIDENCE`) über
+`DANGER` = 15 % liegt. Die Quote ist Beta(Treffer + 1, Fälle − Treffer + 1)-verteilt
+(Tzovara, Korn & Bach 2018); P(Quote > p) rechnet er genau als Binomial-Summe. Die
+gefährlichste zuerst (höchster Mittelwert). Jede Gefahr ist ein einzelnes Literal; die
+Abwehr (9.4) bleibt gleich. Das Abdecken über alle Tasten (`CauseBook.conditions`) ist
+entfernt.
+
 ## 10. Qualitätsregeln für den Code
 
 - Lesbarkeit und Einfachheit vor Cleverness (KISS, Zen of Python).
@@ -375,6 +519,36 @@ gilt, alle zurückgehaltenen Schritte mit Regeln, Orten und Ziel.
 - Bezeichner auf Englisch (Python-Konvention), Dokumentation und Ausgaben auf Deutsch.
 
 ## 11. Änderungen
+
+### Version 0.21
+
+- Gefahren als Hinweisreize mit Unsicherheit (`cues.py`, Abschnitt 9.5).
+- Crafter-Messung mit „Stand 0.21“ und Gegenprobe auf 16 neuen Karten.
+- Ohne `own_goals` gleiche Ausgabe wie 0.20.
+
+### Version 0.20
+
+- Abwehr als Option, neuer Besitz, neuer Versuch, Ort nur mit Gegenschritt, Hindernisse aus
+  eigener Bewegung, Wege um sie herum, Fühler (Abschnitt 9.4).
+- Crafter-Messung mit „Stand 0.20“; die Zeilen von 0.18 und 0.19 kommen aus der gespeicherten
+  Messung.
+- Ohne `own_goals` gleiche Ausgabe wie 0.19 (Ergebnisse 17 bis 21 Zeichen für Zeichen).
+
+### Version 0.19
+
+- Raum aus eigener Bewegung (`space.py`), Gruppen in Ursachen, Hingehen, Abwehr mit
+  Richtung, Neugier auf Sichtfelder (Abschnitt 9.3).
+- Crafter-Messung mit „Stand 0.19“; die Zeilen von 0.18 kommen aus der gespeicherten Messung.
+- Ohne `own_goals` gleiche Ausgabe wie 0.18 (Ergebnisse 17 bis 21 Zeichen für Zeichen).
+
+### Version 0.18
+
+- Eigene Ziele (`drives.py`), Ursachen (`causes.py`), Teilziele (`subgoals.py`), Baustein
+  „wird v“, Übernehmen trotz Rauschen, gesperrte Schritte (Abschnitt 9.2).
+- Crafter-Adapter in einem eigenen Paket `hekmatki.adapters`, Messung und Seite
+  (Ergebnis 22). Zusatzpaket `crafter`, der Kern bleibt bei der Standardbibliothek.
+- Ohne `own_goals` verhält sich der Agent fast wie in 0.17; die gemeinsamen Änderungen
+  verschieben einzelne Zahlen in Ergebnis 17 bis 21 leicht (siehe README).
 
 ### Version 0.17
 

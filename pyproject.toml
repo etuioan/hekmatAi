@@ -4,13 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hekmatki"
-version = "0.17.0"
+version = "0.21.0"
 description = "HekmatKI Prototyp: Schema-Stapel, Kontextwechsel, 2D-Welt wie ARC-AGI-3 und ein Weltmodell über Rollen"
 requires-python = ">=3.12"
 dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "mypy>=1.10", "ruff>=0.5"]
+crafter = ["crafter>=1.8", "numba>=0.60"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
@@ -20,6 +21,10 @@ testpaths = ["tests"]
 strict = true
 mypy_path = "src"
 files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+module = ["crafter", "numpy"]
+ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 100
