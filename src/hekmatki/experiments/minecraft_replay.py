@@ -13,7 +13,7 @@ Aufruf:
 import argparse
 import json
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
 
 TEMPLATE: Final = Path(__file__).with_name("minecraft_replay_template.html")
 PLACEHOLDER: Final = "/*MINECRAFT_DATA*/null"
@@ -21,16 +21,28 @@ PLACEHOLDER: Final = "/*MINECRAFT_DATA*/null"
 
 def build_page(replays: list[Path], report: str) -> str:
     """Die Seite mit den Wiedergaben und dem Bericht der Messung."""
-    data = {
-        "replays": [json.loads(path.read_text(encoding="utf-8")) for path in replays],
-        "report": report,
-    }
+    palette: dict[str, int] = {}
+    loaded = [json.loads(path.read_text(encoding="utf-8")) for path in replays]
+    for replay in loaded:
+        for scene in replay["scenes"]:
+            scene["columns"] = compact(scene["columns"], palette)
+    data = {"replays": loaded, "palette": list(palette), "report": report}
     template = TEMPLATE.read_text(encoding="utf-8")
     if PLACEHOLDER not in template:
         raise ValueError(f"Platzhalter {PLACEHOLDER} fehlt in {TEMPLATE.name}.")
     # "</" würde den <script>-Block beenden.
     payload = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
     return template.replace(PLACEHOLDER, payload)
+
+
+def compact(columns: list[list[list[Any]]], palette: dict[str, int]) -> list[int]:
+    """Die Landschaft als flache Zahlenreihe (Name als Nummer in `palette`, Höhe), damit die
+    Seite klein bleibt: je Spalte zwei Zahlen statt eines Namens."""
+    flat: list[int] = []
+    for row in columns:
+        for name, height in row:
+            flat += [palette.setdefault(str(name), len(palette)), int(height)]
+    return flat
 
 
 def main() -> None:

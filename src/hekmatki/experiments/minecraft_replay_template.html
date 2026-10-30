@@ -154,12 +154,14 @@ function pickReplay (i) {
 
 function draw () {
   const scene = replay.scenes[index];
-  const size = scene.columns.length, cell = canvas.width / size, half = Math.floor(size / 2);
+  const size = Math.round(Math.sqrt(scene.columns.length / 2)), cell = canvas.width / size, half = Math.floor(size / 2);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  scene.columns.forEach((row, z) => row.forEach(([name, dy], x) => {
+  for (let i = 0; i < size * size; i++) {
+    const name = DATA.palette[scene.columns[2 * i]], dy = scene.columns[2 * i + 1];
+    const x = i % size, z = Math.floor(i / size);
     ctx.fillStyle = name === '?' ? '#111' : shade(blockColor(name), dy);
     ctx.fillRect(x * cell, z * cell, cell + 0.5, cell + 0.5);
-  }));
+  }
   for (const [name, dx, dz] of scene.entities) {
     ctx.fillStyle = ENTITY_COLORS[name] || '#d04040';
     ctx.strokeStyle = '#000';

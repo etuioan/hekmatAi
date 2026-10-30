@@ -26,6 +26,7 @@ const { Vec3 } = require('vec3')
 const VIEW = 5 // Breite und Tiefe des Würfels um die Figur
 const LAYERS = [-1, 0, 1] // unter den Füßen, Füße, Kopf
 const REACH = 4.5 // so weit reicht ein Spieler im Überlebensmodus
+const START_ATTEMPTS = 8 // so oft sucht `reset` einen Startplatz an Land mit Bäumen
 const SCENE = 15 // Breite des Ausschnitts für die Wiedergabe (nur für die Seite)
 const MOVE_TICKS = 5 // ein Schritt Laufen: 5 Spielticks, etwa ein Block
 const DIG_TIMEOUT_MS = 10000
@@ -136,35 +137,60 @@ class Player {
     this.progress = new Progress()
     this.dead = false
     bot._client.on('advancements', packet => this.progress.update(packet))
+    // Tod erkennen: Mineflayers „death“ kommt nicht immer (sofortiges Wiedererscheinen),
+    // deshalb zählt auch jedes neue Erscheinen nach dem Rundenbeginn und Leben 0.
+    this.playing = false
     bot.on('death', () => { this.dead = true })
+    bot.on('spawn', () => { if (this.playing) this.dead = true })
   }
 
   async reset (seed, record) {
-    const random = mulberry32(seed)
-    const x = Math.floor((random() - 0.5) * 20000)
-    const z = Math.floor((random() - 0.5) * 20000)
+    this.playing = false
     const name = this.bot.username
     for (const command of [
       `/clear ${name}`,
       `/effect clear ${name}`,
       `/advancement revoke ${name} everything`,
       `/xp set ${name} 0 levels`,
-      '/time set day',
-      `/spreadplayers ${x} ${z} 0 50 false ${name}`,
-      `/effect give ${name} instant_health 1 10`,
-      `/effect give ${name} saturation 1 20`
-    ]) {
-      this.bot.chat(command)
-      await this.ticks(2)
-    }
-    await this.ticks(40) // bis die Chunks am neuen Ort da sind
-    await this.bot.waitForChunksToLoad()
+      '/time set day'
+    ]) await this.command(command)
+    await this.travel(mulberry32(seed))
+    await this.command(`/effect give ${name} instant_health 1 10`)
+    await this.command(`/effect give ${name} saturation 1 20`)
     this.facing = 0
     this.pitch = 1
     await this.look()
     this.progress.takeNew() // was vor dem Rundenbeginn kam, zählt nicht
     this.dead = false
+    this.playing = true
     return this.answer(record ? 'Start' : null)
+  }
+
+  // Ein neuer Ort für die Runde: wie bei Crafter auf Land mit Bäumen in der Nähe, nicht auf
+  // dem offenen oder gefrorenen Meer. Das ist die Wahl des Startplatzes, kein Wissen für den
+  // Agenten. Nach einigen Versuchen gilt der letzte Ort.
+  async travel (random) {
+    for (let attempt = 0; attempt < START_ATTEMPTS; attempt++) {
+      const x = Math.floor((random() - 0.5) * 20000)
+      const z = Math.floor((random() - 0.5) * 20000)
+      await this.command(`/spreadplayers ${x} ${z} 0 50 false ${this.bot.username}`)
+      await this.ticks(40) // bis die Chunks am neuen Ort da sind
+      await this.bot.waitForChunksToLoad()
+      if (this.goodStart()) return
+    }
+  }
+
+  goodStart () {
+    const below = this.bot.blockAt(this.bot.entity.position.offset(0, -1, 0))
+    if (!below || /water|ice/.test(below.name)) return false
+    const registry = this.bot.registry
+    const logs = registry.blocksArray.filter(block => block.name.endsWith('_log')).map(block => block.id)
+    return this.bot.findBlock({ matching: logs, maxDistance: 24 }) !== null
+  }
+
+  async command (text) {
+    this.bot.chat(text)
+    await this.ticks(2)
   }
 
   async step (action, record) {
@@ -269,6 +295,7 @@ class Player {
   }
 
   answer (recordAction) {
+    if (this.playing && this.bot.health !== undefined && this.bot.health <= 0) this.dead = true
     const answer = { inner: this.observe(), advancements: this.progress.takeNew(), dead: this.dead }
     if (recordAction !== null) answer.scene = this.scene(recordAction)
     return answer
