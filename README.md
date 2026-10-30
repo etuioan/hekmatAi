@@ -13,7 +13,7 @@ Bitte lies das zuerst, wenn du verstehen willst, worum es mir geht.
   „Scheiben“ übereinander. Der Agent lernt das Gemeinsame („Warten“) einmal und wechselt
   zwischen den Kontexten.
 - **Stand:** Forschungsprototyp in Python, nur Standardbibliothek (Crafter als freiwilliges
-  Zusatzpaket), 275 Tests.
+  Zusatzpaket), 278 Tests.
   Spielwelten (ähnlich ARC-AGI-3) sind das Testfeld, nicht das Ziel.
 - **Ehrlich:** Hier wird nichts behauptet, was nicht gemessen ist. Widerlegte Hypothesen
   stehen genauso im README wie gestützte (siehe [Grenzen](#grenzen)).
@@ -51,7 +51,7 @@ Please read it first if you want to understand what it's about.
   each other like "slices". The agent learns what they share ("waiting") once and switches
   between contexts.
 - **Status:** Research prototype in Python, standard library only (Crafter as an optional
-  extra), 275 tests. Since 0.18 the general agent sets its own goals and plays Crafter, a
+  extra), 278 tests. Since 0.18 the general agent sets its own goals and plays Crafter, a
   small 2D Minecraft, through a separate adapter: [docs/crafter.html](docs/crafter.html).
   Since 0.19 it finds out by itself which of its numbers form a picture around it and where
   it stands in it (space from its own movement), with no knowledge of the game. Since 0.20
@@ -1184,7 +1184,7 @@ PYTHONPATH=src python -m hekmatki
 Qualitätsprüfungen (einmalig `pip install -e ".[dev]"`):
 
 ```bash
-pytest            # 275 Tests (6 davon nur mit Crafter)
+pytest            # 278 Tests (9 davon nur mit Crafter)
 mypy              # strikte Typprüfung
 ruff check .      # Linter
 ruff format --check .
