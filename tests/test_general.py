@@ -31,7 +31,7 @@ from hekmatki.general.programs import (
     fits,
     predict,
 )
-from hekmatki.general.run import play_episode
+from hekmatki.general.run import Chance, play_episode
 from hekmatki.general.synthesis import Example, synthesize, vocabulary
 from hekmatki.general.worlds import Lattice, SortedSearch, random_lattice
 
@@ -46,9 +46,9 @@ def _corridor(slip: float = 0.0) -> Lattice:
 
 def _trained(env: Lattice | SortedSearch, episodes: int, seed: int = 0) -> GeneralAgent:
     agent = GeneralAgent(env.actions)
-    rng = random.Random(seed)
+    chance = Chance.seeded(seed)
     for _ in range(episodes):
-        play_episode(env, agent, rng, 300)
+        play_episode(env, agent, chance, 300)
     return agent
 
 
@@ -237,8 +237,8 @@ def test_general_agent_finds_space_and_walks_straight_to_the_goal() -> None:
     room = random_lattice(2, 6, Wiring.shuffled(8, 4, random.Random(2)), random.Random(2))
     agent = _trained(room, episodes=8)
     assert agent.form().name == "Raum mit 2 Dimensionen"
-    rng = random.Random(9)
-    episode = play_episode(room, agent, rng, 300)
+    chance = Chance.seeded(9)
+    episode = play_episode(room, agent, chance, 300)
     assert episode.reached
     assert episode.steps <= 3 * episode.least + 6
 
@@ -246,15 +246,15 @@ def test_general_agent_finds_space_and_walks_straight_to_the_goal() -> None:
 def test_general_agent_learns_binary_search_on_small_trees() -> None:
     wiring = Wiring.shuffled(4, 3, random.Random(4))
     agent = GeneralAgent(3)
-    rng = random.Random(4)
+    chance = Chance.seeded(4)
     for height in (3, 4, 5):
         agent.new_place()
         for _ in range(6):
-            play_episode(SortedSearch(height, wiring, 7), agent, rng, 300)
+            play_episode(SortedSearch(height, wiring, 7), agent, chance, 300)
     assert agent.form().name == "Ordnung"
     agent.new_place()
     big = SortedSearch(20, wiring, 7)
-    episode = play_episode(big, agent, rng, 100)
+    episode = play_episode(big, agent, chance, 100)
     assert episode.reached
     assert episode.steps == episode.least
 
@@ -262,10 +262,10 @@ def test_general_agent_learns_binary_search_on_small_trees() -> None:
 def test_greedy_agent_cannot_search_without_form() -> None:
     wiring = Wiring.plain(4, 3)
     agent = GeneralAgent(3, Planning.GREEDY)
-    rng = random.Random(0)
+    chance = Chance.seeded(0)
     for _ in range(10):
-        play_episode(SortedSearch(3, wiring), agent, rng, 300)
-    assert not play_episode(SortedSearch(16, wiring), agent, rng, 60).reached
+        play_episode(SortedSearch(3, wiring), agent, chance, 300)
+    assert not play_episode(SortedSearch(16, wiring), agent, chance, 60).reached
 
 
 # Neue Umgebung erkennen
@@ -280,10 +280,10 @@ def test_detector_switches_maps_and_comes_back() -> None:
     room = random_lattice(2, 5, Wiring.plain(8, 4), random.Random(1))
     swapped = Lattice(2, 5, room.blocked, Wiring(tuple(range(8)), (1, 0, 3, 2)))
     agent = GeneralAgent(4, detector=Detector(Strategy.EXPECTED))
-    rng = random.Random(5)
+    chance = Chance.seeded(5)
     for env in (room, swapped, room):
         for _ in range(8):
-            play_episode(env, agent, rng, 300)
+            play_episode(env, agent, chance, 300)
     kinds = [event.kind for event in agent.events if event.kind != "verfeinern"]
     assert "neu" in kinds
     assert "zurück" in kinds
@@ -293,9 +293,9 @@ def test_detector_switches_maps_and_comes_back() -> None:
 def test_every_surprise_makes_many_maps_in_a_noisy_room() -> None:
     room = random_lattice(2, 5, Wiring.plain(8, 4), random.Random(1), slip=0.2)
     agent = GeneralAgent(4, detector=Detector(Strategy.EVERY))
-    rng = random.Random(5)
+    chance = Chance.seeded(5)
     for _ in range(10):
-        play_episode(room, agent, rng, 300)
+        play_episode(room, agent, chance, 300)
     assert len(agent.maps) > 3
 
 
@@ -305,3 +305,38 @@ def test_knowledge_checks_each_rule() -> None:
         knowledge.learn(Transition((x, 0), 0, (x + 1, 0), False))
     checks = knowledge.checks(Transition((5, 0), 0, (5, 0), False))
     assert {(c.slot, c.hit) for c in checks} == {((0, 0), False), ((0, 1), True)}
+
+
+def test_new_world_does_not_spoil_the_goal_of_the_old_map() -> None:
+    room = random_lattice(2, 5, Wiring.plain(8, 4), random.Random(1))
+    other = Lattice(2, 5, room.blocked, Wiring((2, 3, 0, 1, 4, 5, 6, 7), (1, 0, 3, 2)))
+    agent = GeneralAgent(4, detector=Detector(Strategy.EXPECTED))
+    chance = Chance.seeded(5)
+    for _ in range(8):
+        play_episode(room, agent, chance, 300)
+    goal = agent.maps[0].goal.pairs
+    assert goal is not None
+    for _ in range(3):
+        play_episode(other, agent, chance, 300)
+    assert len(agent.maps) == 2
+    assert agent.maps[0].goal.pairs == goal
+
+
+def test_start_of_a_round_waits_for_the_first_step() -> None:
+    agent = GeneralAgent(4, detector=Detector(Strategy.EXPECTED))
+    agent.begin((0, 0))
+    assert (0, 0) not in agent.knowledge.seen
+    agent.learn(Transition((0, 0), 0, (1, 0), False))
+    assert agent.knowledge.seen == {(0, 0), (1, 0)}
+
+
+def test_snapshot_copies_everything_but_the_library() -> None:
+    library = Library()
+    knowledge = Knowledge(library)
+    knowledge.learn(Transition((0, 0), 0, (1, 0), True))
+    copy = knowledge.snapshot()
+    knowledge.learn(Transition((1, 0), 0, (2, 0), False))
+    assert copy.seen == {(1, 0)}
+    assert len(copy.goal.reached) == 1
+    assert len(copy.goal.missed) == 0
+    assert copy.rules.library is library

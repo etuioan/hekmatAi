@@ -1,4 +1,5 @@
 import random
+from collections.abc import Callable, Iterable, Sequence
 
 import pytest
 
@@ -95,6 +96,33 @@ def test_checked_schema_is_a_proper_mixture() -> None:
 def test_instantiate_rejects_incomplete_binding() -> None:
     with pytest.raises(ValueError, match="jede Rolle"):
         instantiate(_waiting_schema(6), {"a": "rolle_1"}, prior_strength=10.0)
+
+
+@pytest.mark.parametrize(
+    "make",
+    [fixed_schema_predictor, adaptive_schema_predictor, schema_or_flat_predictor],
+)
+def test_predictors_accept_an_alphabet_that_can_be_read_once(
+    make: Callable[[Schema, Iterable[str], Sequence[str]], OnlineMixture],
+) -> None:
+    rng = random.Random(7)
+    gate = waiting_situations()["gate"]
+    schema, observed = _waiting_schema(7), gate.sample(40, rng)
+    from_list = make(schema, list(gate.alphabet), observed)
+    from_iterator = make(schema, iter(gate.alphabet), observed)
+    for previous in gate.alphabet:
+        for following in gate.alphabet:
+            assert from_iterator.probability(previous, following) == pytest.approx(
+                from_list.probability(previous, following)
+            )
+
+
+def test_instantiate_rejects_a_role_bound_twice() -> None:
+    schema = _waiting_schema(6)
+    first, second, *rest = schema.roles
+    binding = {f"s{i}": role for i, role in enumerate([first, first, second, *rest])}
+    with pytest.raises(ValueError, match="genau einmal"):
+        instantiate(schema, binding, prior_strength=10.0)
 
 
 def test_instantiate_rejects_non_positive_strength() -> None:

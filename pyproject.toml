@@ -13,6 +13,14 @@ dependencies = []
 dev = ["pytest>=8", "mypy>=1.10", "ruff>=0.5"]
 crafter = ["crafter>=1.8", "numba>=0.60"]
 
+[tool.setuptools.package-data]
+# Dateien, die keine Python-Module sind, aber zum Paket gehören (siehe tests/check_package.py).
+hekmatki = [
+    "experiments/*_template.html",
+    "adapters/minecraft_bridge/*.js",
+    "adapters/minecraft_bridge/*.json",
+]
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]

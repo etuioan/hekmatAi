@@ -1,5 +1,11 @@
 """Runden spielen und messen, für jeden Agenten mit derselben Schnittstelle (ab 0.16).
 
+Seit dem Review nach 0.21 haben Welt und Agent getrennte Zufallsquellen (`Chance`): Jede
+Runde bekommt ihren eigenen Zufall für die Welt, vorab aus einem festen Startwert gezogen. So
+spielen alle Agenten mit gleichem Startwert dieselben Aufgaben, egal wie oft sie selbst würfeln
+oder wie lange eine Runde dauert. Vorher teilten sich beide einen Zufall, und die Aufgaben
+hingen vom Agenten ab.
+
 Zum Vergleich gibt es zwei Agenten ohne Regeln:
 - `RandomAgent`: drückt zufällige Tasten.
 - `TableAgent`: lernt für jede gesehene Beobachtung, welche Taste sich lohnt (Q-Lernen mit
@@ -16,6 +22,24 @@ from hekmatki.general.env import Environment, Observation, Transition
 LEARNING_RATE: Final = 0.5
 DISCOUNT: Final = 0.95
 CURIOSITY: Final = 0.1
+
+
+@dataclass(frozen=True)
+class Chance:
+    """Getrennte Zufallsquellen: eine legt die Aufgaben der Runden fest, eine gehört dem Agenten."""
+
+    tasks: random.Random
+    agent: random.Random
+
+    @classmethod
+    def seeded(cls, seed: int) -> "Chance":
+        """Beide Quellen aus einem Startwert, aber unabhängig voneinander."""
+        return cls(random.Random(f"aufgaben {seed}"), random.Random(f"agent {seed}"))
+
+    def next_task(self) -> random.Random:
+        """Der Zufall der Welt für die nächste Runde: Start, Ziel und Rutschen. Er hängt nur
+        davon ab, die wievielte Runde es ist, nicht davon, was der Agent tut."""
+        return random.Random(self.tasks.getrandbits(64))
 
 
 class Learner(Protocol):
@@ -53,17 +77,18 @@ class Episode:
 
 
 def play_episode(
-    env: Environment, agent: Learner, rng: random.Random, limit: int, record: bool = False
+    env: Environment, agent: Learner, chance: Chance, limit: int, record: bool = False
 ) -> Episode:
     """Spielt eine Runde, bis das Ziel erreicht ist oder `limit` Schritte vorbei sind."""
-    observation = env.reset(rng)
+    world = chance.next_task()
+    observation = env.reset(world)
     least = env.least_steps()
     agent.begin(observation)
     trace = [observation]
     pressed: list[int] = []
     for step in range(1, limit + 1):
-        action = agent.act(observation, rng)
-        outcome = env.step(action, rng)
+        action = agent.act(observation, chance.agent)
+        outcome = env.step(action, world)
         agent.learn(Transition(observation, action, outcome.observation, outcome.reached))
         observation = outcome.observation
         if record:

@@ -30,7 +30,7 @@ from hekmatki.general.detector import Decision, Detector, Kind
 from hekmatki.general.drives import Drives
 from hekmatki.general.env import Observation, Transition
 from hekmatki.general.form import Form, find_form
-from hekmatki.general.knowledge import Knowledge, RuleBook
+from hekmatki.general.knowledge import Knowledge
 from hekmatki.general.library import Library
 from hekmatki.general.planner import plan, plan_greedy
 
@@ -56,6 +56,16 @@ class MapEvent:
     step: int
     kind: Kind
     target: int
+
+
+@dataclass(frozen=True)
+class Lesson:
+    """Ein Schritt, aus dem eine Karte lernen soll, sobald feststeht, welche Karte gilt."""
+
+    step: int
+    transition: Transition
+    start: Observation | None = None
+    """Die erste Beobachtung der Runde, falls dies ihr erster Schritt war."""
 
 
 class GeneralAgent:
@@ -84,11 +94,15 @@ class GeneralAgent:
         self.steps = 0
         self._tried: Counter[tuple[Observation, int]] = Counter()
         self._this_round: Counter[tuple[Observation, int]] = Counter()
-        self._held: deque[tuple[int, Transition]] = deque()
-        self._trial: tuple[int, RuleBook, int] | None = None
-        """Verfeinerung auf Probe: Karte, Regeln davor, Schritt. Folgt binnen eines Fensters
-        doch ein Kartenwechsel, war es keine Verfeinerung, und die alten Regeln gelten wieder."""
-        """Überraschende Schritte, aus denen noch keine Karte gelernt hat (mit Schrittnummer)."""
+        self._held: deque[Lesson] = deque()
+        """Überraschende Schritte, aus denen noch keine Karte gelernt hat. Zurückgehalten wird
+        alles: Regeln, Ziel und Karte (seit dem Review nach 0.21, vorher nur die Regeln)."""
+        self._start: Observation | None = None
+        """Erste Beobachtung der Runde, solange noch kein Schritt zeigt, ob die Karte gilt."""
+        self._trial: tuple[int, Knowledge, int] | None = None
+        """Verfeinerung auf Probe: Karte, ihr ganzer Stand davor, Schritt. Folgt binnen eines
+        Fensters doch ein Kartenwechsel, war es keine Verfeinerung, und der alte Stand gilt
+        wieder: Regeln, Ziel und Karte (seit dem Review nach 0.21, vorher nur die Regeln)."""
 
     @property
     def knowledge(self) -> Knowledge:
@@ -115,7 +129,12 @@ class GeneralAgent:
     def begin(self, observation: Observation) -> None:
         """Beginn einer Runde."""
         self._this_round.clear()
-        self.knowledge.start(observation)
+        if self.detector is None:
+            self.knowledge.start(observation)
+        else:
+            # Seit dem Review nach 0.21 erst mit dem ersten Schritt: In einer neuen Welt kann
+            # schon der Start nach dem alten Ziel aussehen und das Ziel der alten Karte verderben.
+            self._start = observation
 
     def act(self, observation: Observation, rng: random.Random) -> int:
         """Wählt eine Taste."""
@@ -142,44 +161,46 @@ class GeneralAgent:
         if self.detector is None:
             self.knowledge.learn(transition)
             return
+        lesson = Lesson(self.steps, transition, self._start)
+        self._start = None
         decision = self.detector.judge(self.maps, self.current, transition)
         if decision is not None:
             self._apply(decision, transition)
-            held = [*(t for _, t in self._held), transition]
+            held = [*self._held, lesson]
             self._held.clear()
-            # Die Karte, die jetzt gilt, lernt die zurückgehaltenen Schritte. Ist es eine
-            # andere Karte, erfährt sie auch, wohin sie führten und ob das Ziel erreicht war.
-            seen = [transition] if decision.kind == "verfeinern" else held
-            for step in seen:
-                self.knowledge.notice(step)
-            for step in held:
-                self.knowledge.learn_rules(step)
+            for each in held:
+                self._teach(each)  # Die Karte, die jetzt gilt, lernt alles nach.
             return
-        self.knowledge.notice(transition)
         if self._trial is not None and self._trial[2] <= self.steps - self.detector.window:
             self._trial = None  # Die Verfeinerung hat sich ein Fenster lang gehalten.
         if self.detector.doubts(self.knowledge, transition):
-            self._held.append((self.steps, transition))
+            self._held.append(lesson)
         else:
-            self.knowledge.learn_rules(transition)
+            self._teach(lesson)
         while (
             self._held
             and not self.detector.deciding
-            and self._held[0][0] <= self.steps - self.detector.window
+            and self._held[0].step <= self.steps - self.detector.window
         ):
-            self.knowledge.learn_rules(self._held.popleft()[1])  # Doch nur Rauschen.
+            self._teach(self._held.popleft())  # Doch nur Rauschen.
+
+    def _teach(self, lesson: Lesson) -> None:
+        """Die Karte, die jetzt gilt, lernt aus einem Schritt (und dem Start der Runde)."""
+        if lesson.start is not None:
+            self.knowledge.start(lesson.start)
+        self.knowledge.learn(lesson.transition)
 
     def _apply(self, decision: Decision, transition: Transition) -> None:
         if decision.kind == "verfeinern":
             if self._trial is None:
-                self._trial = (self.current, self.knowledge.rules.snapshot(), self.steps)
+                self._trial = (self.current, self.knowledge.snapshot(), self.steps)
             for slot, found in decision.refined.items():
                 self.knowledge.rules.replace(slot, found)
             self.events.append(MapEvent(self.steps, decision.kind, self.current))
             return
         if self._trial is not None:
-            index, rules, _ = self._trial  # Doch eine andere Welt: Verfeinerung zurücknehmen.
-            self.maps[index].rules = rules
+            index, before, _ = self._trial  # Doch eine andere Welt: Verfeinerung zurücknehmen.
+            self.maps[index] = before
             self._trial = None
         if decision.kind == "zurück":
             self.current = decision.target

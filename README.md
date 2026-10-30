@@ -1265,7 +1265,7 @@ Ein Modul, eine Aufgabe:
 | `online.py` | Protokolle `LearningPredictor`/`OnlineLearner`, Vergleichsagent mit einem Modell |
 | `evaluation.py` | Gemeinsame Schnittstelle `Predictor` und ehrliche Bewertung |
 | `experiments/` | Ein Modul pro Experiment: `schema_learning` (H11, Härtetest), `forgetting` (H12), `sleep` (Kontextwechsel, Wach-Schlaf, mehrere Schemata), `traffic_light` (Ampelspiel), `recognition` (Kontexterkennung), `meta_schema` (dritte Ebene, H13), `discovery` (Spielefamilie), `exploration` (Neugier), `rule_transfer` (Regeln statt Zustände), `grid_transfer` (2D-Welt), `grid_mechanics` (Weltmodell), `grid_roles` (Rollen-Weltmodell), `grid_foreign` (Gegenprobe mit fremder Mechanik), `cross_world` (Spielwelt gegen Alltagswelt), `grid_replay` (Wiedergabe-Seite), `general_worlds`, `library_transfer`, `new_world`, `new_forms`, `world_stream`, `general_replay` (allgemeiner Agent, Seite „Ein Agent, sechs Welten“), `crafter_run` und `crafter_replay` (Crafter, Seite [docs/crafter.html](docs/crafter.html)), dazu `blocks` mit gemeinsamen Werkzeugen |
-| `general/` | Allgemeiner Agent ab 0.16: `env` (Schnittstelle, Mischung, Auffüllen), `worlds` (Raum, Würfel, Suchbaum, Eis, Drehscheiben, Tauschen), `programs` (Bausteine), `synthesis` (kürzestes Programm), `library` (Bibliothek), `knowledge` (Regelbuch, Ziel), `form` (Form der Welt), `planner` (Wege auf Achsen, Ringen und Rutschbahnen, Eingrenzen, Suche im Modell), `detector` (neue Umgebung), `causes` (Ursachen, ab 0.18), `subgoals` (Teilziele), `drives` (eigene Ziele), `space` (Raum aus eigener Bewegung, ab 0.19), `cues` (Gefahren als Hinweisreize, ab 0.21), `agent` (der Agent), `run` (Runden, Vergleichsagenten) |
+| `general/` | Allgemeiner Agent ab 0.16: `env` (Schnittstelle, Mischung, Auffüllen), `worlds` (Raum, Würfel, Suchbaum, Eis, Drehscheiben, Tauschen), `programs` (Bausteine), `synthesis` (kürzestes Programm), `library` (Bibliothek), `knowledge` (Regelbuch, Ziel), `form` (Form der Welt), `planner` (Wege auf Achsen, Ringen und Rutschbahnen, Eingrenzen, Suche im Modell), `detector` (neue Umgebung), `causes` (Ursachen, ab 0.18), `subgoals` (Teilziele), `drives` (eigene Ziele), `space` (Raum aus eigener Bewegung, ab 0.19), `cues` (Gefahren als Hinweisreize, ab 0.21), `agent` (der Agent), `run` (Runden, getrennter Zufall für Welt und Agent, Vergleichsagenten) |
 | `adapters/` | Ab 0.18: Zugänge zu fremden Welten, getrennt vom Agenten: `crafter` (Crafter an der allgemeinen Schnittstelle) |
 | `general_report.py` | Ausgabe der Ergebnisse 17 bis 21 |
 | `__main__.py` | Ausgabe der Ergebnisse |
@@ -1274,6 +1274,61 @@ Grundsätze: Lesbarkeit vor Cleverness, nur Standardbibliothek, vollständige
 Typannotationen (`mypy --strict`), ungültige Eingaben lösen immer einen `ValueError` mit
 verständlicher Meldung aus, Zufall nur über einen übergebenen `random.Random`.
 Bezeichner sind englisch (Python-Konvention), Dokumentation und Ausgaben deutsch.
+
+## Änderungen nach dem Code-Review (nach 0.21)
+
+Ein Review fand fünf Fehler. Alle sind behoben und haben Tests.
+
+1. **Kontextwechsel verdarb das alte Ziel.** Bis zur Entscheidung „neue Welt“ hielt der
+   Agent nur das Lernen der Regeln zurück; Ziel und Karte lernten schon mit. Im Test wurde so
+   in 4 von 6 Läufen das richtig gelernte Ziel der alten Karte gelöscht. Jetzt hält er Regeln,
+   Ziel und Karte gemeinsam zurück, auch den Start einer Runde, und eine Verfeinerung auf
+   Probe sichert den ganzen Stand der Karte (`Knowledge.snapshot`). `Knowledge.learn` ist der
+   einzige Weg, auf dem eine Karte lernt. Danach bleibt das alte Ziel in 4 von 6 Läufen
+   erhalten (vorher 2); die übrigen zwei gehen auf Fehlurteile des Detektors zurück (eine
+   Verfeinerung hielt ein ganzes Fenster lang, einmal ging er fälschlich zur alten Karte zurück).
+2. **Vergleichsagenten bekamen verschiedene Prüfaufgaben.** Welt und Agent teilten sich einen
+   Zufall; wer öfter würfelte, bekam andere Starts und Ziele. Jetzt zieht jede Runde ihren
+   Weltzufall vorab aus einer eigenen Quelle (`run.Chance`). `same_tasks` prüft beim Vergleich,
+   dass alle Agenten dieselben kürzesten Wege hatten, und bricht sonst mit einer Meldung ab.
+3. **Im gebauten Paket fehlten die HTML-Vorlagen** (und die Minecraft-Brücke). Sie sind jetzt
+   Paketdaten; die CI baut das Wheel, installiert es in eine leere Umgebung und prüft mit
+   `tests/check_package.py`, dass jede Nicht-Python-Datei dabei ist.
+4. **Ein Iterator als Alphabet** führte in `schema.py` zu falschen Meldungen über unbekannte
+   Symbole. Das Alphabet wird jetzt am Eingang einmal in ein Tupel verwandelt.
+5. **`instantiate` nahm doppelt belegte Rollen an** und verlor dabei still ein Symbol. Jetzt
+   muss jede Rolle genau einmal belegt sein.
+
+**Neu gemessen** (Ergebnisse 17 bis 21, je 10 Läufe; vollständig in
+[docs/review-messung.txt](docs/review-messung.txt)). Ausgewählte Werte, Schritte bis zum Ziel:
+
+| Ergebnis | Welt / Umgang | vorher | nachher | bestenfalls (nachher) |
+|---|---|---:|---:|---:|
+| 17 | 2D-Raum, Form + Regeln | 22,9 | 22,6 | 17,6 |
+| 17 | 2D-Raum, Regeln ohne Form | 50,7 | 92,5 | 17,6 |
+| 17 | 3D-Raum, Form + Regeln | 11,7 | 12,1 | 10,5 |
+| 17 | Suche, Form + Regeln | 18,0 | 17,7 | 17,7 |
+| 20 | Eis-Raum, Stand 0.17 | 11,7 | 11,8 | 5,1 |
+| 20 | Drehscheiben, Stand 0.17 | 9,6 | 94,1 | 9,4 |
+| 20 | Tauschen, Stand 0.17 | 7,7 | 7,5 | 7,2 |
+| 19 | A wieder, erwartet / unerwartet | 41,0 | 28,2 | – |
+| 19 | A wieder, Bayes-Faktor | 28,6 | 41,2 | – |
+
+- **Die Hauptaussagen von Ergebnis 17 und 20 halten:** Mit Form ist er nahe am kürzesten Weg,
+  ohne Form deutlich schlechter, und Zufall und Tabelle bleiben weit zurück.
+- **Drehscheiben waren vorher Glück.** Mit anderem Zufall findet er die Form in 8 von 10
+  Läufen, in den übrigen bleibt er in den ersten Prüfrunden hängen. Über 60 Läufe passiert
+  das mit dem alten Code genauso oft (6 von 60, neu 8 von 60). „In allen Läufen optimal“
+  stimmte also nur für die ersten zehn Startwerte.
+- **Ergebnisse 19 und 21 schwanken stark.** Schon der neue Zufall allein verschiebt einzelne
+  Werte um die Hälfte, die Rangfolge der Umgänge mit Überraschung kippt dabei. Mit 10 Läufen
+  lässt sich zwischen „erwartet / unerwartet“ und „Bayes-Faktor“ nicht entscheiden; dafür
+  braucht es mehr Läufe. Unverändert gilt: Getrennte Karten finden die alte Karte meist
+  wieder (80 bis 100 %), „jede Überraschung“ erzeugt Hunderte Fehlalarme.
+- **Ergebnis 18:** Das Muster aus dem 2D-Raum halbiert weiter die erfolgreiche Suche im
+  3D-Raum (832 → 373 Programme). Über alle Suchen spart die Bibliothek 5 % in der einen
+  Reihenfolge und kostet 2 % in der anderen; der Gewinn bleibt klein.
+- Crafter und Minecraft sind nicht betroffen: Ihre Adapter nutzen den übergebenen Zufall nicht.
 
 ## Änderungen in 0.21
 

@@ -29,7 +29,7 @@ from typing import Final, Literal
 from hekmatki.general.agent import GeneralAgent, Planning
 from hekmatki.general.env import Environment, Wiring
 from hekmatki.general.library import Library
-from hekmatki.general.run import Learner, RandomAgent, TableAgent, play_episode
+from hekmatki.general.run import Chance, Learner, RandomAgent, TableAgent, play_episode
 from hekmatki.general.worlds import SortedSearch, random_lattice
 
 LESSON_EPISODES: Final = 6
@@ -124,7 +124,7 @@ class Setting:
     wiring: Wiring
     lessons: list[Environment]
     test: Environment
-    rng: random.Random
+    chance: Chance
 
 
 def prepare(spec: WorldSpec, seed: int) -> Setting:
@@ -133,7 +133,7 @@ def prepare(spec: WorldSpec, seed: int) -> Setting:
     wiring = Wiring.shuffled(spec.components, spec.actions, worlds)
     lessons = [spec.build(size, wiring, worlds) for size in spec.lessons]
     test = spec.build(spec.test, wiring, worlds)
-    return Setting(wiring, lessons, test, random.Random(seed * 7919 + 1))
+    return Setting(wiring, lessons, test, Chance.seeded(seed * 7919 + 1))
 
 
 def teach(learner: Learner, setting: Setting) -> None:
@@ -141,7 +141,7 @@ def teach(learner: Learner, setting: Setting) -> None:
     for env in setting.lessons:
         learner.new_place()
         for _ in range(LESSON_EPISODES):
-            play_episode(env, learner, setting.rng, LESSON_LIMIT)
+            play_episode(env, learner, setting.chance, LESSON_LIMIT)
     learner.new_place()
 
 
@@ -150,7 +150,8 @@ def run_world(spec: WorldSpec, learner: Learner, seed: int) -> WorldRun:
     setting = prepare(spec, seed)
     teach(learner, setting)
     episodes = [
-        play_episode(setting.test, learner, setting.rng, TEST_LIMIT) for _ in range(TEST_EPISODES)
+        play_episode(setting.test, learner, setting.chance, TEST_LIMIT)
+        for _ in range(TEST_EPISODES)
     ]
     return WorldRun(
         [e.steps for e in episodes],
@@ -186,19 +187,30 @@ def run_general_worlds(seeds: int = 10) -> list[WorldRow]:
 def _world_row(spec: WorldSpec, seeds: int) -> WorldRow:
     steps: dict[Agent, float] = {}
     reached: dict[Agent, float] = {}
-    best: list[int] = []
+    least: dict[Agent, list[int]] = {}
     forms: list[str] = []
     for agent in AGENTS:
         runs = [run_world(spec, make_agent(agent, spec), seed) for seed in range(seeds)]
         steps[agent] = mean(s for run in runs for s in run.test_steps)
         reached[agent] = mean(r for run in runs for r in run.test_reached)
+        least[agent] = [shortest for run in runs for shortest in run.test_least]
         if agent == "Form + Regeln":
-            best = [least for run in runs for least in run.test_least]
             forms = [_form_name(run.agent) for run in runs]
+    best = same_tasks(least)
     found = mean(form == spec.expected_form for form in forms)
     return WorldRow(
         spec.name, spec.size_text(spec.test), steps, reached, mean(best), found, tuple(forms)
     )
+
+
+def same_tasks[K](least: dict[K, list[int]]) -> list[int]:
+    """Die kürzesten Wege der Prüfrunden, die alle Agenten gleich hatten. Sonst wäre der
+    Vergleich schief, und das soll nicht still durchgehen."""
+    shared = next(iter(least.values()))
+    for name, own in least.items():
+        if own != shared:
+            raise ValueError(f"{name} hatte andere Prüfaufgaben: {own} statt {shared}.")
+    return shared
 
 
 def _form_name(learner: Learner) -> str:
