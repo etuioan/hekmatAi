@@ -79,6 +79,8 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "play":
+        if args.episodes <= WARMUP:
+            parser.error(f"--episodes muss größer als {WARMUP} sein, sonst zählt keine Runde")
         save_careers(play_seed(args.seed, args.episodes), args.output)
         return
     found = merge_parts(args.parts)
