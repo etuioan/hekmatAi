@@ -1,4 +1,4 @@
-# HekmatKI Prototyp 0.17: Schema-Stapel, Weltmodell und ein allgemeiner Agent für fremde Welten
+# HekmatKI Prototyp 0.19: Schema-Stapel, Weltmodell und ein allgemeiner Agent für fremde Welten
 
 Dieser Prototyp prüft zwei Hypothesen aus dem Forschungsdossier, mit möglichst wenig Code:
 
@@ -237,7 +237,7 @@ Neue Kontexte starten aus allen Schemata zugleich (`schemas_or_flat_model`): Vor
 
 **Experiment Kontexterkennung.** In drei Welten (Pendeln wie H12; Lampen mit Arzt, U-Bahn, Gate; Lampen mit drei Wartesituationen und drei Gesprächen) wird gezählt, welcher Anteil der Übergänge im richtigen Kontext landet. Weil der Agent die wahren Situationen nicht kennt, bekommt jede Situation höchstens einen Kontext und umgekehrt, gierig nach Häufigkeit. 20 Zufallsstarts, Blöcke à 150 Schritte.
 
-## 9. Der allgemeine Agent (ab 0.16, erweitert in 0.17 und 0.18)
+## 9. Der allgemeine Agent (ab 0.16, erweitert in 0.17 bis 0.19)
 
 Paket `general/`. Ein Agent, der keine Welt kennt. Er sieht nur ein Tupel ganzer Zahlen und
 wählt eine Taste aus `0 … n−1`. Jede Welt mischt Reihenfolge der Größen und Tasten neu
@@ -408,6 +408,55 @@ nach denen hier meist Gesundheit sank, nimmt er nie. Mengen sind Größen ohne `
 **Crafter** (`adapters/crafter.py`, `experiments/crafter_run.py`, `crafter_replay.py`): siehe
 [CRAFTER.md](CRAFTER.md). Der Agent importiert nie etwas aus `adapters`.
 
+### 9.3 Neu in 0.19: Raum aus eigener Bewegung (H29 bis H31)
+
+**Ort** (`space.Space._find_walkers`): Für jede Taste die Größe, die sich bei ihr in
+mindestens 95 % ihrer Änderungen um denselben Schritt ±1 ändert, nach mindestens 20 % der
+Drücke, und die schon mindestens 6 verschiedene Werte hatte (eine Blickrichtung hat weniger).
+Ändert sie sich, ist er wirklich gegangen. Zwei Tasten mit derselben Größe und
+entgegengesetztem Schritt sind Gegenrichtungen; ihre Belege zählen zusammen.
+
+**Verschiebungen** (`Space._edges`): Nach jedem echten Schritt zählt er für jede Größe i und
+jede Größe j, ob i jetzt den alten Wert von j hat, einmal über alle Schritte und einmal nur
+über die, nach denen sich i änderte. Eine Verschiebung „j nach i“ gilt ab 20 echten Schritten
+in beide Richtungen, wenn j in 90 % der Schritte passt, öfter als jede andere Größe, und bei
+den Änderungen in 80 % (in beiden Richtungen: Ein Feld wie „vorne“ übernimmt beim Gehen
+einen Nachbarn, gibt ihn in der Gegenrichtung aber nicht zurück). Eine Taste verschiebt den
+Blick, wenn sie einen Ort hat und mindestens 4 Verschiebungen. Sicherheit einer Verschiebung:
+Anteil der passenden Änderungen in beiden Richtungen, geglättet nach Laplace.
+
+**Gitter** (`space.build`): Jede Ortsgröße ist eine Achse, jede Taste ein Schritt auf ihr. Die
+sichersten Verschiebungen zuerst; eine, die nicht zum schon Gebauten passt oder zwei Felder
+auf eine Stelle legen würde, fällt weg (Kruskal 1956). Danach rückt er bis zu dreimal jedes
+Feld an die Stelle, für die die Mehrheit seiner Verschiebungen spricht, wenn sie frei ist.
+Es bleibt das größte Stück, darin nur Felder mit mindestens zwei passenden Verschiebungen.
+Alle 100 Schritte baut er neu; ein Gitter mit eigener Stelle ersetzt er nur durch ein
+anderes mit eigener Stelle.
+
+**Eigene Stelle** (`space._gap`): Kennt er mindestens 90 % des umgebenden Kastens, ist seine
+Stelle die einzige freie im Inneren, und alle ihre Nachbarn sind Felder. Am Rand darf etwas
+fehlen. Von ihr aus misst er Abstände (Summe der Beträge). Gruppen: alle Felder im Abstand
+≤ 1, ≤ 2, ≤ 3.
+
+**Gruppen in Ursachen** (`causes.Literal.some`, H29): Ein Literal „irgendein Feld der Gruppe
+hat den Wert v“ (`Kind.SOME`). Gefahren (`conditions`) nutzen es, die Ursachen einer Taste
+noch nicht. Als Teilziel geht er hin (`Layout.fetch`): Breitensuche über die Verschiebungen,
+bis der Wert, den er irgendwo sieht, im Zielfeld oder in einem Feld der Gruppe steht.
+
+**Abwehr mit Richtung** (`drives`, H30): Antworten auf eine Gefahr sind jetzt „hin“, „weg“
+oder „quer“ zur nächsten Gefahr (`Layout.relation`), oder „Taste a an der Gefahr“, wenn eine
+Taste mit Wirkung gerade auf eine Gefahr zeigt (ein Feld, von dem ihre Ursachen abhängen,
+hat den Wert der Gefahr), sonst „Taste a“. Kosten einer Antwort: Schaden in den nächsten
+5 Schritten, dazu 1, wenn die Gefahr danach noch da ist (Mowrer 1947).
+
+**Neugier auf Sichtfelder** (`drives._curious`, H31), nur mit eigener Stelle: Hängt eine
+Taste mit Wirkung von einer Größe außerhalb des Gitters ab (etwa „vorne“; ohne Ort und
+Körper), und sieht er im Gitter einen Wert, den diese Größe bei der Taste noch nicht 5-mal
+hatte, macht er „Größe = Wert“ zum Ziel, das Nächste zuerst. Reihenfolge der Antriebe jetzt: Abwehr, Bedürfnis, Ziel, Versuch,
+Neugier, Rekord, Pflege, Erkunden. Versuche wiederholt er bis zu 5-mal (manches wirkt erst
+nach mehreren Schlägen), bei unbekannten Tasten und Körpergrößen einmal. Der Ort zählt nicht
+zum Körper.
+
 ## 10. Qualitätsregeln für den Code
 
 - Lesbarkeit und Einfachheit vor Cleverness (KISS, Zen of Python).
@@ -419,6 +468,13 @@ nach denen hier meist Gesundheit sank, nimmt er nie. Mengen sind Größen ohne `
 - Bezeichner auf Englisch (Python-Konvention), Dokumentation und Ausgaben auf Deutsch.
 
 ## 11. Änderungen
+
+### Version 0.19
+
+- Raum aus eigener Bewegung (`space.py`), Gruppen in Ursachen, Hingehen, Abwehr mit
+  Richtung, Neugier auf Sichtfelder (Abschnitt 9.3).
+- Crafter-Messung mit „Stand 0.19“; die Zeilen von 0.18 kommen aus der gespeicherten Messung.
+- Ohne `own_goals` gleiche Ausgabe wie 0.18 (Ergebnisse 17 bis 21 Zeichen für Zeichen).
 
 ### Version 0.18
 

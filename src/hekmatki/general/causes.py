@@ -5,7 +5,9 @@ hängt aber an einer Lage, die sich mit einem Schalter nicht sagen lässt: Eine 
 Größe 7 nur steigen, wenn Größe 3 den Wert 6 hat und Größe 9 mindestens 1 ist. Solche
 Bedingungen lernt dieses Modul.
 
-- Ein `Literal` ist eine Aussage über eine Größe: „G3 = 6“ oder „G9 ≥ 1“.
+- Ein `Literal` ist eine Aussage über eine Größe: „G3 = 6“ oder „G9 ≥ 1“. Ab 0.19 auch
+  über eine Gruppe von Feldern: „irgendwo in Abstand ≤ 1 steht 15“ (die Gruppen kommen aus
+  `space`; eine Lage, die auf jeder Seite gleich ist).
 - Ein `Event` ist, was passieren soll (oder nicht): „G7 steigt“, „G7 sinkt“, „G4 wird 11“.
 - Eine `Cause` ist eine Taste mit einer Bedingung aus wenigen Literalen. Wie verlässlich sie
   ist, zählt der Agent an seinen eigenen Schritten mit.
@@ -27,6 +29,8 @@ from typing import Final
 from hekmatki.general.env import Observation, Transition
 
 type Partial = tuple[int | None, ...]
+type Groups = tuple[tuple[int, ...], ...]
+"""Gruppen von Größen, über die es Literale „eine von ihnen hat den Wert“ gibt."""
 """Eine Beobachtung, in der manche Größen unbekannt sind (vorgestellt, nicht gesehen)."""
 
 HISTORY: Final = 400
@@ -56,24 +60,44 @@ class Kind(StrEnum):
 
     EQUAL = "="
     AT_LEAST = "≥"
+    SOME = "∋"
+    """Eine der Größen in `among` hat den Wert (ab 0.19)."""
 
 
 @dataclass(frozen=True)
 class Literal:
-    """Eine Aussage über eine Größe: `G component = value` oder `G component ≥ value`."""
+    """Eine Aussage über eine Größe: `G component = value` oder `G component ≥ value`; oder
+    über eine Gruppe: Eine der Größen `among` hat den Wert `value` (dann ist `component` die
+    erste von ihnen)."""
 
     component: int
     value: int
     kind: Kind = Kind.EQUAL
+    among: tuple[int, ...] = ()
+
+    @staticmethod
+    def some(among: tuple[int, ...], value: int) -> "Literal":
+        """„Irgendwo in dieser Gruppe steht `value`.“"""
+        return Literal(among[0], value, Kind.SOME, among)
 
     def holds(self, observation: Partial) -> bool:
         """Gilt sie? Eine unbekannte Größe erfüllt nichts."""
+        if self.kind is Kind.SOME:
+            return any(observation[c] == self.value for c in self.among)
         seen = observation[self.component]
         if seen is None:
             return False
         return seen == self.value if self.kind is Kind.EQUAL else seen >= self.value
 
+    def where(self, observation: Partial) -> list[int]:
+        """Die Größen, an denen sie gerade gilt."""
+        if self.kind is Kind.SOME:
+            return [c for c in self.among if observation[c] == self.value]
+        return [self.component] if self.holds(observation) else []
+
     def __str__(self) -> str:
+        if self.kind is Kind.SOME:
+            return f"eine von {len(self.among)} Größen = {self.value}"
         return f"G{self.component} {self.kind} {self.value}"
 
 
@@ -144,7 +168,7 @@ class CauseBook:
         """Ereignis → die Tasten, nach denen es schon passiert ist."""
         self._cache: dict[tuple[Event, int], tuple[tuple[int, int], tuple[Cause, ...]]] = {}
         self._pooled: dict[
-            tuple[Event, frozenset[int] | None], tuple[tuple[int, int], tuple[Cause, ...]]
+            tuple[Event, frozenset[int] | None], tuple[tuple[int, int, Groups], tuple[Cause, ...]]
         ] = {}
         self._found: dict[tuple[Event, int], int] = {}
         """Wie oft jedes Ereignis nach jeder Taste schon passiert ist (auch ältere Fälle)."""
@@ -174,15 +198,20 @@ class CauseBook:
         return sorted(found, key=lambda cause: -cause.precision)
 
     def conditions(
-        self, event: Event, min_precision: float, only: frozenset[int] | None = None
+        self,
+        event: Event,
+        min_precision: float,
+        only: frozenset[int] | None = None,
+        groups: Groups = (),
     ) -> list[Cause]:
         """Lagen, nach denen das Ereignis passiert, egal welche Taste (Taste -1): für Ereignisse,
         die die Welt bewirkt, nicht der Agent (ein Angriff). `only`: nur Literale über diese
-        Größen."""
+        Größen. `groups`: auch Literale „eine dieser Größen hat den Wert“."""
         actions = sorted(self.events.get(event, ()))
         stamp = (
             sum(self._found.get((event, a), 0) for a in actions),
             sum(self._pressed.values()) // POOLED_RELEARN,
+            groups,
         )
         cached = self._pooled.get((event, only))
         if cached is None or cached[0] != stamp:
@@ -195,7 +224,7 @@ class CauseBook:
             ]
             learned = tuple(
                 Cause(-1, literals, hits, uses)
-                for literals, hits, uses in cover(positives, negatives, POOLED_CAUSES, only)
+                for literals, hits, uses in cover(positives, negatives, POOLED_CAUSES, only, groups)
             )
             cached = (stamp, learned)
             self._pooled[event, only] = cached
@@ -243,6 +272,7 @@ def cover(
     negatives: Sequence[Observation],
     most: int = MAX_CAUSES,
     only: frozenset[int] | None = None,
+    groups: Groups = (),
 ) -> list[tuple[tuple[Literal, ...], int, int]]:
     """Schrittweise Überdeckung: Bedingungen, die Erfolge abdecken und Misserfolge meiden.
 
@@ -251,7 +281,7 @@ def cover(
     """
     if not positives:
         return []
-    table = _Table(positives, negatives, only)
+    table = _Table(positives, negatives, only, groups)
     rules: list[tuple[tuple[Literal, ...], int, int]] = []
     remaining = table.all_positives
     while remaining and len(rules) < most:
@@ -305,9 +335,11 @@ class _Table:
         positives: Sequence[Observation],
         negatives: Sequence[Observation],
         only: frozenset[int] | None = None,
+        groups: Groups = (),
     ) -> None:
         cases = [*positives, *negatives]
         self.only = only
+        self.groups = [g for g in groups if only is None or set(g) <= only]
         self.all_positives = (1 << len(positives)) - 1
         self.all_negatives = ((1 << len(cases)) - 1) & ~self.all_positives
         self.masks: list[dict[int, int]] = []
@@ -337,6 +369,15 @@ class _Table:
                     if value >= low:
                         mask |= masks[value]
                 yield Literal(component, low, Kind.AT_LEAST), mask
+        for group in self.groups:
+            shown: set[int] = set()
+            for component in group:
+                shown.update(v for v, m in self.masks[component].items() if m & pos)
+            for value in sorted(shown):
+                mask = 0
+                for component in group:
+                    mask |= self.masks[component].get(value, 0)
+                yield Literal.some(group, value), mask
 
 
 def _count(mask: int) -> int:

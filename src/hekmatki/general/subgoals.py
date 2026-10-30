@@ -136,6 +136,9 @@ def _achieve(
     depth: int,
     memo: dict[tuple[Literal, int], int | None] | None,
 ) -> int | None:
+    fetched = _fetch(knowledge, observation, goal)
+    if fetched is not None:
+        return fetched
     causes = causes_for(knowledge.causes, goal)
     targets = [Target((goal,)), *(Target(cause.literals, cause.action) for cause in causes)]
     step = search(world, observation, targets)
@@ -151,9 +154,20 @@ def _achieve(
     return None
 
 
+def _fetch(knowledge: Knowledge, observation: Partial, goal: Literal) -> int | None:
+    """Ein Ziel über Sichtfelder („im Feld rechts neben mir steht 6“, „irgendwo neben mir
+    steht 6“): Sieht er 6 anderswo, geht er so, dass es dorthin wandert (H29). Sonst None."""
+    if goal.kind is Kind.AT_LEAST:
+        return None
+    targets = goal.among if goal.kind is Kind.SOME else (goal.component,)
+    return knowledge.space.layout.fetch(observation, goal.value, targets)
+
+
 def causes_for(book: CauseBook, goal: Literal) -> list[Cause]:
     """Die Ursachen, die das Literal wahr machen können. Gibt es keine verlässliche, auch
     solche, die nur selten wirken (`WEAK`): Wer oft genug probiert, kommt auch so ans Ziel."""
+    if goal.kind is Kind.SOME:
+        return []  # Über eine Gruppe gibt es keine eigenen Ursachen, nur das Hingehen.
     if goal.kind is Kind.AT_LEAST:
         event = Event(goal.component, Change.RISES)
     else:

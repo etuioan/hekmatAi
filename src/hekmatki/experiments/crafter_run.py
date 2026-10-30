@@ -11,7 +11,9 @@ Agenten:
 - „Zufall“: zufällige Tasten
 - „Tabelle“: Q-Lernen mit einer Tabelle (lernt aus „Ziel erreicht“)
 - „Stand 0.17“: der allgemeine Agent ohne eigene Ziele
-- „Stand 0.18“: mit eigenen Zielen (`own_goals`)
+- „Stand 0.18“: mit eigenen Zielen (`own_goals`). Den Code von 0.18 gibt es nur noch in der
+  Geschichte des Repos; seine Runden kommen aus der gespeicherten Messung von 0.18.
+- „Stand 0.19“: mit eigenen Zielen und dem Raum aus eigener Bewegung (`space`)
 
 Braucht das Zusatzpaket `crafter` (`pip install -e ".[crafter]"`). Aufruf:
 `PYTHONPATH=src python -m hekmatki.experiments.crafter_run [messung.json [Startwerte]]`
@@ -27,7 +29,7 @@ from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from statistics import mean
-from typing import Final, Literal
+from typing import Final, Literal, get_args
 
 from hekmatki.adapters.crafter import ACTIONS, CrafterWorld
 from hekmatki.general.agent import GeneralAgent
@@ -62,13 +64,14 @@ EPISODES: Final = 30
 WARMUP: Final = 10
 """Die ersten Runden zählen nicht: Da lernt der Agent erst."""
 
-Agent = Literal["Zufall", "Tabelle", "Stand 0.17", "Stand 0.18"]
-AGENTS: tuple[Agent, ...] = ("Zufall", "Tabelle", "Stand 0.17", "Stand 0.18")
+Agent = Literal["Zufall", "Tabelle", "Stand 0.17", "Stand 0.18", "Stand 0.19"]
+AGENTS: tuple[Agent, ...] = ("Zufall", "Tabelle", "Stand 0.17", "Stand 0.19")
+"""Wer bei einer neuen Messung spielt."""
 MAKERS: Final[dict[Agent, Callable[[], Learner]]] = {
     "Zufall": lambda: RandomAgent(ACTIONS),
     "Tabelle": lambda: TableAgent(ACTIONS),
     "Stand 0.17": lambda: GeneralAgent(ACTIONS),
-    "Stand 0.18": lambda: GeneralAgent(ACTIONS, own_goals=True),
+    "Stand 0.19": lambda: GeneralAgent(ACTIONS, own_goals=True),
 }
 
 
@@ -204,7 +207,7 @@ def load_careers(path: Path) -> list[Career]:
     """Liest, was `save_careers` geschrieben hat."""
     found = []
     for entry in json.loads(path.read_text(encoding="utf-8")):
-        if entry["agent"] not in MAKERS:
+        if entry["agent"] not in get_args(Agent):
             raise ValueError(f"Unbekannter Agent in {path}: {entry['agent']}")
         rounds = [
             Round(r["steps"], tuple((int(at), str(name)) for at, name in r["unlocked"]))

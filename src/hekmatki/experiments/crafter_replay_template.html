@@ -19,6 +19,7 @@
   --s-table: #c4a35a;
   --s-old: #5b7fa8;
   --s-new: #3d6b1f;
+  --s-prev: #9cbf7c;
   --bad: #b23a2a;
   --font-display: "Pixelify Sans", "Trebuchet MS", system-ui, sans-serif;
   --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
@@ -28,7 +29,7 @@
   :root:not([data-theme="light"]) {
     --bg: #121610; --surface: #191f16; --sunk: #0d100b; --ink: #e6ecdf; --muted: #9aa691;
     --line: #2b3427; --accent: #9ccf6b; --s-rand: #6d7566; --s-table: #d8b86a;
-    --s-old: #86a9d4; --s-new: #9ccf6b; --bad: #f07a66;
+    --s-old: #86a9d4; --s-new: #9ccf6b; --s-prev: #56783f; --bad: #f07a66;
     color-scheme: dark;
   }
 }
@@ -102,6 +103,12 @@ header, section { display: grid; gap: 18px; }
 .keys { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 0.9rem; }
 .keys span { display: inline-flex; gap: 6px; align-items: center; }
 
+.space-wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 760px) { .space-wrap { grid-template-columns: 1fr; } }
+.field.space .cell { font-size: clamp(0.45rem, 1.3vw, 0.62rem); color: var(--ink); background: var(--surface); }
+.field.space .cell.right { background: color-mix(in srgb, var(--s-new) 35%, var(--surface)); }
+.field.space .cell.wrong { background: color-mix(in srgb, var(--bad) 40%, var(--surface)); }
+.field.space .cell.me { background: var(--ink); color: var(--surface); }
 .learned { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; align-items: start; }
 .learned .panel { align-content: start; gap: 10px; }
 .learned ul { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; }
@@ -116,13 +123,14 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var
 
 <main>
   <header>
-    <span class="kicker">HekmatKI 0.18 · allgemeiner Agent · Crafter</span>
+    <span class="kicker">HekmatKI 0.19 · allgemeiner Agent · Crafter</span>
     <h1>Der Agent im kleinen Minecraft</h1>
     <p class="lede">Niemand sagt ihm, was Holz, Durst oder ein Zombie ist. Er sieht nur 85 gemischte
-      Zahlen und 17 Tasten ohne Namen. Seit 0.18 setzt er sich eigene Ziele: Zahlen, die von
-      selbst sinken, hält er oben; Zahlen, die er steigen lassen kann, will er höher bringen.
-      So trinkt er dreimal so oft wie der Zufallsagent und sammelt öfter Holz. In der
-      Gesamtwertung ist der Vorsprung noch klein.</p>
+      Zahlen und 17 Tasten ohne Namen. Seit 0.18 setzt er sich eigene Ziele. Seit 0.19 findet
+      er selbst heraus, dass 63 dieser Zahlen ein Bild um ihn herum sind und wo er darin
+      steht. So weiß er, was neben ihm ist, und geht zu dem hin, was er braucht: Er sammelt
+      mehr als doppelt so oft Holz wie der Zufallsagent, baut viermal so oft eine Werkbank und
+      kommt in der Gesamtwertung auf 2,5 statt 1,6 %.</p>
     <div class="scores" id="scores"></div>
     <p class="muted" id="score-note"></p>
   </header>
@@ -163,10 +171,32 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var
   <section aria-labelledby="curve-title">
     <h2 id="curve-title">Lernkurve</h2>
     <p class="muted">Verschiedene Erfolge je Runde, gemittelt über alle Karten-Startwerte. Er
-      behält sein Wissen von Runde zu Runde; jede Runde ist eine neue Karte. Die Zahl der
-      Erfolge je Runde liegt bei ihm sogar unter den anderen: Er tauscht leichte Zufallserfolge
-      (aufwachen, pflanzen) gegen seltenere (Trinken, Holz, Werkbank, Werkzeug, Zombie).</p>
+      behält sein Wissen von Runde zu Runde; jede Runde ist eine neue Karte. 0.18 lag hier
+      unter dem Zufall, weil es leichte Zufallserfolge (aufwachen, pflanzen) gegen seltenere
+      tauschte. 0.19 liegt etwa gleichauf mit dem Zufall, schafft aber öfter die schweren
+      Erfolge (Holz, Werkbank, Werkzeug). Dass seine Kurve am Ende absinkt, ist Streuung: In
+      neun Messungen mit fast demselben Code lagen die Runden 21 bis 30 mal über, mal unter
+      den Runden 11 bis 20.</p>
     <div class="chart" id="curve"></div>
+  </section>
+
+  <section aria-labelledby="space-title">
+    <h2 id="space-title">Den Raum hat er selbst gefunden</h2>
+    <p class="muted" id="space-note"></p>
+    <div class="space-wrap">
+      <div class="field space" id="space" role="img" aria-label="Das Gitter, das er aus eigener Bewegung gelernt hat"></div>
+      <div class="panel">
+        <h3>Wie er das macht</h3>
+        <p>Er weiß nicht, dass 63 seiner Zahlen ein Bild sind. Er merkt nur: Hat er sich bewegt
+          (eine Zahl, sein Ort, ändert sich um genau 1), dann hat Zahl i jetzt fast immer den
+          Wert, den eben noch Zahl j hatte. Also liegt j neben i. Aus den sichersten dieser
+          Verschiebungen baut er ein Gitter. Eine Stelle darin bleibt leer: Dort ist er selbst,
+          denn sein eigenes Feld wandert nie mit.</p>
+        <p>Ab dann kann er sagen „irgendwo direkt neben mir“. Eine Gefahr links ist dieselbe
+          wie rechts, und um an einen Baum zu kommen, den er sieht, geht er so, dass der Baum
+          zu ihm wandert.</p>
+      </div>
+    </div>
   </section>
 
   <section aria-labelledby="learned-title">
@@ -185,13 +215,17 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var
         Vergleich bei gleich vielen Schritten fehlt noch.</li>
       <li>Seine Wahrnehmung ist geschenkt: Er bekommt Crafters Karte als Nummern, nicht das Bild,
         und dazu, was vor ihm liegt. Aus Pixeln müsste er das erst lernen.</li>
-      <li>Der Vorsprung in der Wertung ist klein und unsicher: Je Karten-Startwert liegt er im
-        Mittel bei 1,5 %, Zufall bei 1,4 %, und seine Werte streuen stark (0,5 bis 3,1 %).
-        Deutlich ist nur, dass er öfter schafft, was er sich selbst vornimmt: trinken, Holz.</li>
-      <li>Er stirbt meist nach 160 bis 180 Schritten, fast immer durch Zombies, wie der
-        Zufallsagent. Seine Gefahren hängen an einem bestimmten Feld („Zombie rechts neben
-        mir“); dass ein Zombie links genauso gefährlich ist, weiß er nicht. Das ist der
-        nächste Schritt: Raum aus der eigenen Bewegung lernen.</li>
+      <li>Der Vorsprung ist jetzt deutlich, aber noch klein: Je Karten-Startwert liegt er im
+        Mittel bei 1,9 %, Zufall bei 1,4 % und 0.18 bei 1,5 %. Neun Messungen mit fast
+        demselben Code ergaben 2,4 bis 2,7 %; eine einzelne Messung schwankt also um etwa
+        0,2 Punkte.</li>
+      <li>Er stirbt immer noch nach etwa 175 Schritten, meist durch Zombies, kaum später als
+        der Zufallsagent. Eine Gefahr kann er jetzt auf jeder Seite erkennen, tut das aber erst
+        auf manchen Karten. Weglaufen hilft wenig, weil Zombies nachkommen, und Kämpfen gelingt
+        ihm selten (2 % der Runden).</li>
+      <li>Das Gitter findet er nicht auf jeder Karte: nach 10 Runden auf 10 bis 11 von 16.
+        Manchmal ist darin ein Block um ein Feld verschoben; dann irrt er sich, wo er selbst
+        steht.</li>
       <li>Zufall schafft „aufwachen“, „Setzling sammeln“ und „pflanzen“ oft nebenbei. Er drückt
         diese Tasten seltener, weil er Ziele verfolgt.</li>
       <li>Kein Code kennt Crafter. Der Adapter liegt in einem eigenen Paket; ein Test prüft, dass
@@ -226,15 +260,18 @@ const REASONS = {
   "Ziel": "Er bleibt an seinem Ziel von eben.",
   "Versuch": "Hier ist etwas, das er mit dieser Taste noch nie gesehen hat. Er probiert es.",
   "Rekord": "Eine Zahl, die er steigen lassen kann, will er höher bringen als je zuvor.",
+  "Neugier": "Er sieht etwas, an dem er eine Taste noch nicht oft genug probiert hat, und geht hin.",
   "Erkunden": "Nichts zu tun: Er geht dorthin, wo er am seltensten war.",
   "Plan": "Er kennt einen Weg zu einem Zustand, in dem die Welt schon einmal „Erfolg“ meldete."
 };
-const AGENT_COLOR = { "Zufall": "--s-rand", "Tabelle": "--s-table", "Stand 0.17": "--s-old", "Stand 0.18": "--s-new" };
+const NEWEST = "Stand 0.19";
+const AGENT_COLOR = { "Zufall": "--s-rand", "Tabelle": "--s-table", "Stand 0.17": "--s-old", "Stand 0.18": "--s-prev", "Stand 0.19": "--s-new" };
 const AGENT_NOTE = {
   "Zufall": "drückt zufällige Tasten",
   "Tabelle": "Q-Lernen aus „Erfolg“",
   "Stand 0.17": "allgemeiner Agent ohne eigene Ziele",
-  "Stand 0.18": "mit eigenen Zielen"
+  "Stand 0.18": "mit eigenen Zielen",
+  "Stand 0.19": "dazu Raum aus eigener Bewegung"
 };
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const el = (tag, attrs = {}, text) => {
@@ -253,7 +290,7 @@ const svgEl = (tag, attrs = {}, text) => {
 function renderScores() {
   const box = document.getElementById("scores");
   for (const row of DATA.rows) {
-    const card = el("div", { class: "score" + (row.agent === "Stand 0.18" ? " new" : "") });
+    const card = el("div", { class: "score" + (row.agent === NEWEST ? " new" : "") });
     const who = el("div", { class: "who" });
     const sw = el("span", { class: "swatch" }); sw.style.background = `var(${AGENT_COLOR[row.agent]})`;
     who.append(sw, el("span", {}, row.agent));
@@ -394,7 +431,7 @@ function renderCurve() {
     const smooth = row.curve.map((_, i) => { const w = row.curve.slice(Math.max(0, i - 2), i + 3); return w.reduce((a, b) => a + b, 0) / w.length; });
     const d = smooth.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
     const color = css(AGENT_COLOR[row.agent]);
-    svg.append(svgEl("path", { d, fill: "none", stroke: color, "stroke-width": row.agent === "Stand 0.18" ? 3 : 2 }));
+    svg.append(svgEl("path", { d, fill: "none", stroke: color, "stroke-width": row.agent === NEWEST ? 3 : 2 }));
     svg.append(svgEl("circle", { cx: x(n - 1), cy: y(smooth[n - 1]), r: 3.5, fill: color }));
     svg.append(svgEl("text", { x: x(n - 1) + 8, y: y(smooth[n - 1]) + 4 }, row.agent));
   }
@@ -416,9 +453,33 @@ function renderLearned() {
   card("Rekorde (lässt er steigen)", L.records, "noch keine");
   card("Darauf achtet er (Schaden)", L.harmed, "nichts");
   card("Gefährliche Lagen", L.dangers.map(d => d.map(translate).join(" und ")), "noch keine sicher genug");
+  if (L.answers.length) card(`Was gegen „${L.dangers[0].map(translate).join(" und ")}“ hilft`, L.answers.map(a => `${a.answer}: danach im Mittel ${a.cost.toLocaleString("de-DE", { maximumFractionDigits: 1 })} verloren (${a.tried}-mal)`), "");
   card("Ursachen, die er gelernt hat", L.causes.map(c => `${c.effect} nach „${c.action}“, wenn ${c.when.map(translate).join(" und ") || "immer"} (${c.hits} von ${c.uses})`), "keine");
 }
-renderScores(); setupReplay(); renderKeys(); renderRates(); renderCurve(); renderLearned();
+function renderSpace() {
+  const G = R.grid, box = document.getElementById("space");
+  const cells = G.cells.filter(c => c.place.length === 2);
+  const note = document.getElementById("space-note");
+  if (!cells.length) { note.textContent = "In diesem Lauf hat er noch kein Gitter gefunden."; return; }
+  const xs = cells.map(c => c.place[0]), ys = cells.map(c => c.place[1]);
+  const [x0, x1, y0, y1] = [Math.min(...xs, 0), Math.max(...xs, 0), Math.min(...ys, 0), Math.max(...ys, 0)];
+  const wide = x1 - x0 + 1 >= y1 - y0 + 1;
+  const cols = wide ? x1 - x0 + 1 : y1 - y0 + 1, rows = wide ? y1 - y0 + 1 : x1 - x0 + 1;
+  box.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  const at = {}; for (const c of cells) at[c.place.join(",")] = c;
+  for (let r = 0; r < rows; r++) for (let k = 0; k < cols; k++) {
+    const [x, y] = wide ? [x0 + k, y0 + r] : [x0 + r, y0 + k];
+    const c = at[`${x},${y}`];
+    if (x === 0 && y === 0 && G.centred) { box.append(el("div", { class: "cell me", title: "die Lücke: er selbst" }, "ich")); continue; }
+    if (!c) { box.append(el("div", { class: "cell", title: "noch keine Zahl" }, "")); continue; }
+    box.append(el("div", { class: "cell " + (c.right ? "right" : "wrong"), title: c.name }, c.name.replace("Sicht ", "")));
+  }
+  const right = cells.filter(c => c.right).length;
+  note.textContent = `Jedes Kästchen ist eine seiner Zahlen, dort, wo er sie hingelegt hat. Darin steht, welches Feld es in Wahrheit ist (das weiß nur diese Seite). ` +
+    `${right} von 62 Feldern liegen richtig` + (cells.length > right ? `, ${cells.length - right} falsch` : "") +
+    (R.grid_round ? `. Seine eigene Stelle in der Mitte hatte er nach Runde ${R.grid_round}.` : ".");
+}
+renderScores(); setupReplay(); renderSpace(); renderKeys(); renderRates(); renderCurve(); renderLearned();
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { renderRates(); renderCurve(); });
 new MutationObserver(() => { renderRates(); renderCurve(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 </script>
