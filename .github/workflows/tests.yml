@@ -18,3 +18,20 @@ jobs:
       - run: ruff format --check .
       - run: mypy
       - run: pytest -q
+
+  # Das gebaute Paket prüfen: Die Tests oben laufen gegen den Quellbaum und merken nicht,
+  # wenn im Paket Dateien fehlen (zum Beispiel die HTML-Vorlagen der Wiedergabeseiten).
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install build
+      - run: python -m build --wheel --outdir dist
+      - run: python -m venv "$RUNNER_TEMP/paket"
+      - run: '"$RUNNER_TEMP/paket/bin/pip" install dist/*.whl'
+      - name: Dateien im installierten Paket
+        working-directory: ${{ runner.temp }}
+        run: '"$RUNNER_TEMP/paket/bin/python" "$GITHUB_WORKSPACE/tests/check_package.py" "$GITHUB_WORKSPACE/src/hekmatki"'
