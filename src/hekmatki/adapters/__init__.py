@@ -8,4 +8,6 @@ etwas aus `hekmatki.adapters` (ein Test prüft das).
 
 - `crafter`: Crafter (Hafner 2021), ein kleines 2D-Minecraft für die Forschung. Braucht das
   Zusatzpaket: `pip install -e ".[crafter]"`.
+- `minecraft`: echtes Minecraft über eine Node-Brücke (Mineflayer) zu einem Server. Braucht
+  Node und `npm ci` in `minecraft_bridge/`, dazu einen Server (siehe docs/MINECRAFT.md).
 """

@@ -1,0 +1,15 @@
+{
+  "name": "hekmatki-minecraft-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Brücke zwischen dem HekmatKI-Adapter (Python) und einem Minecraft-Server über Mineflayer.",
+  "license": "MIT",
+  "main": "bridge.js",
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "mineflayer": "4.39.0"
+  },
+  "devDependencies": {
+    "flying-squid": "1.12.0"
+  }
+}

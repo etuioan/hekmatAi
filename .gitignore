@@ -22,3 +22,9 @@ venv/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Node (Minecraft-Brücke)
+node_modules
+
+# Minecraft-Server bei Messungen
+minecraft-server/
