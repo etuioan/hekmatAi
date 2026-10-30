@@ -1,10 +1,11 @@
 """Tests für den Raum aus eigener Bewegung (ab 0.19, H29)."""
 
 import random
+from dataclasses import replace
 
 from hekmatki.general.causes import Kind, Literal, cover
 from hekmatki.general.env import Transition
-from hekmatki.general.space import REFRESH, Edge, Space, build
+from hekmatki.general.space import REFRESH, Edge, Layout, Space, build
 
 WIDTH, HEIGHT = 5, 5
 """Ein Blick von 5 × 5 Feldern um die Figur; die Mitte ist die Figur selbst."""
@@ -21,8 +22,9 @@ class _Walker:
     """Eine Figur auf einer zufälligen Karte; sie sieht den Blick um sich, ihre Mitte (immer
     9) und ihren Ort (zwei Zahlen). Manche Schritte sind gesperrt."""
 
-    def __init__(self, rng: random.Random) -> None:
+    def __init__(self, rng: random.Random, walls: bool = False) -> None:
         self.rng = rng
+        self.walls = walls
         self.world = {
             (x, y): rng.choice((1, 1, 1, 2, 3)) for x in range(-40, 41) for y in range(-40, 41)
         }
@@ -42,6 +44,8 @@ class _Walker:
             self.facing = (dx, dy)
         if self.rng.random() < 0.3:
             return  # Gesperrt: Er bleibt stehen.
+        if self.walls and self.world[self.x + dx, self.y + dy] == 3:
+            return  # Eine Mauer.
         if abs(self.x + dx) < 35 and abs(self.y + dy) < 35:
             self.x, self.y = self.x + dx, self.y + dy
 
@@ -178,3 +182,83 @@ def test_an_edge_across_him_does_not_put_a_field_on_his_place() -> None:
     assert layout.centred
     assert layout.places[right] == tuple(-v for v in layout.places[index[-1, 0]])
     assert len(layout.places) == len(grid)
+
+
+def _grid_layout(
+    size: int = 2, front: int | None = None
+) -> tuple[Layout, dict[tuple[int, int], int]]:
+    """Ein fertiges Gitter (2·size+1)² um ihn herum; mit `front` dazu ein Fühler „vorne“,
+    der beim Gehen den Wert des Nachbarfelds in Gehrichtung bekommt."""
+    grid = [
+        (x, y) for y in range(-size, size + 1) for x in range(-size, size + 1) if (x, y) != (0, 0)
+    ]
+    index = {cell: i for i, cell in enumerate(grid)}
+    edges = [
+        Edge(0.95, action, index[x + dx, y + dy], index[x, y])
+        for action, (dx, dy) in MOVES.items()
+        for x, y in grid
+        if (x + dx, y + dy) in index
+    ]
+    oneway = (
+        []
+        if front is None
+        else [Edge(0.95, a, index[2 * dx, 2 * dy], front) for a, (dx, dy) in MOVES.items()]
+    )
+    walkers = {0: (60, 1), 1: (60, -1), 2: (61, 1), 3: (61, -1)}
+    return build(edges, walkers, oneway), index
+
+
+def test_he_walks_around_an_obstacle_to_what_he_wants() -> None:
+    """Rechts von ihm eine Mauer (7), dahinter etwas (5): Er geht oben oder unten herum."""
+    layout, index = _grid_layout()
+    layout = replace(layout, obstacles=frozenset({7}))
+    observation = [1] * 62
+    for y in (-1, 0, 1):
+        observation[index[1, y]] = 7
+    observation[index[2, 0]] = 5
+    neighbours = [index[-1, 0], index[1, 0], index[0, 1], index[0, -1]]
+    step = layout.fetch(tuple(observation), 5, neighbours)
+    assert step is not None
+    assert layout.vectors[step] in ((0, 1), (0, -1))
+
+
+def test_a_feeler_points_him_at_the_thing_next_to_him() -> None:
+    """„vorne“ zeigt das Nachbarfeld in Gehrichtung. Liegt 5 schon links neben ihm, dreht er
+    sich hin (geht nach links); liegt es weiter weg, geht er daneben."""
+    front = 40
+    layout, index = _grid_layout(front=front)
+    assert layout.mirrors[front] == {(1, 0), (-1, 0), (0, 1), (0, -1)}
+    observation = [1] * 62
+    observation[index[-1, 0]] = 5
+    step = layout.fetch(tuple(observation), 5, [front])
+    assert step is not None
+    assert layout.vectors[step] == (-1, 0)
+
+
+def test_heading_to_a_place_out_of_sight_goes_around_a_wall() -> None:
+    layout, index = _grid_layout()
+    layout = replace(layout, obstacles=frozenset({7}))
+    observation = [1] * 62
+    observation[index[1, 0]] = 7
+    where = [0] * 62
+    observation[60], observation[61] = 10, 10
+    where[60], where[61] = 30, 10  # Weit rechts, hinter der Mauer.
+    step = layout.head(tuple(observation), tuple(where))
+    assert step is not None
+    assert layout.vectors[step] != (1, 0)
+
+
+def test_obstacles_are_learned_from_his_own_movement() -> None:
+    """Felder mit dem Wert 3 kann die Figur nicht betreten; er merkt das selbst."""
+    rng = random.Random(1)
+    walker = _Walker(rng, walls=True)
+    space = Space()
+    before = walker.observe()
+    for _ in range(40 * REFRESH):
+        action = rng.randrange(6)
+        walker.step(action)
+        after = walker.observe()
+        space.observe(Transition(before, action, after, False))
+        before = after
+    assert 3 in space.layout.obstacles
+    assert 1 not in space.layout.obstacles

@@ -180,13 +180,19 @@ def test_own_goals_raise_a_quantity_without_any_goal_from_the_world() -> None:
 
 
 def test_a_quantity_that_sinks_by_itself_becomes_a_need() -> None:
-    agent = GeneralAgent(4, own_goals=True)
-    seen = _live(agent, Spring(decay=8), 800)
-    drives = agent.drives
-    assert drives is not None
-    own = drives.owned(agent.knowledge, agent.form())
-    assert drives.needs(agent.knowledge, own) == [2]
-    assert min(observation[2] for observation in seen[600:]) >= 1
+    """Auf jedem Startwert: Der Vorrat wird ein Bedürfnis, und er hält ihn fast immer über 0.
+    Bis 0.19 hielt er den Vorrat für einen Ort (er steigt beim Schöpfen immer um 1) und ließ
+    ihn auf manchen Startwerten lange leer."""
+    empty = 0
+    for seed in range(5):
+        agent = GeneralAgent(4, own_goals=True)
+        seen = _live(agent, Spring(decay=8), 800, seed)
+        drives = agent.drives
+        assert drives is not None
+        own = drives.owned(agent.knowledge, agent.form())
+        assert drives.needs(agent.knowledge, own) == [2]
+        empty += sum(observation[2] == 0 for observation in seen[200:])
+    assert empty < 0.1 * 5 * 600
 
 
 def test_without_own_goals_the_agent_is_unchanged() -> None:

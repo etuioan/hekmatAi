@@ -140,6 +140,14 @@ def _achieve(
     if fetched is not None:
         return fetched
     causes = causes_for(knowledge.causes, goal)
+    for cause in causes[:BRANCH]:
+        if cause.ready(observation):
+            return cause.action
+        missing = [literal for literal in cause.literals if not literal.holds(observation)]
+        if len(missing) == 1:
+            fetched = _fetch(knowledge, observation, missing[0])
+            if fetched is not None:
+                return fetched  # Nur ein Teil fehlt, und er sieht ihn: um Hindernisse hingehen.
     targets = [Target((goal,)), *(Target(cause.literals, cause.action) for cause in causes)]
     step = search(world, observation, targets)
     if step is not None or depth == 0:

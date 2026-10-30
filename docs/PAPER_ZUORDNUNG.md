@@ -1,11 +1,11 @@
 # Paper-Zuordnung: Welches Modul stützt sich auf welche Forschung?
 
-Stand: Prototyp 0.18, Dossier Runde 7 (29. Oktober 2026, 221 Paper) plus Paper zu 0.18 (siehe unten).
+Stand: Prototyp 0.20, Dossier Runde 7 (29. Oktober 2026, 221 Paper) plus Paper zu 0.18 bis 0.20 (siehe unten).
 Dossier: https://claude.ai/artifact/Sghxz5AxhcHgCKY9dtGSM5, Abschnitt „Paper ↔ Prototyp“.
 
 **Regel:** Jede neue Version aktualisiert diese Datei. Ideen, die zuerst im Code entstehen,
 bekommen den Vermerk **ohne Grundlage**. Sie sind der Suchauftrag für die nächste Paper-Runde.
-P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers, H25–H28 neu mit 0.18 (siehe unten).
+P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers, H25–H28 neu mit 0.18, H29–H31 mit 0.19, H32–H34 mit 0.20 (siehe unten).
 
 ## Module und ihre Grundlagen
 
@@ -42,8 +42,8 @@ P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers, H25–H28 neu
 | `general/detector.py`, `general/agent.py` | Neue Umgebung erkennen: erwartete gegen unerwartete Unsicherheit, ab 0.17 per Bayes-Faktor | Yu & Dayan 2002, Sanders 2020, Heald 2021 (COIN), Stahl & Feigenson 2015; Runde 7: Adams & MacKay 2007, Liakoni 2021, Wald 1945 (sequentieller Test), Kass & Raftery 1995 (Schwelle), Dawid 1984 (prequentielle Wertung); Fenster 20 und Wechselrate 1/1000 sind **ohne Grundlage** | P7, H18, H23 |
 | `general/causes.py` | Ursachen: unter welcher Bedingung eine Taste etwas bewirkt (ab 0.18) | Regeln lernen durch schrittweises Abdecken (Michalski 1969, CN2: Clark & Niblett 1989), Literal-Wahl nach gewichteter relativer Genauigkeit (Lavrač, Flach & Zupan 1999), Schema Networks 2017 (Bedingung → Wirkung); höchstens 3 Literale, 4 Ursachen, 2 Treffer, Genauigkeit 0,34 sind **ohne Grundlage** | P1, P4, H25 |
 | `general/subgoals.py` | Teilziele und Vorstellen mit Lücken (ab 0.18) | Mittel-Ziel-Analyse (Newell & Simon 1961), STRIPS (Fikes & Nilsson 1971), Optionen (Sutton, Precup, Singh 1999), Raum aus Sensomotorik (Philipona 2003, Laflaquière 2019); Tiefe 3, 200 vorgestellte Zustände und „seltene Ursache ab 5 %“ sind **ohne Grundlage** | P2, P5, H25, H26 |
-| `general/space.py` | Raum aus eigener Bewegung: welches Sichtfeld neben welchem liegt, eigene Stelle als Lücke, Gruppen nach Abstand (ab 0.19) | Philipona, O'Regan & Nadal 2003 (Raum aus Sensomotorik), Pierce & Kuipers 1997 (Karten aus uninterpretierten Sinnen und Tasten), Laflaquière & Garcia Ortiz 2019, Kruskal 1956 (stärkste Kanten zuerst), deiktische Darstellung (Agre & Chapman 1987); Gegenstimme Finney, Gardiol, Kaelbling & Oates 2002; alle Schwellen (90 %, 80 %, 95 %, 20 Schritte, 6 Werte, 90 % Kasten, 3 Ringe) sind **ohne Grundlage** | P2, H29 |
-| `general/drives.py` | Eigene Ziele: Bedürfnisse, Rekorde, Versuche, Erkunden, Abwehr (ab 0.18) | Homöostase (Keramati & Gutkin 2014), intrinsisch motivierte Zielprozesse (Forestier, Portelas, Mollard, Oudeyer 2022; Oudeyer & Kaplan 2007), Zählen als Neugier (Strehl & Littman 2008, Bellemare 2016), Go-Explore (Ecoffet 2021), Vermeiden lernen (Mowrer 1947; ab 0.19 „gut ist, was die Gefahr beendet“, Gegenstimme Herrnstein 1969), Neugier auf Neues zum Anfassen (ab 0.19: Piaget 1952, Stahl & Feigenson 2015), modellfrei neben modellbasiert (Daw, Niv & Dayan 2005), Schrumpfen zum Mittel (Efron & Morris 1975), Zahl und Ort als Kernsysteme (Spelke 2022, Dehaene 2011); Gegenstimmen siehe unten; fast alle Schwellen sind **ohne Grundlage** | P5, H27, H28, H30, H31 |
+| `general/space.py` | Raum aus eigener Bewegung: welches Sichtfeld neben welchem liegt, eigene Stelle als Lücke, Gruppen nach Abstand (ab 0.19) | Philipona, O'Regan & Nadal 2003 (Raum aus Sensomotorik), Pierce & Kuipers 1997 (Karten aus uninterpretierten Sinnen und Tasten), Laflaquière & Garcia Ortiz 2019, Kruskal 1956 (stärkste Kanten zuerst), deiktische Darstellung (Agre & Chapman 1987); ab 0.20 Hindernisse aus eigener Bewegung und Fühler („vorne“): sensomotorische Kontingenzen (O'Regan & Noë 2001); Gegenstimme Finney, Gardiol, Kaelbling & Oates 2002; alle Schwellen (90 %, 80 %, 95 %, 20 Schritte, 6 Werte, 90 % Kasten, 3 Ringe, ab 0.20 5 Stöße und 80 % für ein Hindernis) sind **ohne Grundlage** | P2, H29, H34 |
+| `general/drives.py` | Eigene Ziele: Bedürfnisse, Rekorde, Versuche, Erkunden, Abwehr (ab 0.18) | Homöostase (Keramati & Gutkin 2014), intrinsisch motivierte Zielprozesse (Forestier, Portelas, Mollard, Oudeyer 2022; Oudeyer & Kaplan 2007), Zählen als Neugier (Strehl & Littman 2008, Bellemare 2016), Go-Explore (Ecoffet 2021), Vermeiden lernen (Mowrer 1947; ab 0.19 „gut ist, was die Gefahr beendet“, Gegenstimme Herrnstein 1969), Neugier auf Neues zum Anfassen (ab 0.19: Piaget 1952, Stahl & Feigenson 2015), Abwehr als Option (ab 0.20: Sutton, Precup & Singh 1999, Dabney, Ostrovski & Barreto 2021; wenige Antworten: Bolles 1970), neuer Besitz, neuer Versuch (ab 0.20: Gibson 1979, Şahin u. a. 2007), modellfrei neben modellbasiert (Daw, Niv & Dayan 2005), Schrumpfen zum Mittel (Efron & Morris 1975), Zahl und Ort als Kernsysteme (Spelke 2022, Dehaene 2011); Gegenstimmen siehe unten; fast alle Schwellen sind **ohne Grundlage** | P5, H27, H28, H30 bis H33 |
 | `adapters/crafter.py`, `experiments/crafter_run.py`, `experiments/crafter_replay.py` | Prüfstein Crafter, Adapter getrennt vom Agenten (ab 0.18) | Crafter (Hafner 2021), Wertung wie dort; MineRL/MineDojo erst später (Prüfung vom 29.10.2026) | G4 |
 | `experiments/` | Messung, ab 0.15 auch Schaden durch Vorwissen | Tastendrücke bis zum ersten Sieg; ARC-AGI-3 misst RHAE; negative Übertragung: Wang 2019; Vergleich Spielwelt–Alltagswelt: Runde 5 G4 | H11–H17 |
 
@@ -56,6 +56,35 @@ P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers, H25–H28 neu
 | Sprachorgan (LLM) | bewusst weggelassen | LILO; Tycho und Kepler zeigen, dass LLMs Weltmodelle als Code schreiben |
 | Lehrplan-Generator | fehlt | Absolute Zero, Oudeyer 2007, POET |
 | Kontext-Inferenz und Schlaf in der 2D-Welt | Kontext-Inferenz ab 0.16 im allgemeinen Agenten (`general/detector.py`), Schlaf fehlt | COIN, Bhattarai 2026; Runde 6: Sanders, Wilson, Gershman 2020, Yu & Dayan 2002 |
+
+## Umgesetzt in 0.20 (Überleben und Wege, H32 bis H34)
+
+Abgeleitet aus Ergebnis 23: Er starb so früh wie der Zufall, als beste Abwehr stand oft eine
+Taste ohne Wirkung, und auf dem Weg zum Wasser lief er in 55 % der Schritte gegen etwas.
+
+| Hypothese | Stand |
+|---|---|
+| H32: Abwehr als Option (bei einer Antwort bleiben, bis die Gefahr vorbei ist; als Ganzes abrechnen), mit wenigen Antworten | **teilweise gestützt** (Ergebnis 24): Er besiegt Zombies in 8 % der Runden statt 2 bis 3 % (0.19, zwei Messungen). Er lebt aber nicht länger (171 statt 175 Schritte): 7 von 10 Zombie-Treffern kommen ohne Abwehr in den drei Schritten davor, weil er die Gefahr nicht erkennt. Die Option hilft also, wo die Gefahr erkannt ist; das Erkennen ist die Lücke |
+| H33: Neuer Besitz, neuer Versuch (Versuche zählen je nach dem, was er bei sich hat) | **offen**: Nur zusammen mit dem Ort-Fehler gemessen; zusammen stiegen die Erfolge je Runde von 2,4 auf 2,9. Werkbank und Werkzeug wurden dabei nicht häufiger |
+| H34: Hindernisse aus eigener Bewegung, Wege um sie herum, „vorne“ als Fühler | **gestützt für die Wege**: Anteil der Schritte gegen ein Hindernis beim Trinken von 55 auf etwa 35 %, Trinken in 43 statt 32 bis 38 % der Runden. Gesamt (alle drei): Wertung 2,7 statt 2,5 %, je Startwert 2,24 ± 0,11 gegen 1,9 bis 2,0 %, 3,0 statt 2,4 bis 2,6 Erfolge je Runde. Werkbank seltener (9 statt 14 bis 21 %), Ursache offen |
+
+**Gegenstimmen und Warnungen zu 0.20:**
+- Bolles 1970 (artspezifische Abwehrreaktionen): Vermeiden lernen Tiere leicht nur, wenn die
+  verlangte Antwort zu Flucht, Erstarren oder Kampf gehört; eine beliebige Antwort lernen sie
+  kaum. Das spricht gegen „jede Taste ist eine Antwort“ (0.19) und für eine kleine Auswahl,
+  aber auch dagegen, dass ein Agent ohne solche angeborenen Antworten sie schnell findet. Hier
+  ist die Auswahl (hin, weg, quer, Taste daran) eine Annahme, keine gelernte.
+- Harb, Bacon, Klissarov & Precup 2018 (Abwägungskosten bei Optionen): Zu lange Optionen
+  verlieren Reaktionsfähigkeit, zu kurze bringen nichts. Darum bricht die Option ab, sobald
+  die Gefahr nicht mehr gilt, und dauert höchstens 8 Schritte (ohne Grundlage).
+- Eigener Gegenversuch: Gesundheit sinkt auch bei leerem Bedürfnis. Solche Fälle aus dem
+  Lernen der Gefahren herauszunehmen, ließ zu wenige Fälle übrig, und die gelernten Gefahren
+  wurden schlechter. Nicht übernommen.
+
+**Ohne Grundlage (neu in 0.20), Suchauftrag für Runde 8:**
+- Abwehr: Option und Schadensfenster 8 Schritte (`HARM_WINDOW`).
+- Hindernis: ab 5 gescheiterten Schritten (`MIN_BLOCKED`) und 80 % gescheitert (`BLOCKING`).
+- Neuer Besitz: nur „über 0 oder nicht“, nicht wie viel.
 
 ## Umgesetzt in 0.19 (Raum aus eigener Bewegung, H29 bis H31)
 
