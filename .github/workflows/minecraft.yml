@@ -1,0 +1,160 @@
+# Minecraft-Messung auf GitHub: ein Job je Agent und Karte, jeder mit eigenem offiziellem
+# Minecraft-Server (ohne Grafikkarte, ohne Bildschirm), danach ein Sammel-Job.
+#
+# Lizenz: Der offizielle Server gehört Mojang. Wer ihn startet, nimmt die Minecraft-EULA an
+# (https://aka.ms/MinecraftEULA). Tenshira, die Inhaberin dieses Repos, hat am 2026-10-30
+# entschieden, sie für diese Messungen anzunehmen. Der Server wird bei jedem Lauf frisch von
+# Mojang geladen und nie mit dem Repo verteilt.
+#
+# Start: Reiter „Actions“ → „Minecraft-Messung“ → „Run workflow“. Bei Änderungen am
+# Minecraft-Code läuft in Pull Requests eine kleine Messung.
+# Ergebnis: Tabelle in der Zusammenfassung des Laufs, Rohdaten als Artefakt „minecraft-messung“.
+name: Minecraft-Messung
+
+on:
+  workflow_dispatch:
+    inputs:
+      startwerte:
+        description: "Anzahl Karten je Agent (Startwerte 0 bis n−1)"
+        type: number
+        default: 8
+      runden:
+        description: "Runden je Karte (die ersten 4 zählen nicht)"
+        type: number
+        default: 12
+      laenge:
+        description: "Schritte je Runde (etwa 4 Schritte je Sekunde)"
+        type: number
+        default: 2000
+  pull_request:
+    paths:
+      - "src/hekmatki/adapters/minecraft*"
+      - "src/hekmatki/adapters/minecraft_bridge/**"
+      - "src/hekmatki/experiments/minecraft_run.py"
+      - ".github/workflows/minecraft.yml"
+
+env:
+  MINECRAFT_VERSION: "1.20.4"
+  STARTWERTE: ${{ inputs.startwerte || 2 }}
+  RUNDEN: ${{ inputs.runden || 8 }}
+  LAENGE: ${{ inputs.laenge || 1000 }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      seeds: ${{ steps.seeds.outputs.seeds }}
+    steps:
+      - id: seeds
+        run: echo "seeds=[$(seq -s, 0 $((STARTWERTE - 1)))]" >> "$GITHUB_OUTPUT"
+
+  play:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        agent: ["Zufall", "Tabelle", "Stand 0.21"]
+        seed: ${{ fromJSON(needs.plan.outputs.seeds) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - run: pip install -e .
+      - run: npm ci --omit=dev
+        working-directory: src/hekmatki/adapters/minecraft_bridge
+      - name: Offiziellen Server laden
+        run: |
+          manifest=$(curl -fsSL https://piston-meta.mojang.com/mc/game/version_manifest_v2.json)
+          version_url=$(echo "$manifest" | jq -r --arg v "$MINECRAFT_VERSION" '.versions[] | select(.id == $v) | .url')
+          server_url=$(curl -fsSL "$version_url" | jq -r '.downloads.server.url')
+          mkdir -p minecraft-server
+          curl -fsSL -o minecraft-server/server.jar "$server_url"
+      - name: Server starten (EULA angenommen, siehe oben)
+        run: |
+          python -m hekmatki.adapters.minecraft_server minecraft-server ${{ matrix.seed }} --eula-angenommen
+          cd minecraft-server
+          nohup java -Xmx2G -jar server.jar nogui > server.log 2>&1 &
+          for _ in $(seq 1 180); do
+            grep -q 'Done (' server.log && break
+            sleep 2
+          done
+          grep 'Done (' server.log
+      - name: Spielen
+        env:
+          AGENT: ${{ matrix.agent }}
+        run: |
+          name="${AGENT// /_}-${{ matrix.seed }}"
+          echo "NAME=$name" >> "$GITHUB_ENV"
+          python -m hekmatki.experiments.minecraft_run play "$AGENT" ${{ matrix.seed }} "teil-$name.json" \
+            --episodes "$RUNDEN" --length "$LAENGE" --wiedergabe "wiedergabe-$name.json"
+      - name: Server-Protokoll
+        if: always()
+        run: tail -n 40 minecraft-server/server.log
+      - uses: actions/upload-artifact@v7
+        with:
+          name: teil-${{ env.NAME }}
+          path: |
+            teil-${{ env.NAME }}.json
+            wiedergabe-${{ env.NAME }}.json
+
+  merge:
+    needs: play
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Ergebnisse auf den Branch „minecraft-messungen“ legen
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: teil-*
+          path: teile
+          merge-multiple: true
+      - run: python -m hekmatki.experiments.minecraft_run merge messung.json teile/teil-*.json | tee bericht.txt
+      - name: Wiedergabe-Seite
+        run: python -m hekmatki.experiments.minecraft_replay minecraft.html teile/wiedergabe-*.json --bericht bericht.txt
+      - name: Zusammenfassung
+        run: |
+          {
+            echo "## Minecraft-Messung ($(ls teile/teil-* | wc -l) Teile, $RUNDEN Runden à $LAENGE Schritte, Commit ${GITHUB_SHA::7})"
+            echo '```text'
+            cat bericht.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: minecraft-messung
+          path: |
+            messung.json
+            bericht.txt
+            minecraft.html
+      - name: Ergebnisse auf Branch minecraft-messungen ablegen
+        run: |
+          folder="lauf-${GITHUB_RUN_ID}"
+          mkdir -p "/tmp/$folder"
+          cp messung.json bericht.txt minecraft.html teile/wiedergabe-*.json "/tmp/$folder/"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch origin minecraft-messungen; then
+            git switch -c minecraft-messungen FETCH_HEAD
+          else
+            git switch --orphan minecraft-messungen
+          fi
+          mv "/tmp/$folder" .
+          git add "$folder"
+          git commit -m "Minecraft-Messung $folder (Commit ${GITHUB_SHA::7})"
+          git push origin minecraft-messungen
