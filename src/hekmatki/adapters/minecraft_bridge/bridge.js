@@ -388,8 +388,14 @@ class Player {
     return inner
   }
 
-  ticks (count) {
-    return this.bot.waitForTicks(count)
+  async ticks (count) {
+    // Hinkt der Server hinterher (etwa beim Erzeugen neuer Gegenden), wirft Mineflayer nach
+    // einer Weile; das ist kein Fehler, die Zeit ist dann eben um.
+    try {
+      await this.bot.waitForTicks(count)
+    } catch (error) {
+      if (!/Timeout waiting for/.test(error.message)) throw error
+    }
   }
 }
 
