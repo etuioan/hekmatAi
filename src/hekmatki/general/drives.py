@@ -50,7 +50,8 @@ from dataclasses import dataclass, field
 from typing import Final
 from weakref import WeakKeyDictionary
 
-from hekmatki.general.causes import Change, Event, Kind, Literal, Partial
+from hekmatki.general.causes import Change, Event, Groups, Kind, Literal, Partial
+from hekmatki.general.cues import Cues
 from hekmatki.general.env import Observation, Transition
 from hekmatki.general.form import STEPPED, Axis, Form
 from hekmatki.general.knowledge import Knowledge
@@ -87,8 +88,6 @@ SHRINK: Final = 3
 """So viele gedachte Fälle zieht das gemeinsame Mittel beim Schaden (ohne Grundlage)."""
 SMALL: Final = 2
 """Größen wie Gesundheit ändern sich meist um höchstens so viel (ohne Grundlage)."""
-DANGER_HITS: Final = 5
-"""Eine gefährliche Lage braucht so viele Fälle mit Schaden; seltener ist es oft Zufall."""
 LINGER: Final = 1
 """Ist die Gefahr nach `HARM_WINDOW` Schritten noch da, zählt das wie so viel Schaden: Gut
 ist, was die Gefahr beendet (Mowrer 1947); von Hand gewählt, ohne Grundlage."""
@@ -99,8 +98,8 @@ URGENT: Final = 0.5
 TOP_UP: Final = 0.9
 """Ist nichts anderes zu tun, hebt er Bedürfnisse schon unter diesem Anteil (ohne Grundlage)."""
 DANGER: Final = 0.15
-"""Eine Lage ist gefährlich, wenn danach ein Bedürfnis mindestens so oft sank (ohne
-Grundlage)."""
+"""Eine Lage ist gefährlich, wenn danach Gesundheit mit Sicherheit öfter als so oft sank
+(ab 0.21 mit Unsicherheit, `cues`; ohne Grundlage)."""
 STRETCH: Final = (4, 12)
 """Beim Erkunden geht er so viele Schritte geradeaus (von Hand gewählt, ohne Grundlage)."""
 STUCK: Final = 3
@@ -200,6 +199,9 @@ class Drives:
         self._guard: Guard | None = None
         """Die Antwort, bei der er gerade bleibt (ab 0.20)."""
         self._hurt_cache: list[int] = []
+        self._cues = Cues()
+        self._groups: Groups = ()
+        """Die Gruppen „nah bei mir“ beim letzten Wählen; mit ihnen zählt er Hinweisreize."""
         self._where: dict[int, Observation] = {}
         """Größe → die Beobachtung, nach der sie an diesem Ort zuletzt stieg."""
 
@@ -246,6 +248,7 @@ class Drives:
             self.highest_here[component] = max(self.highest_here.get(component, old), old, new)
         if self.pursuit is not None and self.pursuit.goal.holds(after):
             self.pursuit = None
+        self._cues.observe(before, after, self._groups)
         self._last = after
         self._settle(after)
         if self.steps % REVIEW == 0:
@@ -278,6 +281,7 @@ class Drives:
             self._operands = {a: knowledge.causes.operands(a, own) for a in range(self.actions)}
             self._operands_due = self.steps + REVIEW
         plan = _Plan(knowledge, world, form, self._where)
+        self._groups = knowledge.space.layout.groups()
         choices: tuple[tuple[str, Callable[[], int | None]], ...]
         needs = set(self.needs(knowledge, own))
         self._kit = frozenset(own - needs)
@@ -329,20 +333,18 @@ class Drives:
     def dangers(
         self, knowledge: Knowledge, body: set[int], harmed: list[int]
     ) -> list[tuple[Literal, ...]]:
-        """Lagen, nach denen eine Menge oft sank, die nach vielen Tasten sinken kann (etwa
-        Gesundheit): die Bedingungen der Ursachen von „sinkt“, egal nach welcher Taste. Nur
-        Bedingungen über das, was er sieht; Bedingungen über seine Mengen (Durst ist 0) stillt
-        er als Bedürfnis, nicht durch Abwehr. Ab 0.19 auch über Gruppen von Feldern („ein
-        Gegner irgendwo direkt neben mir“, aus `space`)."""
+        """Lagen, nach denen eine Menge, die nach vielen Tasten sinken kann (etwa Gesundheit),
+        mit Sicherheit oft sank, egal nach welcher Taste. Nur Aussagen über das, was er sieht;
+        Bedingungen über seine Mengen (Durst ist 0) stillt er als Bedürfnis, nicht durch Abwehr.
+        Ab 0.19 auch über Gruppen von Feldern („ein Gegner irgendwo direkt neben mir“, aus
+        `space`). Ab 0.21 je eine einzelne Aussage mit ihrer Unsicherheit (`cues`), statt
+        Bedingungen aus dem Abdecken mit mindestens 5 Treffern."""
         seen = frozenset(range(knowledge.rules.width)) - body - set(self._axes(knowledge))
         groups = knowledge.space.layout.groups()
         return [
-            cause.literals
+            (literal,)
             for component in harmed
-            for cause in knowledge.causes.conditions(
-                Event(component, Change.FALLS), DANGER, seen, groups
-            )
-            if cause.hits >= DANGER_HITS
+            for literal in self._cues.alarms(component, DANGER, seen, groups)
         ]
 
     def _axes(self, knowledge: Knowledge) -> list[int]:

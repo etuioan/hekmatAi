@@ -21,6 +21,7 @@
   --s-new: #3d6b1f;
   --s-prev: #9cbf7c;
   --s-older: #c9d9b8;
+  --s-oldest: #e1e9d8;
   --bad: #b23a2a;
   --font-display: "Pixelify Sans", "Trebuchet MS", system-ui, sans-serif;
   --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
@@ -30,14 +31,14 @@
   :root:not([data-theme="light"]) {
     --bg: #121610; --surface: #191f16; --sunk: #0d100b; --ink: #e6ecdf; --muted: #9aa691;
     --line: #2b3427; --accent: #9ccf6b; --s-rand: #6d7566; --s-table: #d8b86a;
-    --s-old: #86a9d4; --s-new: #9ccf6b; --s-prev: #56783f; --s-older: #374a2b; --bad: #f07a66;
+    --s-old: #86a9d4; --s-new: #9ccf6b; --s-prev: #56783f; --s-older: #374a2b; --s-oldest: #2a3622; --bad: #f07a66;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #121610; --surface: #191f16; --sunk: #0d100b; --ink: #e6ecdf; --muted: #9aa691;
   --line: #2b3427; --accent: #9ccf6b; --s-rand: #6d7566; --s-table: #d8b86a;
-  --s-old: #86a9d4; --s-new: #9ccf6b; --s-prev: #56783f; --s-older: #374a2b; --bad: #f07a66;
+  --s-old: #86a9d4; --s-new: #9ccf6b; --s-prev: #56783f; --s-older: #374a2b; --s-oldest: #2a3622; --bad: #f07a66;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -59,7 +60,7 @@ p { margin: 0; max-width: 68ch; }
 .mono { font-family: var(--font-data); }
 header, section { display: grid; gap: 18px; }
 
-.scores { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.scores { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 12px; }
 .score { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; display: grid; gap: 4px; }
 .score .value { font: 500 2rem/1 var(--font-data); font-variant-numeric: tabular-nums; }
 .score .who { display: flex; align-items: center; gap: 8px; font-weight: 700; }
@@ -124,15 +125,16 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var
 
 <main>
   <header>
-    <span class="kicker">HekmatKI 0.20 · allgemeiner Agent · Crafter</span>
+    <span class="kicker">HekmatKI 0.21 · allgemeiner Agent · Crafter</span>
     <h1>Der Agent im kleinen Minecraft</h1>
     <p class="lede">Niemand sagt ihm, was Holz, Durst oder ein Zombie ist. Er sieht nur 85 gemischte
       Zahlen und 17 Tasten ohne Namen. Seit 0.18 setzt er sich eigene Ziele. Seit 0.19 findet
       er selbst heraus, dass 63 dieser Zahlen ein Bild um ihn herum sind und wo er darin
       steht. Seit 0.20 lernt er aus eigenen Schritten, wogegen er nicht laufen kann, und geht
-      darum herum; bei einer Gefahr bleibt er bei seiner Antwort, bis sie vorbei ist. Er
-      schafft jetzt 3,0 verschiedene Erfolge je Runde (Zufall 2,2), trinkt, isst und besiegt
-      Zombies viel öfter und kommt in der Gesamtwertung auf 2,7 statt 1,6 %.</p>
+      darum herum; bei einer Gefahr bleibt er bei seiner Antwort, bis sie vorbei ist. Seit 0.21
+      wägt er ab, wie sicher eine Lage gefährlich ist, statt erst fünf Treffer abzuwarten, und
+      lebt dadurch etwa 10 Schritte länger. Er schafft 3,1 verschiedene Erfolge je Runde
+      (Zufall 2,2) und kommt in der Gesamtwertung auf 3,0 statt 1,6 %.</p>
     <div class="scores" id="scores"></div>
     <p class="muted" id="score-note"></p>
   </header>
@@ -178,7 +180,8 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var
       tauschte. 0.19 lag etwa gleichauf mit dem Zufall, schaffte aber öfter die schweren
       Erfolge (Holz, Werkbank, Werkzeug). 0.20 liegt klar darüber. Crafter ist zwischen zwei
       Messungen nicht Schritt für Schritt gleich; einzelne Runden streuen stark, nur die
-      Mittel über alle 16 Karten zählen.</p>
+      Mittel über alle 16 Karten zählen. Auf 16 neuen Karten liegen 0.20 und 0.21 bei der
+      Wertung gleichauf (3,0 %); 0.21 lebt dort 8 Schritte länger.</p>
     <div class="chart" id="curve"></div>
   </section>
 
@@ -222,14 +225,13 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var
       <li>Seine Wahrnehmung ist geschenkt: Er bekommt Crafters Karte als Nummern, nicht das Bild,
         und dazu, was vor ihm liegt. Aus Pixeln müsste er das erst lernen.</li>
       <li>Der Vorsprung ist deutlich, aber noch klein: Je Karten-Startwert liegt er im Mittel
-        bei 2,2 %, Zufall bei 1,4 % und 0.19 bei 1,9 bis 2,0 % (zwei Messungen). Eine einzelne
-        Messung schwankt um etwa 0,2 Punkte.</li>
-      <li>Werkbank und Werkzeug baut er seltener als 0.19 (Werkbank 9 statt 14 bis 21 % der
+        bei 2,4 %, Zufall bei 1,4 % und 0.20 bei 2,2 %. Eine einzelne Messung schwankt um etwa
+        0,2 Punkte.</li>
+      <li>Werkbank und Werkzeug baut er seltener als 0.19 (Werkbank 13 statt 14 bis 21 % der
         Runden). Warum, ist noch offen.</li>
-      <li>Er stirbt immer noch nach etwa 170 Schritten, meist durch Zombies. Zombies besiegt er
-        jetzt in 8 % der Runden (0.19: 2 bis 3 %), aber 7 von 10 Treffern kommen, ohne dass er
-        die Gefahr vorher erkannt hat: Was eine Gefahr ist, lernt er nicht auf jeder Karte
-        sicher.</li>
+      <li>Er stirbt immer noch meist durch Zombies, nach etwa 180 Schritten. Die Hälfte der
+        Treffer kommt, ohne dass er vorher in Abwehr war: Er kennt dann zwar eine Gefahr, aber
+        nicht die Lage, die gerade gilt, oft weil er auf dieser Karte noch kein Gitter hat.</li>
       <li>Das Gitter findet er nicht auf jeder Karte: nach 10 Runden auf 10 bis 11 von 16.
         Manchmal ist darin ein Block um ein Feld verschoben; dann irrt er sich, wo er selbst
         steht.</li>
@@ -271,15 +273,16 @@ const REASONS = {
   "Erkunden": "Nichts zu tun: Er geht dorthin, wo er am seltensten war.",
   "Plan": "Er kennt einen Weg zu einem Zustand, in dem die Welt schon einmal „Erfolg“ meldete."
 };
-const NEWEST = "Stand 0.20";
-const AGENT_COLOR = { "Zufall": "--s-rand", "Tabelle": "--s-table", "Stand 0.17": "--s-old", "Stand 0.18": "--s-older", "Stand 0.19": "--s-prev", "Stand 0.20": "--s-new" };
+const NEWEST = "Stand 0.21";
+const AGENT_COLOR = { "Zufall": "--s-rand", "Tabelle": "--s-table", "Stand 0.17": "--s-old", "Stand 0.18": "--s-oldest", "Stand 0.19": "--s-older", "Stand 0.20": "--s-prev", "Stand 0.21": "--s-new" };
 const AGENT_NOTE = {
   "Zufall": "drückt zufällige Tasten",
   "Tabelle": "Q-Lernen aus „Erfolg“",
   "Stand 0.17": "allgemeiner Agent ohne eigene Ziele",
   "Stand 0.18": "mit eigenen Zielen",
   "Stand 0.19": "dazu Raum aus eigener Bewegung",
-  "Stand 0.20": "dazu bei der Abwehr bleiben und um Hindernisse gehen"
+  "Stand 0.20": "dazu bei der Abwehr bleiben und um Hindernisse gehen",
+  "Stand 0.21": "dazu Gefahren mit Unsicherheit erkennen"
 };
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const el = (tag, attrs = {}, text) => {

@@ -1,11 +1,11 @@
 # Paper-Zuordnung: Welches Modul stützt sich auf welche Forschung?
 
-Stand: Prototyp 0.20, Dossier Runde 7 (29. Oktober 2026, 221 Paper) plus Paper zu 0.18 bis 0.20 (siehe unten).
+Stand: Prototyp 0.21, Dossier Runde 7 (29. Oktober 2026, 221 Paper) plus Paper zu 0.18 bis 0.21 (siehe unten).
 Dossier: https://claude.ai/artifact/Sghxz5AxhcHgCKY9dtGSM5, Abschnitt „Paper ↔ Prototyp“.
 
 **Regel:** Jede neue Version aktualisiert diese Datei. Ideen, die zuerst im Code entstehen,
 bekommen den Vermerk **ohne Grundlage**. Sie sind der Suchauftrag für die nächste Paper-Runde.
-P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers, H25–H28 neu mit 0.18, H29–H31 mit 0.19, H32–H34 mit 0.20 (siehe unten).
+P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers, H25–H28 neu mit 0.18, H29–H31 mit 0.19, H32–H34 mit 0.20, H35 mit 0.21 (siehe unten).
 
 ## Module und ihre Grundlagen
 
@@ -43,6 +43,7 @@ P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers, H25–H28 neu
 | `general/causes.py` | Ursachen: unter welcher Bedingung eine Taste etwas bewirkt (ab 0.18) | Regeln lernen durch schrittweises Abdecken (Michalski 1969, CN2: Clark & Niblett 1989), Literal-Wahl nach gewichteter relativer Genauigkeit (Lavrač, Flach & Zupan 1999), Schema Networks 2017 (Bedingung → Wirkung); höchstens 3 Literale, 4 Ursachen, 2 Treffer, Genauigkeit 0,34 sind **ohne Grundlage** | P1, P4, H25 |
 | `general/subgoals.py` | Teilziele und Vorstellen mit Lücken (ab 0.18) | Mittel-Ziel-Analyse (Newell & Simon 1961), STRIPS (Fikes & Nilsson 1971), Optionen (Sutton, Precup, Singh 1999), Raum aus Sensomotorik (Philipona 2003, Laflaquière 2019); Tiefe 3, 200 vorgestellte Zustände und „seltene Ursache ab 5 %“ sind **ohne Grundlage** | P2, P5, H25, H26 |
 | `general/space.py` | Raum aus eigener Bewegung: welches Sichtfeld neben welchem liegt, eigene Stelle als Lücke, Gruppen nach Abstand (ab 0.19) | Philipona, O'Regan & Nadal 2003 (Raum aus Sensomotorik), Pierce & Kuipers 1997 (Karten aus uninterpretierten Sinnen und Tasten), Laflaquière & Garcia Ortiz 2019, Kruskal 1956 (stärkste Kanten zuerst), deiktische Darstellung (Agre & Chapman 1987); ab 0.20 Hindernisse aus eigener Bewegung und Fühler („vorne“): sensomotorische Kontingenzen (O'Regan & Noë 2001); Gegenstimme Finney, Gardiol, Kaelbling & Oates 2002; alle Schwellen (90 %, 80 %, 95 %, 20 Schritte, 6 Werte, 90 % Kasten, 3 Ringe, ab 0.20 5 Stöße und 80 % für ein Hindernis) sind **ohne Grundlage** | P2, H29, H34 |
+| `general/cues.py` | Gefahren als Hinweisreize: Schadensquote je Aussage mit Unsicherheit (ab 0.21) | Beta-Binomial-Angstlernen (Tzovara, Korn & Bach 2018); gelernter Schutz vor Katastrophen-Aktionen (Shperberg, Liu & Stone 2022); Gegenstimmen: Übergeneralisieren der Angst (Lissek u. a. 2005), Reize konkurrieren um die Vorhersage (Rescorla & Wagner 1972, hier nicht abgebildet); 95 % Sicherheit ist **ohne Grundlage** | P5, H35 |
 | `general/drives.py` | Eigene Ziele: Bedürfnisse, Rekorde, Versuche, Erkunden, Abwehr (ab 0.18) | Homöostase (Keramati & Gutkin 2014), intrinsisch motivierte Zielprozesse (Forestier, Portelas, Mollard, Oudeyer 2022; Oudeyer & Kaplan 2007), Zählen als Neugier (Strehl & Littman 2008, Bellemare 2016), Go-Explore (Ecoffet 2021), Vermeiden lernen (Mowrer 1947; ab 0.19 „gut ist, was die Gefahr beendet“, Gegenstimme Herrnstein 1969), Neugier auf Neues zum Anfassen (ab 0.19: Piaget 1952, Stahl & Feigenson 2015), Abwehr als Option (ab 0.20: Sutton, Precup & Singh 1999, Dabney, Ostrovski & Barreto 2021; wenige Antworten: Bolles 1970), neuer Besitz, neuer Versuch (ab 0.20: Gibson 1979, Şahin u. a. 2007), modellfrei neben modellbasiert (Daw, Niv & Dayan 2005), Schrumpfen zum Mittel (Efron & Morris 1975), Zahl und Ort als Kernsysteme (Spelke 2022, Dehaene 2011); Gegenstimmen siehe unten; fast alle Schwellen sind **ohne Grundlage** | P5, H27, H28, H30 bis H33 |
 | `adapters/crafter.py`, `experiments/crafter_run.py`, `experiments/crafter_replay.py` | Prüfstein Crafter, Adapter getrennt vom Agenten (ab 0.18) | Crafter (Hafner 2021), Wertung wie dort; MineRL/MineDojo erst später (Prüfung vom 29.10.2026) | G4 |
 | `adapters/minecraft.py`, `adapters/minecraft_bridge/`, `experiments/minecraft_run.py` | Prüfstein echtes Minecraft, Adapter getrennt vom Agenten wie bei Crafter (nach 0.20) | Mineflayer (PrismarineJS) als Spieler-Client; Ziel-Signal sind Minecrafts eigene Fortschritte. Vergleich: MineRL (Guss 2019), MineDojo (Fan 2022), Voyager (Wang 2023) nutzen Pixel oder Sprachmodelle mit Spielwissen, hier bewusst keins. Wertung wie Crafter (Hafner 2021) | G4 |
@@ -57,6 +58,32 @@ P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers, H25–H28 neu
 | Sprachorgan (LLM) | bewusst weggelassen | LILO; Tycho und Kepler zeigen, dass LLMs Weltmodelle als Code schreiben |
 | Lehrplan-Generator | fehlt | Absolute Zero, Oudeyer 2007, POET |
 | Kontext-Inferenz und Schlaf in der 2D-Welt | Kontext-Inferenz ab 0.16 im allgemeinen Agenten (`general/detector.py`), Schlaf fehlt | COIN, Bhattarai 2026; Runde 6: Sanders, Wilson, Gershman 2020, Yu & Dayan 2002 |
+
+## Umgesetzt in 0.21 (Gefahren mit Unsicherheit, H35)
+
+Abgeleitet aus Ergebnis 24 und einem Vorschlag aus der Auswertung des Active-Inference-Agenten:
+Die Quote war schon ein Beta-Mittel ((Treffer + 1) / (Fälle + 2)), aber die feste Schwelle von
+5 Treffern und das Abdecken über viele Literale verwarfen die Unsicherheit. Eine Prüfung auf 8
+Karten: Vor 255 Zombie-Treffern war er 113-mal in Abwehr, 109-mal galt eine falsche gelernte
+Lage (oft Gras), 33-mal kannte er keine.
+
+| Hypothese | Stand |
+|---|---|
+| H35: Eine Gefahr ist eine einzelne Aussage, deren Schadensquote mit Sicherheit über einer Schwelle liegt (Beta-Verteilung), statt einer Bedingung aus dem Abdecken mit fester Trefferzahl | **teilweise gestützt** (Ergebnis 25): Er lebt etwa 10 Schritte länger (bekannte Karten +12,8 ± 3,7, neue Karten +7,7 ± 4,2, Karte für Karte gegen 0.20). Keine Treffer mehr ohne bekannte Gefahr (vorher 33 von 255). Wertung nur innerhalb der Streuung besser (3,0 statt 2,7 % auf bekannten Karten, auf neuen gleich). Die Hälfte der Treffer kommt weiter ohne Abwehr, weil die gelernte Gefahr gerade nicht galt (oft kein Gitter, also keine Gruppe „nah bei mir“) |
+
+**Gegenstimmen und Warnungen zu 0.21:**
+- Lissek u. a. 2005 (Metaanalyse zur Angstkonditionierung bei Angststörungen): Wer Gefahr zu
+  leicht annimmt, verallgemeinert die Angst und meidet zu viel. Gegenprobe: Abwehr nimmt 7 %
+  seiner Schritte ein (0.20: 6 %), und die Wertung sinkt nicht.
+- Nesse 2005 (Rauchmelder-Prinzip): Ist die Abwehr billig und der Schaden teuer, sind viele
+  Fehlalarme richtig. Das spricht für eine niedrige Schwelle; wie billig die Abwehr hier ist,
+  misst er nicht, darum bleibt die Schwelle fest.
+- Rescorla & Wagner 1972, Kamin 1969 (Blockieren): Reize teilen sich die Vorhersage; wer jeden
+  Reiz einzeln zählt, hält auch Begleiter der Gefahr für gefährlich (vereinzelte
+  Zufallstreffer wie „eine Werkbank fünf Felder entfernt“). Nicht abgebildet.
+
+**Ohne Grundlage (neu in 0.21):** 95 % Sicherheit (`CONFIDENCE`); die Schwelle 15 %
+(`DANGER`) gab es schon.
 
 ## Umgesetzt in 0.20 (Überleben und Wege, H32 bis H34)
 

@@ -46,7 +46,7 @@ Speicheradressen abhängt. Welcher Zombie verschwindet, hängt so davon ab, was 
 ist (auch `numba`). Karten und Startfiguren bleiben gleich, der Spielverlauf nicht. Deshalb
 zählen nur Mittelwerte über viele Karten, nie einzelne Runden.
 
-Es spielen Zufall, Tabelle, Stand 0.17 und der neueste Stand (seit 0.20 „Stand 0.20“, mit Wegen um Hindernisse und Abwehr als Option). Die Zeilen von 0.18 und 0.19 in `docs/crafter_messung.json` stammen aus den gespeicherten Messungen dieser Stände.
+Es spielen Zufall, Tabelle, Stand 0.17 und der neueste Stand (seit 0.21 „Stand 0.21“, mit Gefahren als Hinweisreizen mit Unsicherheit). Die Zeilen von 0.18 bis 0.20 in `docs/crafter_messung.json` stammen aus den gespeicherten Messungen dieser Stände.
 
 Jeder Agent spielt 30 Runden hintereinander und behält sein Wissen; jede Runde ist eine neue
 Karte. Gezählt werden die Runden 11 bis 30. Wertung wie im Paper: geometrisches Mittel der

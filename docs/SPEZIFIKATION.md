@@ -237,7 +237,7 @@ Neue Kontexte starten aus allen Schemata zugleich (`schemas_or_flat_model`): Vor
 
 **Experiment Kontexterkennung.** In drei Welten (Pendeln wie H12; Lampen mit Arzt, U-Bahn, Gate; Lampen mit drei Wartesituationen und drei Gesprächen) wird gezählt, welcher Anteil der Übergänge im richtigen Kontext landet. Weil der Agent die wahren Situationen nicht kennt, bekommt jede Situation höchstens einen Kontext und umgekehrt, gierig nach Häufigkeit. 20 Zufallsstarts, Blöcke à 150 Schritte.
 
-## 9. Der allgemeine Agent (ab 0.16, erweitert in 0.17 bis 0.20)
+## 9. Der allgemeine Agent (ab 0.16, erweitert in 0.17 bis 0.21)
 
 Paket `general/`. Ein Agent, der keine Welt kennt. Er sieht nur ein Tupel ganzer Zahlen und
 wählt eine Taste aus `0 … n−1`. Jede Welt mischt Reihenfolge der Größen und Tasten neu
@@ -495,6 +495,19 @@ Nachbarfeld, nimmt er die Taste in diese Richtung (in Crafter dreht ihn das zum 
 dass er geht). Was ein Sinn meldet, folgt aus dem, was beim Bewegen passiert (O'Regan & Noë
 2001).
 
+### 9.5 Neu in 0.21: Gefahren mit Unsicherheit (H35)
+
+**Hinweisreize** (`cues.Cues`): Nach jedem Schritt zählt er für jedes Literal, das vorher galt
+(jede Größe mit ihrem Wert, jede Gruppe aus `space` mit jedem Wert darin), dass es galt, und
+für jede Größe, die sank, dass sie danach sank. Gefahren (`drives.dangers`) sind die Literale
+über das, was er sieht (nicht Körper, nicht Ort), nach denen eine Größe wie Gesundheit
+mindestens zweimal sank und deren Schadensquote mit 95 % Sicherheit (`CONFIDENCE`) über
+`DANGER` = 15 % liegt. Die Quote ist Beta(Treffer + 1, Fälle − Treffer + 1)-verteilt
+(Tzovara, Korn & Bach 2018); P(Quote > p) rechnet er genau als Binomial-Summe. Die
+gefährlichste zuerst (höchster Mittelwert). Jede Gefahr ist ein einzelnes Literal; die
+Abwehr (9.4) bleibt gleich. Das Abdecken über alle Tasten (`CauseBook.conditions`) ist
+entfernt.
+
 ## 10. Qualitätsregeln für den Code
 
 - Lesbarkeit und Einfachheit vor Cleverness (KISS, Zen of Python).
@@ -506,6 +519,12 @@ dass er geht). Was ein Sinn meldet, folgt aus dem, was beim Bewegen passiert (O'
 - Bezeichner auf Englisch (Python-Konvention), Dokumentation und Ausgaben auf Deutsch.
 
 ## 11. Änderungen
+
+### Version 0.21
+
+- Gefahren als Hinweisreize mit Unsicherheit (`cues.py`, Abschnitt 9.5).
+- Crafter-Messung mit „Stand 0.21“ und Gegenprobe auf 16 neuen Karten.
+- Ohne `own_goals` gleiche Ausgabe wie 0.20.
 
 ### Version 0.20
 
