@@ -93,22 +93,26 @@ jobs:
         env:
           AGENT: ${{ matrix.agent }}
         run: |
-          part="teil-${AGENT// /_}-${{ matrix.seed }}.json"
-          echo "PART=$part" >> "$GITHUB_ENV"
-          python -m hekmatki.experiments.minecraft_run play "$AGENT" ${{ matrix.seed }} "$part" \
-            --episodes "$RUNDEN" --length "$LAENGE"
+          name="${AGENT// /_}-${{ matrix.seed }}"
+          echo "NAME=$name" >> "$GITHUB_ENV"
+          python -m hekmatki.experiments.minecraft_run play "$AGENT" ${{ matrix.seed }} "teil-$name.json" \
+            --episodes "$RUNDEN" --length "$LAENGE" --wiedergabe "wiedergabe-$name.json"
       - name: Server-Protokoll
         if: always()
         run: tail -n 40 minecraft-server/server.log
       - uses: actions/upload-artifact@v7
         with:
-          name: ${{ env.PART }}
-          path: ${{ env.PART }}
+          name: teil-${{ env.NAME }}
+          path: |
+            teil-${{ env.NAME }}.json
+            wiedergabe-${{ env.NAME }}.json
 
   merge:
     needs: play
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Ergebnisse auf den Branch „minecraft-messungen“ legen
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -120,11 +124,13 @@ jobs:
           pattern: teil-*
           path: teile
           merge-multiple: true
-      - run: python -m hekmatki.experiments.minecraft_run merge messung.json teile/*.json | tee bericht.txt
+      - run: python -m hekmatki.experiments.minecraft_run merge messung.json teile/teil-*.json | tee bericht.txt
+      - name: Wiedergabe-Seite
+        run: python -m hekmatki.experiments.minecraft_replay minecraft.html teile/wiedergabe-*.json --bericht bericht.txt
       - name: Zusammenfassung
         run: |
           {
-            echo "## Minecraft-Messung ($(ls teile | wc -l) Teile, $RUNDEN Runden à $LAENGE Schritte, Commit ${GITHUB_SHA::7})"
+            echo "## Minecraft-Messung ($(ls teile/teil-* | wc -l) Teile, $RUNDEN Runden à $LAENGE Schritte, Commit ${GITHUB_SHA::7})"
             echo '```text'
             cat bericht.txt
             echo '```'
@@ -135,3 +141,20 @@ jobs:
           path: |
             messung.json
             bericht.txt
+            minecraft.html
+      - name: Ergebnisse auf Branch minecraft-messungen ablegen
+        run: |
+          folder="lauf-${GITHUB_RUN_ID}"
+          mkdir -p "/tmp/$folder"
+          cp messung.json bericht.txt minecraft.html teile/wiedergabe-*.json "/tmp/$folder/"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch origin minecraft-messungen; then
+            git switch -c minecraft-messungen FETCH_HEAD
+          else
+            git switch --orphan minecraft-messungen
+          fi
+          mv "/tmp/$folder" .
+          git add "$folder"
+          git commit -m "Minecraft-Messung $folder (Commit ${GITHUB_SHA::7})"
+          git push origin minecraft-messungen

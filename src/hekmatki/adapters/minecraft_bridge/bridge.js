@@ -4,6 +4,7 @@
 // und antwortet mit einer JSON-Zeile auf stdout:
 //   {"op": "reset", "seed": 7}   neue Runde an einem neuen Ort
 //   {"op": "step", "action": 3}  eine Handlung ausführen
+//   mit "record": true kommt zusätzlich "scene" (ein Bild der Lage für die Wiedergabe)
 //   {"op": "close"}              beenden
 // Antwort: {"inner": [Zahlen], "advancements": [neue Fortschritte, z. B. "minecraft:story/mine_stone"],
 //           "dead": bool}
@@ -25,6 +26,7 @@ const { Vec3 } = require('vec3')
 const VIEW = 5 // Breite und Tiefe des Würfels um die Figur
 const LAYERS = [-1, 0, 1] // unter den Füßen, Füße, Kopf
 const REACH = 4.5 // so weit reicht ein Spieler im Überlebensmodus
+const SCENE = 15 // Breite des Ausschnitts für die Wiedergabe (nur für die Seite)
 const MOVE_TICKS = 5 // ein Schritt Laufen: 5 Spielticks, etwa ein Block
 const DIG_TIMEOUT_MS = 10000
 const PITCHES = [-Math.PI / 3, 0, Math.PI / 4] // nach unten, geradeaus, nach oben (Mineflayer: positiv = oben)
@@ -137,7 +139,7 @@ class Player {
     bot.on('death', () => { this.dead = true })
   }
 
-  async reset (seed) {
+  async reset (seed, record) {
     const random = mulberry32(seed)
     const x = Math.floor((random() - 0.5) * 20000)
     const z = Math.floor((random() - 0.5) * 20000)
@@ -162,15 +164,15 @@ class Player {
     await this.look()
     this.progress.takeNew() // was vor dem Rundenbeginn kam, zählt nicht
     this.dead = false
-    return this.answer()
+    return this.answer(record ? 'Start' : null)
   }
 
-  async step (action) {
+  async step (action, record) {
     const name = ACTIONS[action]
     if (name === undefined) throw new Error(`Taste ${action} gibt es nicht`)
     if (this.dead) await this.respawn()
     await this.act(name)
-    return this.answer()
+    return this.answer(record ? name : null)
   }
 
   async act (name) {
@@ -271,8 +273,59 @@ class Player {
     return best ? best.entity : null
   }
 
-  answer () {
-    return { inner: this.observe(), advancements: this.progress.takeNew(), dead: this.dead }
+  answer (recordAction) {
+    const answer = { inner: this.observe(), advancements: this.progress.takeNew(), dead: this.dead }
+    if (recordAction !== null) answer.scene = this.scene(recordAction)
+    return answer
+  }
+
+  // Ein Bild der Lage für die Wiedergabe-Seite, mit Namen. Geht nur an die Seite, nie an den
+  // Agenten: Der Python-Adapter reicht es an der Wiring vorbei durch.
+  scene (action) {
+    const bot = this.bot
+    const feet = bot.entity.position.floored()
+    const half = Math.floor(SCENE / 2)
+    const columns = []
+    for (let dz = -half; dz <= half; dz++) {
+      const row = []
+      for (let dx = -half; dx <= half; dx++) row.push(this.surface(feet.offset(dx, 0, dz)))
+      columns.push(row)
+    }
+    const entities = []
+    for (const entity of Object.values(bot.entities)) {
+      if (entity === bot.entity) continue
+      const at = entity.position.floored().minus(feet)
+      if (Math.abs(at.x) <= half && Math.abs(at.z) <= half && Math.abs(at.y) <= 6) {
+        entities.push([entity.name || 'unbekannt', at.x, at.z])
+      }
+    }
+    const cursor = bot.blockAtCursor(REACH)
+    return {
+      action,
+      position: [feet.x, feet.y, feet.z],
+      facing: FACINGS[this.facing],
+      pitch: this.pitch - 1,
+      health: Math.round(bot.health ?? 20),
+      food: Math.round(bot.food ?? 20),
+      held: bot.quickBarSlot,
+      hotbar: Array.from({ length: 9 }, (_, slot) => {
+        const item = bot.inventory.slots[bot.inventory.hotbarStart + slot]
+        return item ? [item.name, item.count] : null
+      }),
+      cursor: cursor ? cursor.name : null,
+      time: (bot.time && bot.time.timeOfDay) || 0,
+      columns,
+      entities
+    }
+  }
+
+  surface (column) {
+    // Der oberste feste Block einer Spalte, von Kopfhöhe + 4 abwärts, mit Höhe zu den Füßen.
+    for (let dy = 4; dy >= -8; dy--) {
+      const block = this.bot.blockAt(column.offset(0, dy, 0))
+      if (block && block.name !== 'air' && block.name !== 'cave_air') return [block.name, dy]
+    }
+    return ['?', -9]
   }
 
   observe () {
@@ -364,8 +417,8 @@ async function main () {
     const request = JSON.parse(line)
     let answer
     try {
-      if (request.op === 'reset') answer = await player.reset(request.seed)
-      else if (request.op === 'step') answer = await player.step(request.action)
+      if (request.op === 'reset') answer = await player.reset(request.seed, request.record)
+      else if (request.op === 'step') answer = await player.step(request.action, request.record)
       else if (request.op === 'close') break
       else answer = { error: `Unbekannter Befehl: ${request.op}` }
     } catch (error) {

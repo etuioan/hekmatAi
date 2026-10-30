@@ -133,6 +133,10 @@ class MinecraftWorld:
     Agenten."""
     unlocked: list[tuple[int, str]] = field(default_factory=list, init=False)
     """Die Fortschritte dieser Runde mit ihrem Schritt (nur für die Messung)."""
+    record: bool = field(default=False, init=False)
+    """Bilder der Lage für die Wiedergabe-Seite mitschreiben (ab der nächsten Runde)."""
+    scenes: list[Message] = field(default_factory=list, init=False)
+    """Die Bilder der laufenden Runde, mit Namen. Nur für die Seite, nie für den Agenten."""
 
     def __post_init__(self) -> None:
         width, actions = len(self.connection.layout), len(self.connection.action_names)
@@ -148,19 +152,23 @@ class MinecraftWorld:
     def reset(self, rng: random.Random) -> Observation:
         """Neue Runde: leeres Inventar, volles Leben, ein neuer Ort, keine Fortschritte."""
         self._rounds += 1
-        answer = self.connection.request({"op": "reset", "seed": self.seed * 1000 + self._rounds})
-        self.finished, self.unlocked, self._steps = False, [], 0
+        seed = self.seed * 1000 + self._rounds
+        answer = self.connection.request({"op": "reset", "seed": seed, "record": self.record})
+        self.finished, self.unlocked, self._steps, self.scenes = False, [], 0, []
+        self._keep_scene(answer, [])
         return self._observe(answer)
 
     def step(self, action: int, rng: random.Random) -> Outcome:
         """Drückt eine Taste."""
         if self.finished:
             raise RuntimeError("Die Runde ist vorbei; erst `reset` aufrufen.")
-        answer = self.connection.request({"op": "step", "action": self.wiring.inner_action(action)})
+        inner = self.wiring.inner_action(action)
+        answer = self.connection.request({"op": "step", "action": inner, "record": self.record})
         self._steps += 1
         before = {name for _, name in self.unlocked}
         new = sorted({str(name) for name in answer["advancements"]} - before)
         self.unlocked += [(self._steps, name) for name in new]
+        self._keep_scene(answer, new)
         self.finished = bool(answer["dead"]) or self._steps >= self.length
         return Outcome(self._observe(answer), bool(new))
 
@@ -174,6 +182,10 @@ class MinecraftWorld:
     def least_steps(self) -> int:
         """Gibt es in Minecraft nicht."""
         return 0
+
+    def _keep_scene(self, answer: Message, new: list[str]) -> None:
+        if self.record and "scene" in answer:
+            self.scenes.append({**answer["scene"], "advancements": new})
 
     def _observe(self, answer: Message) -> Observation:
         return self.wiring.observe([int(value) for value in answer["inner"]])

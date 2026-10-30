@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HekmatKI in Minecraft</title>
+<style>
+:root {
+  --bg: #f6f5f1; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a64; --line: #dcdad2;
+  --accent: #2f6f4f; --warn: #b4452f; --gold: #b8860b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #171816; --panel: #212320; --ink: #ecebe6; --muted: #a3a29b; --line: #3a3c38;
+    --accent: #6fbf8f; --warn: #e07a62; --gold: #e0b44a;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #171816; --panel: #212320; --ink: #ecebe6; --muted: #a3a29b; --line: #3a3c38;
+  --accent: #6fbf8f; --warn: #e07a62; --gold: #e0b44a;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, sans-serif; }
+main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 26px; margin: 0 0 4px; }
+h2 { font-size: 18px; margin: 28px 0 8px; }
+p.lead { color: var(--muted); margin: 0 0 20px; max-width: 760px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; }
+@media (max-width: 760px) { .stage { grid-template-columns: 1fr; } }
+canvas { width: 100%; height: auto; display: block; border-radius: 6px; image-rendering: pixelated; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+button, select { font: inherit; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--panel); color: var(--ink); cursor: pointer; }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+input[type=range] { flex: 1; min-width: 140px; accent-color: var(--accent); }
+.stat { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.stat:last-child { border-bottom: 0; }
+.stat span:first-child { color: var(--muted); }
+.bar { display: flex; gap: 2px; }
+.bar i { width: 12px; height: 12px; border-radius: 2px; background: var(--line); }
+.bar i.on.h { background: var(--warn); } .bar i.on.f { background: var(--gold); }
+.hotbar { display: grid; grid-template-columns: repeat(9, 1fr); gap: 3px; margin-top: 8px; }
+.slot { border: 1px solid var(--line); border-radius: 4px; min-height: 44px; font-size: 10px;
+  padding: 2px; text-align: center; word-break: break-word; color: var(--muted); }
+.slot.held { border: 2px solid var(--accent); color: var(--ink); }
+.action { font-size: 20px; font-weight: 600; margin: 4px 0 8px; }
+.flash { color: var(--gold); font-weight: 600; min-height: 1.5em; }
+.legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+.legend b { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+pre { overflow-x: auto; font-size: 12px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; padding: 12px; }
+ul.timeline { padding-left: 18px; margin: 6px 0 0; }
+.empty { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>HekmatKI spielt Minecraft</h1>
+  <p class="lead">Eine aufgezeichnete Runde im echten Minecraft. Der Agent kennt das Spiel nicht: Er sieht nur
+    gemischte Zahlen und drückt Tasten ohne Namen. Die Namen auf dieser Seite kennt nur die Seite.
+    Oben die Landschaft von oben (helle Felder liegen höher), in der Mitte die Figur mit Blickrichtung.</p>
+
+  <div class="controls" id="pick"></div>
+
+  <div class="stage">
+    <div class="card">
+      <canvas id="map" width="600" height="600"></canvas>
+      <div class="controls">
+        <button class="primary" id="play">Abspielen</button>
+        <select id="speed">
+          <option value="250">langsam</option>
+          <option value="80" selected>normal</option>
+          <option value="20">schnell</option>
+        </select>
+        <input type="range" id="scrub" min="0" value="0">
+      </div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div class="card">
+      <div class="stat"><span>Schritt</span><span id="step"></span></div>
+      <div class="action" id="action"></div>
+      <div class="flash" id="flash"></div>
+      <div class="stat"><span>Leben</span><span class="bar" id="health"></span></div>
+      <div class="stat"><span>Hunger</span><span class="bar" id="food"></span></div>
+      <div class="stat"><span>Im Blick</span><span id="cursor"></span></div>
+      <div class="stat"><span>Höhe</span><span id="height"></span></div>
+      <div class="stat"><span>Tageszeit</span><span id="time"></span></div>
+      <div class="hotbar" id="hotbar"></div>
+      <h2>Fortschritte dieser Runde</h2>
+      <ul class="timeline" id="unlocked"></ul>
+    </div>
+  </div>
+
+  <h2>Messung</h2>
+  <pre id="report"></pre>
+</main>
+<script>
+const DATA = /*MINECRAFT_DATA*/null;
+
+const ADVANCEMENT_NAMES = {
+  'minecraft:story/root': 'Werkbank',
+  'minecraft:story/mine_stone': 'Stein abgebaut',
+  'minecraft:story/upgrade_tools': 'Steinspitzhacke',
+  'minecraft:story/smelt_iron': 'Eisen geschmolzen',
+  'minecraft:story/iron_tools': 'Eisenspitzhacke',
+  'minecraft:adventure/root': 'Kampf',
+  'minecraft:adventure/kill_a_mob': 'Monster besiegt',
+  'minecraft:adventure/sleep_in_bed': 'Im Bett geschlafen',
+  'minecraft:husbandry/root': 'Gegessen',
+  'minecraft:husbandry/plant_seed': 'Gepflanzt'
+};
+const COLORS = [
+  [/water/, '#3b6fd1'], [/lava/, '#e2551b'], [/leaves/, '#3e7d2e'], [/_log|_wood/, '#7a5a32'],
+  [/grass_block|moss/, '#6aa84f'], [/short_grass|tall_grass|fern|flower|poppy|dandelion/, '#7fbf5f'],
+  [/sand/, '#dccf94'], [/gravel/, '#8d8a85'], [/snow|ice/, '#eef3f7'], [/dirt|mud|podzol/, '#866043'],
+  [/coal_ore/, '#3a3a3a'], [/iron_ore/, '#c9a27e'], [/stone|andesite|diorite|granite|tuff|deepslate/, '#8b8b8b'],
+  [/planks|crafting_table/, '#b08a52'], [/clay|terracotta/, '#a5614a'], [/cactus/, '#4c8a3b']
+];
+const ENTITY_COLORS = { zombie: '#2e8b57', skeleton: '#d8d8d8', creeper: '#4caf50', spider: '#5a3d3d',
+  cow: '#6b4a2b', pig: '#f2a3a8', sheep: '#f4f4f4', chicken: '#ffffff', item: '#f0c040' };
+
+function blockColor (name) {
+  for (const [pattern, color] of COLORS) if (pattern.test(name)) return color;
+  let hash = 0;
+  for (const char of name) hash = (hash * 31 + char.charCodeAt(0)) | 0;
+  return `hsl(${Math.abs(hash) % 360}, 25%, 55%)`;
+}
+
+function shade (color, dy) {
+  const factor = Math.max(-0.5, Math.min(0.35, dy * 0.07));
+  return `color-mix(in srgb, ${color}, ${factor >= 0 ? 'white' : 'black'} ${Math.abs(factor) * 100}%)`;
+}
+
+const canvas = document.getElementById('map');
+const ctx = canvas.getContext('2d');
+let replay = null, index = 0, timer = null;
+
+function pickReplay (i) {
+  replay = DATA.replays[i];
+  index = 0;
+  document.getElementById('scrub').max = replay.scenes.length - 1;
+  const list = document.getElementById('unlocked');
+  list.innerHTML = '';
+  if (!replay.unlocked.length) list.innerHTML = '<li class="empty">keine in dieser Runde</li>';
+  for (const [step, name] of replay.unlocked) {
+    const li = document.createElement('li');
+    li.textContent = `Schritt ${step}: ${ADVANCEMENT_NAMES[name] || name}`;
+    list.appendChild(li);
+  }
+  document.querySelectorAll('#pick button').forEach((b, j) => b.classList.toggle('primary', j === i));
+  draw();
+}
+
+function draw () {
+  const scene = replay.scenes[index];
+  const size = scene.columns.length, cell = canvas.width / size, half = Math.floor(size / 2);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  scene.columns.forEach((row, z) => row.forEach(([name, dy], x) => {
+    ctx.fillStyle = name === '?' ? '#111' : shade(blockColor(name), dy);
+    ctx.fillRect(x * cell, z * cell, cell + 0.5, cell + 0.5);
+  }));
+  for (const [name, dx, dz] of scene.entities) {
+    ctx.fillStyle = ENTITY_COLORS[name] || '#d04040';
+    ctx.strokeStyle = '#000';
+    ctx.beginPath();
+    ctx.arc((dx + half + 0.5) * cell, (dz + half + 0.5) * cell, cell * (name === 'item' ? 0.18 : 0.32), 0, 2 * Math.PI);
+    ctx.fill(); ctx.stroke();
+  }
+  const cx = (half + 0.5) * cell, cy = (half + 0.5) * cell, [fx, fz] = scene.facing;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(Math.atan2(fz, fx));
+  ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(cell * 0.45, 0); ctx.lineTo(-cell * 0.3, cell * 0.3); ctx.lineTo(-cell * 0.3, -cell * 0.3);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.restore();
+
+  document.getElementById('step').textContent = `${index} von ${replay.scenes.length - 1}`;
+  document.getElementById('action').textContent = scene.action;
+  document.getElementById('flash').textContent =
+    scene.advancements.map(name => `Neuer Fortschritt: ${ADVANCEMENT_NAMES[name] || name}`).join(', ');
+  bar('health', scene.health, 'h'); bar('food', scene.food, 'f');
+  document.getElementById('cursor').textContent = scene.cursor || '–';
+  document.getElementById('height').textContent = `y = ${scene.position[1]}`;
+  const hours = Math.floor(((scene.time / 1000) + 6) % 24);
+  document.getElementById('time').textContent = `${hours} Uhr${hours >= 19 || hours < 6 ? ' (Nacht)' : ''}`;
+  const hotbar = document.getElementById('hotbar');
+  hotbar.innerHTML = '';
+  scene.hotbar.forEach((item, slot) => {
+    const div = document.createElement('div');
+    div.className = 'slot' + (slot === scene.held ? ' held' : '');
+    div.textContent = item ? `${item[0].replace(/_/g, ' ')} ×${item[1]}` : '';
+    hotbar.appendChild(div);
+  });
+  document.getElementById('scrub').value = index;
+}
+
+function bar (id, value, kind) {
+  const el = document.getElementById(id);
+  el.innerHTML = '';
+  for (let i = 0; i < 10; i++) {
+    const tick = document.createElement('i');
+    tick.className = (value > i * 2 ? 'on ' : '') + kind;
+    el.appendChild(tick);
+  }
+}
+
+function toggle () {
+  const button = document.getElementById('play');
+  if (timer) { clearInterval(timer); timer = null; button.textContent = 'Abspielen'; return; }
+  button.textContent = 'Anhalten';
+  timer = setInterval(() => {
+    if (index >= replay.scenes.length - 1) return toggle();
+    index++; draw();
+  }, Number(document.getElementById('speed').value));
+}
+
+document.getElementById('play').onclick = toggle;
+document.getElementById('speed').onchange = () => { if (timer) { toggle(); toggle(); } };
+document.getElementById('scrub').oninput = event => { index = Number(event.target.value); draw(); };
+
+const pick = document.getElementById('pick');
+DATA.replays.forEach((r, i) => {
+  const button = document.createElement('button');
+  button.textContent = `${r.agent}, Karte ${r.seed}, Runde ${r.episode}`;
+  button.onclick = () => pickReplay(i);
+  pick.appendChild(button);
+});
+document.getElementById('legend').innerHTML = [
+  ['Gras', '#6aa84f'], ['Wasser', '#3b6fd1'], ['Baum', '#7a5a32'], ['Laub', '#3e7d2e'], ['Stein', '#8b8b8b'],
+  ['Sand', '#dccf94'], ['Tier/Monster', '#d04040'], ['liegendes Ding', '#f0c040']
+].map(([name, color]) => `<span><b style="background:${color}"></b>${name}</span>`).join('');
+document.getElementById('report').textContent = DATA.report || 'Kein Bericht beigelegt.';
+pickReplay(0);
+</script>
+</body>
+</html>

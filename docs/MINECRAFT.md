@@ -51,6 +51,34 @@ python -m hekmatki.experiments.minecraft_run play "Stand 0.20" 0 teil.json --epi
 Zum Ausprobieren ohne Mojangs Server gibt es `minecraft_bridge/testserver.js` (flying-squid,
 frei, `npm ci` mit Entwicklungspaketen). Er ist stark vereinfacht und taugt nicht zum Messen.
 
+## Live zuschauen (auf dem eigenen Rechner)
+
+Server und Agent laufen bei dir, du schaust mit deiner eigenen **Minecraft Java Edition** zu
+(nicht Bedrock). Einmal installieren:
+
+- Python 3.12 oder neuer: https://www.python.org/downloads/
+- Java 21 (zum Beispiel Temurin): https://adoptium.net/
+- Node 22: https://nodejs.org/
+- Das Repo herunterladen und im Ordner `pip install -e .` ausführen.
+
+Starten (Windows: Eingabeaufforderung, Mac: Terminal, jeweils im Repo-Ordner):
+
+```bash
+python -m hekmatki.experiments.minecraft_live --eula-angenommen --mein-name DEIN_MINECRAFT_NAME
+```
+
+Beim ersten Mal lädt das Skript den Server von Mojang und installiert die Brücke. Sobald
+„Server bereit“ erscheint: Minecraft starten → Mehrspieler → Direkt verbinden → `localhost`.
+Dann im Chat `/gamemode spectator` und `/spectate hekmat`, um ihm über die Schulter zu schauen.
+Im normalen Modus kannst du auch neben ihm herlaufen; solche Runden zählen nicht als Messung.
+Beenden mit Strg+C. Im Fenster steht nach jeder Runde, welche Fortschritte er geschafft hat.
+
+## Wiedergabe der Messungen
+
+Jeder Lauf in GitHub zeichnet die letzte Runde jedes Agenten auf. Der Sammel-Job baut daraus
+`minecraft.html` (Landschaft von oben, Tiere und Monster, Leben, Hunger, Schnellleiste, Taste,
+Fortschritte) und legt alles auf dem Branch `minecraft-messungen` ab, Ordner `lauf-<Nummer>`.
+
 ## Lizenzen
 
 Mineflayer und flying-squid: MIT. Der offizielle Server gehört Mojang und wird nie mit dem

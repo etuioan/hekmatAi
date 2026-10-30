@@ -79,26 +79,51 @@ class Career:
     seconds: float = 0.0
 
 
-def play(agent: Agent, world: MinecraftWorld, episodes: int = EPISODES) -> Career:
-    """Spielt `episodes` Runden mit einem Agenten, der von Runde zu Runde weiterlernt."""
+def play(
+    agent: Agent, world: MinecraftWorld, episodes: int = EPISODES, replay: Path | None = None
+) -> Career:
+    """Spielt `episodes` Runden mit einem Agenten, der von Runde zu Runde weiterlernt.
+
+    Mit `replay` schreibt die letzte Runde Bilder der Lage für die Wiedergabe-Seite mit.
+    """
     rng = random.Random(world.seed)
     learner = MAKERS[agent](world.actions)
     career = Career(agent, world.seed)
     start = time.perf_counter()
-    for _ in range(episodes):
-        observation = world.reset(rng)
-        learner.new_place()
-        learner.begin(observation)
-        steps = 0
-        while not world.finished:
-            action = learner.act(observation, rng)
-            outcome = world.step(action, rng)
-            learner.learn(Transition(observation, action, outcome.observation, outcome.reached))
-            observation = outcome.observation
-            steps += 1
-        career.rounds.append(Round(steps, tuple(world.unlocked)))
+    for episode in range(episodes):
+        world.record = replay is not None and episode == episodes - 1
+        career.rounds.append(play_round(learner, world, rng))
+        if world.record and replay is not None:
+            save_replay(agent, world, episode + 1, replay)
     career.seconds = time.perf_counter() - start
     return career
+
+
+def play_round(learner: Learner, world: MinecraftWorld, rng: random.Random) -> Round:
+    """Eine Runde, bis die Figur stirbt oder die Zeit um ist; der Agent lernt dabei weiter."""
+    observation = world.reset(rng)
+    learner.new_place()
+    learner.begin(observation)
+    steps = 0
+    while not world.finished:
+        action = learner.act(observation, rng)
+        outcome = world.step(action, rng)
+        learner.learn(Transition(observation, action, outcome.observation, outcome.reached))
+        observation = outcome.observation
+        steps += 1
+    return Round(steps, tuple(world.unlocked))
+
+
+def save_replay(agent: Agent, world: MinecraftWorld, episode: int, path: Path) -> None:
+    """Speichert die Bilder einer Runde für `minecraft_replay`."""
+    data = {
+        "agent": agent,
+        "seed": world.seed,
+        "episode": episode,
+        "unlocked": world.unlocked,
+        "scenes": world.scenes,
+    }
+    path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
 
 
 @dataclass(frozen=True)
@@ -216,6 +241,7 @@ def main() -> None:
     playing.add_argument("--host", default="localhost")
     playing.add_argument("--port", type=int, default=25565)
     playing.add_argument("--username", default="hekmat")
+    playing.add_argument("--wiedergabe", type=Path, default=None, dest="replay")
     merging = commands.add_parser("merge")
     merging.add_argument("out", type=Path)
     merging.add_argument("parts", type=Path, nargs="+")
@@ -225,7 +251,7 @@ def main() -> None:
         connection = _connect(arguments)
         try:
             world = MinecraftWorld(arguments.seed, connection, arguments.length)
-            career = play(arguments.agent, world, arguments.episodes)
+            career = play(arguments.agent, world, arguments.episodes, arguments.replay)
         finally:
             connection.close()
         save_careers([career], arguments.out)

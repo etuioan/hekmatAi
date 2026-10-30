@@ -51,7 +51,10 @@ class FakeConnection:
             advancements = [ADVANCEMENTS[1]]
         self.steps += message["op"] == "step"
         dead = self.dies_at is not None and self.steps >= self.dies_at
-        return {"inner": [5, 20, self.x], "advancements": advancements, "dead": dead}
+        answer = {"inner": [5, 20, self.x], "advancements": advancements, "dead": dead}
+        if message.get("record"):
+            answer["scene"] = {"action": ACTIONS[message.get("action", 0)], "position": [self.x]}
+        return answer
 
     def close(self) -> None:
         pass
@@ -80,7 +83,11 @@ def test_keys_are_mixed_before_they_reach_the_bridge() -> None:
     world = MinecraftWorld(5, connection)
     world.reset(random.Random(0))
     world.step(inner_key(world, "vor"), random.Random(0))
-    assert connection.requests[-1] == {"op": "step", "action": ACTIONS.index("vor")}
+    assert connection.requests[-1] == {
+        "op": "step",
+        "action": ACTIONS.index("vor"),
+        "record": False,
+    }
 
 
 def test_goal_reached_only_for_a_new_advancement() -> None:
@@ -150,3 +157,13 @@ def test_server_files_accept_eula_only_when_asked(tmp_path: Path) -> None:
     assert json.loads((tmp_path / "ops.json").read_text())[0]["name"] == "hekmat"
     prepare(tmp_path, 7, eula_accepted=True)
     assert (tmp_path / "eula.txt").read_text() == "eula=true\n"
+
+
+def test_replay_records_only_the_last_round(tmp_path: Path) -> None:
+    world = MinecraftWorld(4, FakeConnection(), length=5)
+    path = tmp_path / "wiedergabe.json"
+    play("Zufall", world, episodes=3, replay=path)
+    data = json.loads(path.read_text())
+    assert data["episode"] == 3
+    assert len(data["scenes"]) == 6  # Start und fünf Schritte
+    assert all("advancements" in scene for scene in data["scenes"])
