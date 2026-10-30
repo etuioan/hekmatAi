@@ -29,7 +29,7 @@ from hekmatki.general.programs import (
     fits,
     predict,
 )
-from hekmatki.general.run import play_episode
+from hekmatki.general.run import Chance, play_episode
 from hekmatki.general.synthesis import Example, synthesize
 from hekmatki.general.worlds import Dials, Lattice, Shuffle, random_lattice
 
@@ -200,13 +200,13 @@ def test_knowledge_remembers_where_a_loop_passed() -> None:
 def test_model_search_solves_shuffle_without_a_form() -> None:
     env = Shuffle(4, Wiring.shuffled(8, 3, random.Random(1)))
     agent = GeneralAgent(3)
-    rng = random.Random(2)
+    chance = Chance.seeded(2)
     for _ in range(20):
-        play_episode(env, agent, rng, 300)
+        play_episode(env, agent, chance, 300)
     assert agent.form().name == "keine bekannte Form"
-    observation = env.reset(rng)
+    observation = env.reset(random.Random(2))
     assert plan_model(agent.knowledge, observation, 3) is not None
-    episode = play_episode(env, agent, rng, 300)
+    episode = play_episode(env, agent, chance, 300)
     assert episode.reached
     assert episode.steps == episode.least
 
@@ -244,10 +244,10 @@ def test_bayes_detector_switches_and_returns() -> None:
     room = random_lattice(2, 5, Wiring.plain(8, 4), random.Random(1))
     swapped = Lattice(2, 5, room.blocked, Wiring(tuple(range(8)), (1, 0, 3, 2)))
     agent = GeneralAgent(4, detector=Detector(Strategy.BAYES))
-    rng = random.Random(5)
+    chance = Chance.seeded(5)
     for env in (room, swapped, room):
         for _ in range(8):
-            play_episode(env, agent, rng, 300)
+            play_episode(env, agent, chance, 300)
     kinds = [event.kind for event in agent.events if event.kind != "verfeinern"]
     assert kinds[:2] == ["neu", "zurück"]
     assert agent.current == 0

@@ -47,7 +47,7 @@ def world_replay(spec: worlds.WorldSpec, seed: int = REPLAY_SEED) -> dict[str, A
     agent = GeneralAgent(spec.actions)
     worlds.teach(agent, setting)
     episodes = [
-        play_episode(setting.test, agent, setting.rng, worlds.TEST_LIMIT, record=True)
+        play_episode(setting.test, agent, setting.chance, worlds.TEST_LIMIT, record=True)
         for _ in range(worlds.TEST_EPISODES)
     ]
     round_number, episode = max(enumerate(episodes, 1), key=lambda pair: pair[1].steps)

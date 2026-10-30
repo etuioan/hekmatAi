@@ -1,5 +1,7 @@
 import random
 
+import pytest
+
 from hekmatki.experiments.general_replay import DATA_MARKER, TEMPLATE, world_replay
 from hekmatki.experiments.general_worlds import (
     AGENTS,
@@ -8,6 +10,7 @@ from hekmatki.experiments.general_worlds import (
     make_agent,
     run_general_worlds,
     run_world,
+    same_tasks,
 )
 from hekmatki.experiments.library_transfer import (
     CONDITIONS,
@@ -100,3 +103,14 @@ def test_world_replay_records_longest_round() -> None:
 
 def test_replay_template_has_one_data_marker() -> None:
     assert TEMPLATE.read_text(encoding="utf-8").count(DATA_MARKER) == 1
+
+
+def test_every_agent_gets_the_same_test_tasks() -> None:
+    spec = WORLD_BY_NAME["2D-Raum"]
+    least = {agent: run_world(spec, make_agent(agent, spec), seed=0).test_least for agent in AGENTS}
+    assert same_tasks(least) == least["Zufall"]
+
+
+def test_different_tasks_are_not_compared() -> None:
+    with pytest.raises(ValueError, match="andere Prüfaufgaben"):
+        same_tasks({"Zufall": [30, 6], "Form + Regeln": [18, 28]})

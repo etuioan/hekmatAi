@@ -28,7 +28,7 @@ from typing import Final
 from hekmatki.general.agent import GeneralAgent, MapEvent
 from hekmatki.general.detector import Detector, Strategy
 from hekmatki.general.env import Wiring
-from hekmatki.general.run import play_episode
+from hekmatki.general.run import Chance, play_episode
 from hekmatki.general.worlds import Lattice, random_lattice
 
 SIZE: Final = 7
@@ -88,13 +88,13 @@ def live(handling: str, seed: int) -> Life:
     room_b = Lattice(2, SIZE, room_a.blocked, swapped(wiring, worlds), SLIP)
     detector = None if handling == NO_DETECTOR else Detector(Strategy(handling))
     agent = GeneralAgent(4, detector=detector)
-    rng = random.Random(seed * 7919 + 3)
+    chance = Chance.seeded(seed * 7919 + 3)
     steps: dict[str, list[int]] = {}
     starts: dict[str, int] = {}
     for phase, room in zip(PHASES, (room_a, room_b, room_a), strict=True):
         starts[phase] = agent.steps
         steps[phase] = [
-            play_episode(room, agent, rng, EPISODE_LIMIT).steps for _ in range(EPISODES)
+            play_episode(room, agent, chance, EPISODE_LIMIT).steps for _ in range(EPISODES)
         ]
     history = [] if detector is None else detector.history
     return Life(steps, starts, agent.events, len(agent.maps), history)

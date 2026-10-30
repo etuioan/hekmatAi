@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from statistics import mean
 from typing import Final, Literal
 
-from hekmatki.experiments.general_worlds import WorldSpec, run_world
+from hekmatki.experiments.general_worlds import WorldSpec, run_world, same_tasks
 from hekmatki.general.agent import GeneralAgent, Planning
 from hekmatki.general.env import Environment, Wiring
 from hekmatki.general.run import Learner, RandomAgent, TableAgent
@@ -138,14 +138,15 @@ def _row(spec: WorldSpec, seeds: int) -> FormRow:
     steps: dict[Agent, float] = {}
     reached: dict[Agent, float] = {}
     forms: dict[Agent, tuple[str, ...]] = {}
-    best: list[int] = []
+    least: dict[Agent, list[int]] = {}
     for agent in AGENTS:
         runs = [run_world(spec, make_agent(agent, spec), seed) for seed in range(seeds)]
         steps[agent] = mean(s for run in runs for s in run.test_steps)
         reached[agent] = mean(r for run in runs for r in run.test_reached)
-        best = [least for run in runs for least in run.test_least]
+        least[agent] = [shortest for run in runs for shortest in run.test_least]
         if agent in GENERAL:
             forms[agent] = tuple(_form_name(run.agent) for run in runs)
+    best = same_tasks(least)
     return FormRow(
         spec.name, spec.size_text(spec.test), spec.expected_form, steps, reached, mean(best), forms
     )
