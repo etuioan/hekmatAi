@@ -273,8 +273,8 @@ const REASONS = {
   "Erkunden": "Nichts zu tun: Er geht dorthin, wo er am seltensten war.",
   "Plan": "Er kennt einen Weg zu einem Zustand, in dem die Welt schon einmal „Erfolg“ meldete."
 };
-const NEWEST = "Stand 0.21";
-const AGENT_COLOR = { "Zufall": "--s-rand", "Tabelle": "--s-table", "Stand 0.17": "--s-old", "Stand 0.18": "--s-oldest", "Stand 0.19": "--s-older", "Stand 0.20": "--s-prev", "Stand 0.21": "--s-new" };
+const NEWEST = "Stand 0.22";
+const AGENT_COLOR = { "Zufall": "--s-rand", "Tabelle": "--s-table", "Stand 0.17": "--s-old", "Stand 0.18": "--s-oldest", "Stand 0.19": "--s-oldest", "Stand 0.20": "--s-older", "Stand 0.21": "--s-prev", "Stand 0.22": "--s-new" };
 const AGENT_NOTE = {
   "Zufall": "drückt zufällige Tasten",
   "Tabelle": "Q-Lernen aus „Erfolg“",
@@ -282,7 +282,8 @@ const AGENT_NOTE = {
   "Stand 0.18": "mit eigenen Zielen",
   "Stand 0.19": "dazu Raum aus eigener Bewegung",
   "Stand 0.20": "dazu bei der Abwehr bleiben und um Hindernisse gehen",
-  "Stand 0.21": "dazu Gefahren mit Unsicherheit erkennen"
+  "Stand 0.21": "dazu Gefahren mit Unsicherheit erkennen",
+  "Stand 0.22": "dazu Tasten ohne Wirkung nicht endlos probieren"
 };
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const el = (tag, attrs = {}, text) => {

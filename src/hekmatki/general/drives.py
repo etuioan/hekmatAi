@@ -112,6 +112,9 @@ TRIES: Final = 5
 """So oft probiert er eine Taste mit Wirkung an einem Wert aus, bevor er aufgibt: Manches
 wirkt erst nach mehreren Schlägen (von Hand gewählt, ohne Grundlage)."""
 RETRY: Final = 10
+FUTILE: Final = 20
+"""So oft drückt er eine Taste ohne eigene Wirkung mit demselben Besitz, dann probiert er sie
+erst wieder, wenn er etwas anderes bei sich hat (ab 0.22, H36; ohne Grundlage)."""
 """Weiß er für ein Ziel keinen Weg, fragt er erst nach so vielen Schritten wieder."""
 
 
@@ -175,6 +178,8 @@ class Drives:
         """(Taste, Größe) → wie oft die Größe nach der Taste stieg."""
         self._all_rises: Counter[int] = Counter()
         self._unknown: set[int] = set(range(actions))
+        self._futile: Counter[tuple[int, tuple[int, ...]]] = Counter()
+        """(Taste ohne eigene Wirkung, was er besitzt) → wie oft er sie so gedrückt hat."""
         self._retry: dict[int, int] = {}
         self._retry_goal: dict[Literal, int] = {}
         self._operands: dict[int, set[int]] = {}
@@ -227,10 +232,13 @@ class Drives:
         self.steps += 1
         before, after, action = transition.before, transition.after, transition.action
         self._pressed[action] += 1
+        carried = self._carried(before)
+        if action in self._unknown:
+            self._futile[action, carried] += 1
         for component, (old, new) in enumerate(zip(before, after, strict=True)):
             self.first.setdefault(component, old)
             self._seen[component, old] += 1
-            self._with[action, component, old, self._carried(before)] += 1
+            self._with[action, component, old, carried] += 1
             if new != old:
                 self._all_changes[component] += 1
                 self._unit_changes[component] += abs(new - old) == 1
@@ -675,13 +683,19 @@ class Drives:
         """Eine Taste ohne eigene Wirkung bei etwas Seltenem, das sie noch nie sah, oder eine
         mit Wirkung bei einem Wert dort, woran sie wirkt. Ist das etwas, das er sieht (nicht
         sein Körper), probiert er es bis zu `TRIES`-mal: Manches wirkt erst beim dritten
-        Schlag (H31)."""
+        Schlag (H31).
+
+        Ab 0.22 probiert er eine Taste ohne Wirkung mit demselben Besitz höchstens
+        `FUTILE`-mal: Wo er nichts lernt, lohnt Neugier nicht (Lernfortschritt als Antrieb,
+        Oudeyer & Kaplan 2007). Mit neuem Besitz zählt es neu (H33). In einer großen Welt ist
+        sonst immer etwas selten, und er drückte fast nur noch Tasten ohne Wirkung (H36)."""
         rare = [c for c, value in enumerate(observation) if self._seen[c, value] <= RARE]
         carried = self._carried(observation)
         fresh = [
             action
             for action in range(self.actions)
-            if any(
+            if self._futile[action, carried] < FUTILE
+            and any(
                 self._with[action, c, observation[c], carried] < self._tries(action, c, body)
                 for c in (rare if action in self._unknown else self._operands.get(action, ()))
             )

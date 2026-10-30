@@ -45,7 +45,7 @@ pip install -e .
 python -m hekmatki.adapters.minecraft_server minecraft-server 0 --eula-angenommen
 # server.jar 1.20.4 von Mojang nach minecraft-server/ laden, dann:
 (cd minecraft-server && java -jar server.jar nogui) &
-python -m hekmatki.experiments.minecraft_run play "Stand 0.21" 0 teil.json --episodes 6
+python -m hekmatki.experiments.minecraft_run play "Stand 0.22" 0 teil.json --episodes 6
 ```
 
 Zum Ausprobieren ohne Mojangs Server gibt es `minecraft_bridge/testserver.js` (flying-squid,

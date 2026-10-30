@@ -27,6 +27,7 @@ beiden. Die Verbindung ist austauschbar (`Connection`), damit Tests ohne Server 
 
 import json
 import random
+import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -38,6 +39,9 @@ LENGTH: Final = 2000
 """Längste Runde in Schritten. Ein Schritt dauert etwa ein Viertel einer Sekunde Spielzeit,
 eine Runde also etwa acht Minuten (ein Minecraft-Tag hat zwanzig)."""
 BRIDGE: Final = Path(__file__).with_name("minecraft_bridge") / "bridge.js"
+SIGHT: Final = "Block im Blick"
+SLOT: Final = re.compile(r"Fach \d+ Ding")
+"""Namen aus der Brücke, nur für die Zwischenstände der Messung (`looking`, `items`)."""
 
 type Message = dict[str, Any]
 
@@ -137,12 +141,21 @@ class MinecraftWorld:
     """Bilder der Lage für die Wiedergabe-Seite mitschreiben (ab der nächsten Runde)."""
     scenes: list[Message] = field(default_factory=list, init=False)
     """Die Bilder der laufenden Runde, mit Namen. Nur für die Seite, nie für den Agenten."""
+    looking: int = field(default=0, init=False)
+    """In wie vielen Schritten dieser Runde ein Block im Fadenkreuz war (nur für die Messung:
+    Vor dem ersten Fortschritt zeigt das, ob er überhaupt etwas vor sich hat)."""
+    items: set[int] = field(default_factory=set, init=False)
+    """Welche Dinge (Nummern) er in dieser Runde in der Schnellleiste hatte (nur für die
+    Messung)."""
 
     def __post_init__(self) -> None:
         width, actions = len(self.connection.layout), len(self.connection.action_names)
         self.wiring = Wiring.shuffled(width, actions, random.Random(self.seed))
         self._steps = 0
         self._rounds = 0
+        layout = self.connection.layout
+        self._sight = layout.index(SIGHT) if SIGHT in layout else None
+        self._slots = [i for i, name in enumerate(layout) if SLOT.fullmatch(name)]
 
     @property
     def actions(self) -> int:
@@ -155,6 +168,7 @@ class MinecraftWorld:
         seed = self.seed * 1000 + self._rounds
         answer = self.connection.request({"op": "reset", "seed": seed, "record": self.record})
         self.finished, self.unlocked, self._steps, self.scenes = False, [], 0, []
+        self.looking, self.items = 0, set()
         self._keep_scene(answer, [])
         return self._observe(answer)
 
@@ -169,6 +183,7 @@ class MinecraftWorld:
         new = sorted({str(name) for name in answer["advancements"]} - before)
         self.unlocked += [(self._steps, name) for name in new]
         self._keep_scene(answer, new)
+        self._count(answer)
         self.finished = bool(answer["dead"]) or self._steps >= self.length
         return Outcome(self._observe(answer), bool(new))
 
@@ -182,6 +197,12 @@ class MinecraftWorld:
     def least_steps(self) -> int:
         """Gibt es in Minecraft nicht."""
         return 0
+
+    def _count(self, answer: Message) -> None:
+        inner = answer["inner"]
+        if self._sight is not None and int(inner[self._sight]) >= 0:
+            self.looking += 1
+        self.items.update(int(inner[i]) for i in self._slots if int(inner[i]) > 0)
 
     def _keep_scene(self, answer: Message, new: list[str]) -> None:
         if self.record and "scene" in answer:

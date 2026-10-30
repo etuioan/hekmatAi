@@ -17,7 +17,9 @@ Agenten:
   kommen ebenfalls aus der gespeicherten Messung.
 - „Stand 0.20“: dazu Abwehr als Option, neuer Besitz, neuer Versuch, und Wege um Hindernisse;
   seine Runden kommen ebenfalls aus der gespeicherten Messung.
-- „Stand 0.21“: dazu Gefahren als Hinweisreize mit Unsicherheit (`cues`)
+- „Stand 0.21“: dazu Gefahren als Hinweisreize mit Unsicherheit (`cues`); seine Runden kommen
+  aus der gespeicherten Messung.
+- „Stand 0.22“: dazu probiert er Tasten ohne Wirkung nicht endlos (`drives.FUTILE`)
 
 Braucht das Zusatzpaket `crafter` (`pip install -e ".[crafter]"`). Aufruf:
 `PYTHONPATH=src python -m hekmatki.experiments.crafter_run [messung.json [Startwerte]]`
@@ -69,15 +71,22 @@ WARMUP: Final = 10
 """Die ersten Runden zählen nicht: Da lernt der Agent erst."""
 
 Agent = Literal[
-    "Zufall", "Tabelle", "Stand 0.17", "Stand 0.18", "Stand 0.19", "Stand 0.20", "Stand 0.21"
+    "Zufall",
+    "Tabelle",
+    "Stand 0.17",
+    "Stand 0.18",
+    "Stand 0.19",
+    "Stand 0.20",
+    "Stand 0.21",
+    "Stand 0.22",
 ]
-AGENTS: tuple[Agent, ...] = ("Zufall", "Tabelle", "Stand 0.17", "Stand 0.21")
+AGENTS: tuple[Agent, ...] = ("Zufall", "Tabelle", "Stand 0.17", "Stand 0.22")
 """Wer bei einer neuen Messung spielt."""
 MAKERS: Final[dict[Agent, Callable[[], Learner]]] = {
     "Zufall": lambda: RandomAgent(ACTIONS),
     "Tabelle": lambda: TableAgent(ACTIONS),
     "Stand 0.17": lambda: GeneralAgent(ACTIONS),
-    "Stand 0.21": lambda: GeneralAgent(ACTIONS, own_goals=True),
+    "Stand 0.22": lambda: GeneralAgent(ACTIONS, own_goals=True),
 }
 
 
