@@ -26,6 +26,7 @@ from hekmatki.general.causes import CauseBook
 from hekmatki.general.env import Observation, Transition
 from hekmatki.general.library import Library
 from hekmatki.general.programs import Cycle, Keep, Program, Shift, Until, core, fits
+from hekmatki.general.space import Space
 from hekmatki.general.synthesis import Example, Found, description_bits, synthesize
 
 MAX_EXAMPLES: Final = 300
@@ -314,6 +315,8 @@ class Knowledge:
         """Strecken, über die eine Schleife hinweglief (siehe `Passage`)."""
         self.causes = CauseBook()
         """Wann eine Taste etwas bewirkt (ab 0.18, siehe `causes`)."""
+        self.space = Space()
+        """Welches Sichtfeld neben welchem liegt (ab 0.19, siehe `space`)."""
 
     def forget_place(self) -> None:
         """Eine neue Umgebung: Die Karte gilt nicht mehr, Regeln und Ziel schon."""
@@ -354,6 +357,7 @@ class Knowledge:
         self.rules.add(transition)
         self.rules.update()
         self.causes.add(transition)
+        self.space.observe(transition)
 
     def checks(self, transition: Transition) -> list[Check]:
         """Für jede Regel dieser Taste: lag sie richtig?"""

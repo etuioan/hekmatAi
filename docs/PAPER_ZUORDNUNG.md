@@ -42,7 +42,8 @@ P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers, H25–H28 neu
 | `general/detector.py`, `general/agent.py` | Neue Umgebung erkennen: erwartete gegen unerwartete Unsicherheit, ab 0.17 per Bayes-Faktor | Yu & Dayan 2002, Sanders 2020, Heald 2021 (COIN), Stahl & Feigenson 2015; Runde 7: Adams & MacKay 2007, Liakoni 2021, Wald 1945 (sequentieller Test), Kass & Raftery 1995 (Schwelle), Dawid 1984 (prequentielle Wertung); Fenster 20 und Wechselrate 1/1000 sind **ohne Grundlage** | P7, H18, H23 |
 | `general/causes.py` | Ursachen: unter welcher Bedingung eine Taste etwas bewirkt (ab 0.18) | Regeln lernen durch schrittweises Abdecken (Michalski 1969, CN2: Clark & Niblett 1989), Literal-Wahl nach gewichteter relativer Genauigkeit (Lavrač, Flach & Zupan 1999), Schema Networks 2017 (Bedingung → Wirkung); höchstens 3 Literale, 4 Ursachen, 2 Treffer, Genauigkeit 0,34 sind **ohne Grundlage** | P1, P4, H25 |
 | `general/subgoals.py` | Teilziele und Vorstellen mit Lücken (ab 0.18) | Mittel-Ziel-Analyse (Newell & Simon 1961), STRIPS (Fikes & Nilsson 1971), Optionen (Sutton, Precup, Singh 1999), Raum aus Sensomotorik (Philipona 2003, Laflaquière 2019); Tiefe 3, 200 vorgestellte Zustände und „seltene Ursache ab 5 %“ sind **ohne Grundlage** | P2, P5, H25, H26 |
-| `general/drives.py` | Eigene Ziele: Bedürfnisse, Rekorde, Versuche, Erkunden, Abwehr (ab 0.18) | Homöostase (Keramati & Gutkin 2014), intrinsisch motivierte Zielprozesse (Forestier, Portelas, Mollard, Oudeyer 2022; Oudeyer & Kaplan 2007), Zählen als Neugier (Strehl & Littman 2008, Bellemare 2016), Go-Explore (Ecoffet 2021), Vermeiden lernen (Mowrer 1947), modellfrei neben modellbasiert (Daw, Niv & Dayan 2005), Schrumpfen zum Mittel (Efron & Morris 1975), Zahl und Ort als Kernsysteme (Spelke 2022, Dehaene 2011); Gegenstimmen siehe unten; fast alle Schwellen sind **ohne Grundlage** | P5, H27, H28 |
+| `general/space.py` | Raum aus eigener Bewegung: welches Sichtfeld neben welchem liegt, eigene Stelle als Lücke, Gruppen nach Abstand (ab 0.19) | Philipona, O'Regan & Nadal 2003 (Raum aus Sensomotorik), Pierce & Kuipers 1997 (Karten aus uninterpretierten Sinnen und Tasten), Laflaquière & Garcia Ortiz 2019, Kruskal 1956 (stärkste Kanten zuerst), deiktische Darstellung (Agre & Chapman 1987); Gegenstimme Finney, Gardiol, Kaelbling & Oates 2002; alle Schwellen (90 %, 80 %, 95 %, 20 Schritte, 6 Werte, 90 % Kasten, 3 Ringe) sind **ohne Grundlage** | P2, H29 |
+| `general/drives.py` | Eigene Ziele: Bedürfnisse, Rekorde, Versuche, Erkunden, Abwehr (ab 0.18) | Homöostase (Keramati & Gutkin 2014), intrinsisch motivierte Zielprozesse (Forestier, Portelas, Mollard, Oudeyer 2022; Oudeyer & Kaplan 2007), Zählen als Neugier (Strehl & Littman 2008, Bellemare 2016), Go-Explore (Ecoffet 2021), Vermeiden lernen (Mowrer 1947; ab 0.19 „gut ist, was die Gefahr beendet“, Gegenstimme Herrnstein 1969), Neugier auf Neues zum Anfassen (ab 0.19: Piaget 1952, Stahl & Feigenson 2015), modellfrei neben modellbasiert (Daw, Niv & Dayan 2005), Schrumpfen zum Mittel (Efron & Morris 1975), Zahl und Ort als Kernsysteme (Spelke 2022, Dehaene 2011); Gegenstimmen siehe unten; fast alle Schwellen sind **ohne Grundlage** | P5, H27, H28, H30, H31 |
 | `adapters/crafter.py`, `experiments/crafter_run.py`, `experiments/crafter_replay.py` | Prüfstein Crafter, Adapter getrennt vom Agenten (ab 0.18) | Crafter (Hafner 2021), Wertung wie dort; MineRL/MineDojo erst später (Prüfung vom 29.10.2026) | G4 |
 | `experiments/` | Messung, ab 0.15 auch Schaden durch Vorwissen | Tastendrücke bis zum ersten Sieg; ARC-AGI-3 misst RHAE; negative Übertragung: Wang 2019; Vergleich Spielwelt–Alltagswelt: Runde 5 G4 | H11–H17 |
 
@@ -55,6 +56,38 @@ P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers, H25–H28 neu
 | Sprachorgan (LLM) | bewusst weggelassen | LILO; Tycho und Kepler zeigen, dass LLMs Weltmodelle als Code schreiben |
 | Lehrplan-Generator | fehlt | Absolute Zero, Oudeyer 2007, POET |
 | Kontext-Inferenz und Schlaf in der 2D-Welt | Kontext-Inferenz ab 0.16 im allgemeinen Agenten (`general/detector.py`), Schlaf fehlt | COIN, Bhattarai 2026; Runde 6: Sanders, Wilson, Gershman 2020, Yu & Dayan 2002 |
+
+## Umgesetzt in 0.19 (Raum aus eigener Bewegung, H29 bis H31)
+
+Abgeleitet aus Ergebnis 22: Gefahren und Ursachen hingen an einzelnen Feldern der Sicht.
+
+| Hypothese | Stand |
+|---|---|
+| H29: Raum aus eigener Bewegung (welches Sichtfeld neben welchem liegt, die eigene Stelle als Lücke) macht Bedingungen unabhängig von der Seite | **gestützt für den Raum, teilweise für die Bedingungen** (Ergebnis 23): Nach 10 Runden hat er auf 10 bis 11 von 16 Karten ein Gitter mit eigener Stelle, fast immer alle 62 Felder richtig; in etwa jedem zehnten Fall ist ein Block um ein Feld verschoben. Gefahren als Gruppe („Zombie irgendwo im Abstand ≤ 3“) auf 2 von 8 geprüften Karten. Wertung 2,5 statt 2,0 % (0.18), je Startwert 1,92 ± 0,13 gegen 1,49 ± 0,16 %; Holz 59 statt 39 %, Werkbank 21 statt 8 % |
+| H30: Abwehr mit Richtung (hin, weg, quer, Taste an der Gefahr), gut ist, was die Gefahr beendet | **nicht gestützt**: Er stirbt so früh wie vorher (175 Schritte). Als beste Antwort steht oft eine Taste ohne Wirkung; Zombies laufen nach. Beim Prüfen der Einzeländerungen verdreifachte „Taste an der Gefahr“ die besiegten Zombies (5 bis 6 statt 2 %), in der Endmessung waren es 2 % |
+| H31: Neugier auf Sichtfelder (hingehen, um Neues anzufassen) | **offen**: Teil des Pakets, das Holz, Werkbank und Werkzeug häufiger macht; einzeln ohne messbaren Unterschied (innerhalb der Streuung) |
+
+**Gegenstimmen und Warnungen zu 0.19:**
+- Finney, Gardiol, Kaelbling & Oates 2002 („The thing that we tried didn't work very well:
+  deictic representation in reinforcement learning“): Eine Sicht „vom Agenten aus“ macht
+  Lagen ununterscheidbar, die verschieden behandelt werden müssen, und kann das Lernen
+  verschlechtern. Darum ersetzen die Gruppen hier die einzelnen Felder nicht, sondern kommen
+  als weitere Literale dazu; das Abdecken wählt.
+- Herrnstein 1969: Vermeiden wird nicht (nur) dadurch belohnt, dass die Gefahr endet,
+  sondern dadurch, dass weniger Schaden folgt. Darum zählt hier beides: Schaden und ob die
+  Gefahr noch da ist.
+- Eigene Beobachtung: Im Gras passt beim Zählen „hat i den Wert von j“ fast alles. Die
+  Arbeiten zum Raum aus Sensomotorik (Philipona 2003, Laflaquière 2019) nutzen reiche,
+  veränderliche Eindrücke; erst das Zählen nur bei Änderungen trennt hier Nachbarn von
+  Zufallstreffern.
+
+**Ohne Grundlage (neu in 0.19), Suchauftrag für Runde 8:**
+- Raum: Nachbar ab 90 % (`FLOW_SHARE`), bei Änderungen 80 % (`CHANGE_SHARE`, ab 4
+  Änderungen), Abstand 0,01 zum Zweitbesten, Ort bei 95 % gleichem Schritt nach 20 % der
+  Drücke und 6 Werten, 20 echte Schritte, 4 Verschiebungen je Taste, 90 % des Kastens,
+  dreimal zurechtrücken, Gruppen bis Abstand 3, Neubau alle 100 Schritte.
+- Abwehr: Die Gefahr, die nach 5 Schritten noch da ist, kostet so viel wie 1 Schaden.
+- Neugier: 5 Versuche je Taste und Wert.
 
 ## Umgesetzt in 0.18 (eigene Ziele und Crafter, H25 bis H28)
 

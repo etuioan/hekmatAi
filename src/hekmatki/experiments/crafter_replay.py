@@ -16,6 +16,7 @@ misst die Seite selbst (dauert lange).
 import json
 import random
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Final
 
@@ -31,6 +32,7 @@ from hekmatki.general.agent import GeneralAgent
 from hekmatki.general.causes import Change, Event, Kind, Literal
 from hekmatki.general.drives import Drives
 from hekmatki.general.env import Transition
+from hekmatki.general.space import Layout
 
 REPLAY_SEED: Final = 0
 TRAINING: Final = 25
@@ -41,6 +43,8 @@ SHOWN_STEPS: Final = 600
 """Höchstens so viele Schritte zeigt die Seite (eine Runde dauert meist viel kürzer)."""
 TEMPLATE: Final = Path(__file__).with_name("crafter_replay_template.html")
 DATA_MARKER: Final = "/*CRAFTER_DATA*/null"
+ANSWER_TRIES: Final = 3
+"""Antworten auf eine Gefahr zeigt die Seite erst, wenn er sie so oft probiert hat."""
 
 
 def record(seed: int = REPLAY_SEED, training: int = TRAINING) -> dict[str, Any]:
@@ -49,8 +53,11 @@ def record(seed: int = REPLAY_SEED, training: int = TRAINING) -> dict[str, Any]:
     world = CrafterWorld(seed)
     rng = random.Random(seed)
     agent = GeneralAgent(ACTIONS, own_goals=True)
-    for _ in range(training):
+    grid_round: int | None = None
+    for number in range(1, training + 1):
         _play(world, agent, rng, None)
+        if grid_round is None and agent.knowledge.space.layout.centred:
+            grid_round = number
     best: tuple[int, int, list[dict[str, Any]], list[list[Any]]] | None = None
     for number in range(training + 1, training + CANDIDATES + 1):
         steps: list[dict[str, Any]] = []
@@ -67,6 +74,8 @@ def record(seed: int = REPLAY_SEED, training: int = TRAINING) -> dict[str, Any]:
         "steps": best[2],
         "unlocked": best[3],
         "learned": _learned(agent, components, actions),
+        "grid": _grid(agent, components),
+        "grid_round": grid_round,
     }
 
 
@@ -112,10 +121,12 @@ def _learned(agent: GeneralAgent, components: list[str], actions: list[str]) -> 
     if not isinstance(drives, Drives):
         raise TypeError("Nur ein Agent mit eigenen Zielen hat Bedürfnisse.")
     knowledge = agent.knowledge
+    layout = knowledge.space.layout
     form = drives.steady(knowledge, agent.form())
     own = drives.owned(knowledge, form)
     body = drives.body(knowledge, form)
     harmed = drives.harmed(knowledge, form)
+    dangers = drives.dangers(knowledge, body, harmed)
     causes = []
     for component in sorted(own, key=lambda c: components[c]):
         for cause in knowledge.causes.causes(Event(component, Change.RISES))[:2]:
@@ -123,7 +134,7 @@ def _learned(agent: GeneralAgent, components: list[str], actions: list[str]) -> 
                 {
                     "effect": f"{components[component]} steigt",
                     "action": actions[cause.action],
-                    "when": [_say(literal, components) for literal in cause.literals],
+                    "when": [_say(literal, components, layout) for literal in cause.literals],
                     "hits": cause.hits,
                     "uses": cause.uses,
                 }
@@ -135,22 +146,106 @@ def _learned(agent: GeneralAgent, components: list[str], actions: list[str]) -> 
         "records": [components[c] for c in drives.records(knowledge, form, own)],
         "harmed": [components[c] for c in harmed],
         "dangers": [
-            [_say(literal, components) for literal in danger]
-            for danger in drives.dangers(knowledge, body, harmed)
+            [_say(literal, components, layout) for literal in danger] for danger in dangers
         ],
+        "answers": _answers(drives, dangers, actions),
         "causes": causes,
     }
 
 
-def _say(literal: Literal, components: list[str]) -> str:
-    """Ein Literal in Crafters Namen, etwa „vorne = tree“ oder „wood ≥ 1“."""
+def _say(literal: Literal, components: list[str], layout: Layout) -> str:
+    """Ein Literal in Crafters Namen, etwa „vorne = tree“, „wood ≥ 1“ oder „irgendwo im
+    Abstand ≤ 1 = zombie“."""
+    if literal.kind is Kind.SOME:
+        far = max(layout.distance(c) or 0 for c in literal.among)
+        return f"irgendwo im Abstand ≤ {far} = {_material(literal.value)}"
     name = components[literal.component]
-    if name.startswith("Sicht") or name == "vorne":
-        value = MATERIALS[literal.value] if 0 <= literal.value < len(MATERIALS) else literal.value
-    else:
-        value = literal.value
+    seen = name.startswith("Sicht") or name == "vorne"
+    value: object = _material(literal.value) if seen else literal.value
     sign = "=" if literal.kind is Kind.EQUAL else "≥"
     return f"{name} {sign} {value}"
+
+
+def _material(value: int) -> object:
+    return MATERIALS[value] if 0 <= value < len(MATERIALS) else value
+
+
+def _answers(
+    drives: Drives, dangers: list[tuple[Literal, ...]], actions: list[str]
+) -> list[dict[str, Any]]:
+    """Was er gegen die erste Gefahr gelernt hat: je Antwort der mittlere Schaden danach."""
+    if not dangers:
+        return []
+    danger = dangers[0]
+    found = []
+    for (situation, answer), tried in drives.tried.items():
+        if situation == danger and tried >= ANSWER_TRIES:
+            found.append(
+                {
+                    "answer": _say_answer(answer, actions),
+                    "cost": drives.cost(situation, answer),
+                    "tried": tried,
+                }
+            )
+    return sorted(found, key=lambda a: a["cost"])
+
+
+def _say_answer(answer: str, actions: list[str]) -> str:
+    """„hin“, „weg“, „quer“ bleiben; „Taste 7 daran“ wird „do an der Gefahr“."""
+    if not answer.startswith("Taste "):
+        return {"hin": "hingehen", "weg": "weggehen", "quer": "zur Seite gehen"}[answer]
+    number, *rest = answer.removeprefix("Taste ").split(" ")
+    name = actions[int(number)]
+    return f"{name} an der Gefahr" if rest else name
+
+
+def _grid(agent: GeneralAgent, components: list[str]) -> dict[str, Any]:
+    """Das Gitter, das er sich gebaut hat, in seinen eigenen Koordinaten, mit den wahren
+    Namen der Felder und ob jedes richtig liegt (bis auf Drehen und Spiegeln)."""
+    layout = agent.knowledge.space.layout
+    cells = []
+    truth = {c: _true_place(components[c]) for c in layout.places}
+    flip = _best_symmetry(layout.places, truth)
+    for component, place in sorted(layout.places.items()):
+        real = truth[component]
+        cells.append(
+            {
+                "place": list(place),
+                "name": components[component],
+                "right": real is not None and flip(place) == real,
+            }
+        )
+    return {"centred": layout.centred, "cells": cells}
+
+
+def _true_place(name: str) -> tuple[int, int] | None:
+    if not name.startswith("Sicht "):
+        return None
+    x, y = name.removeprefix("Sicht ").split(",")
+    return int(x), int(y)
+
+
+def _best_symmetry(
+    places: dict[int, tuple[int, ...]], truth: dict[int, tuple[int, int] | None]
+) -> Callable[[tuple[int, ...]], tuple[int, int] | None]:
+    """Die Drehung oder Spiegelung, unter der die meisten Felder richtig liegen: Welche
+    Richtung er „x“ nennt, ist seine Sache."""
+    options: list[Callable[[tuple[int, ...]], tuple[int, int] | None]] = []
+    for swap in (False, True):
+        for sx in (1, -1):
+            for sy in (1, -1):
+                options.append(_symmetry(swap, sx, sy))
+    return max(options, key=lambda f: sum(f(p) == truth[c] for c, p in places.items()))
+
+
+def _symmetry(swap: bool, sx: int, sy: int) -> Callable[[tuple[int, ...]], tuple[int, int] | None]:
+    def apply(place: tuple[int, ...]) -> tuple[int, int] | None:
+        if len(place) != 2:
+            return None
+        a, b = (place[1], place[0]) if swap else (place[0], place[1])
+        return sx * a, sy * b
+
+    return apply
 
 
 def _row(row: CrafterRow) -> dict[str, Any]:
