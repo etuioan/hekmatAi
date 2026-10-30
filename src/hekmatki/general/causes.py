@@ -43,12 +43,6 @@ MAX_LITERALS: Final = 3
 """Höchstens so viele Literale hat eine Bedingung (von Hand gewählt, ohne Grundlage)."""
 MAX_CAUSES: Final = 4
 """Höchstens so viele Ursachen je Ereignis und Taste (von Hand gewählt, ohne Grundlage)."""
-POOLED_RELEARN: Final = 250
-"""Lagen über alle Tasten lernt es ohne neuen Erfolg erst nach so vielen Schritten neu."""
-POOLED_PER_ACTION: Final = 100
-"""So viele der neuesten Schritte je Taste zählen als Misserfolge (Rechenzeit)."""
-POOLED_CAUSES: Final = 8
-"""Höchstens so viele Lagen je Ereignis, wenn alle Tasten zusammen zählen."""
 MIN_PRECISION: Final = 0.34
 """So oft muss eine Ursache mindestens wirken, vorsichtig geschätzt (von Hand gewählt)."""
 MIN_HITS: Final = 2
@@ -167,9 +161,6 @@ class CauseBook:
         self.events: dict[Event, set[int]] = {}
         """Ereignis → die Tasten, nach denen es schon passiert ist."""
         self._cache: dict[tuple[Event, int], tuple[tuple[int, int], tuple[Cause, ...]]] = {}
-        self._pooled: dict[
-            tuple[Event, frozenset[int] | None], tuple[tuple[int, int, Groups], tuple[Cause, ...]]
-        ] = {}
         self._found: dict[tuple[Event, int], int] = {}
         """Wie oft jedes Ereignis nach jeder Taste schon passiert ist (auch ältere Fälle)."""
         self._pressed: dict[int, int] = {}
@@ -196,43 +187,6 @@ class CauseBook:
             if cause.hits >= MIN_HITS and cause.precision >= min_precision
         ]
         return sorted(found, key=lambda cause: -cause.precision)
-
-    def conditions(
-        self,
-        event: Event,
-        min_precision: float,
-        only: frozenset[int] | None = None,
-        groups: Groups = (),
-    ) -> list[Cause]:
-        """Lagen, nach denen das Ereignis passiert, egal welche Taste (Taste -1): für Ereignisse,
-        die die Welt bewirkt, nicht der Agent (ein Angriff). `only`: nur Literale über diese
-        Größen. `groups`: auch Literale „eine dieser Größen hat den Wert“."""
-        actions = sorted(self.events.get(event, ()))
-        stamp = (
-            sum(self._found.get((event, a), 0) for a in actions),
-            sum(self._pressed.values()) // POOLED_RELEARN,
-            groups,
-        )
-        cached = self._pooled.get((event, only))
-        if cached is None or cached[0] != stamp:
-            positives = [before for a in actions for before in self.positives[event, a]]
-            negatives = [
-                before
-                for steps in self.history.values()
-                for before, after in list(steps)[-POOLED_PER_ACTION:]
-                if not event.happened(before, after)
-            ]
-            learned = tuple(
-                Cause(-1, literals, hits, uses)
-                for literals, hits, uses in cover(positives, negatives, POOLED_CAUSES, only, groups)
-            )
-            cached = (stamp, learned)
-            self._pooled[event, only] = cached
-        return [
-            cause
-            for cause in cached[1]
-            if cause.hits >= MIN_HITS and cause.precision >= min_precision and cause.literals
-        ]
 
     def operands(self, action: int, components: set[int]) -> set[int]:
         """Woran die Taste wirkt: die Größen in den Bedingungen ihrer Ursachen, für alles, was
