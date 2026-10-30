@@ -14,6 +14,7 @@
   Ursachen: unter welcher Bedingung eine Taste etwas bewirkt (siehe `causes`).
 """
 
+import copy
 import math
 from collections import deque
 from collections.abc import Iterable, Sequence
@@ -175,16 +176,6 @@ class RuleBook:
         )
         return trial if shorter and explains(trial.program, extra, slot[1], rate) else None
 
-    def snapshot(self) -> "RuleBook":
-        """Eine Kopie des jetzigen Stands (die Bibliothek wird geteilt, nicht kopiert)."""
-        copy = RuleBook(self.library, self.budget, self.extended)
-        copy.examples = {a: deque(e, maxlen=MAX_EXAMPLES) for a, e in self.examples.items()}
-        copy.found, copy.searches = dict(self.found), list(self.searches)
-        copy._seen, copy._searched_at = dict(self._seen), dict(self._searched_at)
-        copy._fresh = {a: list(f) for a, f in self._fresh.items()}
-        copy._values = {c: set(v) for c, v in self._values.items()}
-        return copy
-
     def replace(self, slot: Slot, found: Found) -> None:
         """Setzt eine verfeinerte Regel ein."""
         self.found[slot] = found
@@ -328,12 +319,19 @@ class Knowledge:
         self.seen.add(observation)
         self.goal.add(observation, reached=False)
 
-    def learn(self, transition: Transition) -> None:
-        """Lernt aus einem Schritt: Regeln, Ziel und Karte."""
-        self.notice(transition)
-        self.learn_rules(transition)
+    def snapshot(self) -> "Knowledge":
+        """Eine Kopie des ganzen Stands: Regeln, Ziel, Karte, Ursachen und Raum. Die
+        Bibliothek wird geteilt, nicht kopiert: Sie gehört allen Karten."""
+        library = self.rules.library
+        return copy.deepcopy(self, memo={} if library is None else {id(library): library})
 
-    def notice(self, transition: Transition) -> None:
+    def learn(self, transition: Transition) -> None:
+        """Lernt aus einem Schritt: Regeln, Ziel und Karte. Ab 0.22 der einzige Weg, auf dem
+        eine Karte lernt, damit alle Teile immer denselben Schritt kennen."""
+        self._notice(transition)
+        self._learn_rules(transition)
+
+    def _notice(self, transition: Transition) -> None:
         """Nur Ziel und Karte: wo der Schritt hinführte und ob das Ziel erreicht ist."""
         self.goal.add(transition.after, transition.reached)
         self.seen.add(transition.after)
@@ -352,7 +350,7 @@ class Knowledge:
                 found.append(Passage(loop.sensor, component, before, new))
         return found
 
-    def learn_rules(self, transition: Transition) -> None:
+    def _learn_rules(self, transition: Transition) -> None:
         """Nur die Regeln und Ursachen."""
         self.rules.add(transition)
         self.rules.update()
