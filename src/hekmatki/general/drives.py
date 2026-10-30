@@ -141,8 +141,11 @@ class Pursuit:
 class Drives:
     """Bedürfnisse, Rekorde, Versuche und Erkunden: woher die eigenen Ziele kommen."""
 
-    def __init__(self, actions: int) -> None:
+    def __init__(self, actions: int, futile: int | None = FUTILE) -> None:
+        """`futile`: so oft probiert er eine Taste ohne Wirkung je Besitz (None: ohne Grenze,
+        wie bis 0.21; nur für Vergleiche)."""
         self.actions = actions
+        self.futile = futile
         self.steps = 0
         self.first: dict[int, int] = {}
         """Der erste Wert jeder Größe, den der Agent gesehen hat."""
@@ -694,13 +697,17 @@ class Drives:
         fresh = [
             action
             for action in range(self.actions)
-            if self._futile[action, carried] < FUTILE
+            if self._worth_trying(action, carried)
             and any(
                 self._with[action, c, observation[c], carried] < self._tries(action, c, body)
                 for c in (rare if action in self._unknown else self._operands.get(action, ()))
             )
         ]
         return rng.choice(fresh) if fresh else None
+
+    def _worth_trying(self, action: int, carried: tuple[int, ...]) -> bool:
+        """Hat er die Taste mit diesem Besitz noch keine `futile`-mal ohne Wirkung gedrückt?"""
+        return self.futile is None or self._futile[action, carried] < self.futile
 
     def _carried(self, observation: Partial) -> tuple[int, ...]:
         """Welche seiner Mengen er gerade hat (mehr als 0): Ein Versuch, der ohne Spitzhacke

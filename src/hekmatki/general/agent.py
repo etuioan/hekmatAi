@@ -27,7 +27,7 @@ from enum import StrEnum
 from typing import Final
 
 from hekmatki.general.detector import Decision, Detector, Kind
-from hekmatki.general.drives import Drives
+from hekmatki.general.drives import FUTILE, Drives
 from hekmatki.general.env import Observation, Transition
 from hekmatki.general.form import Form, find_form
 from hekmatki.general.knowledge import Knowledge
@@ -81,13 +81,14 @@ class GeneralAgent:
         extended: bool = True,
         search_model: bool = True,
         own_goals: bool = False,
+        futile: int | None = FUTILE,
     ) -> None:
         if actions < 1:
             raise ValueError("Der Agent braucht mindestens eine Taste.")
         self.actions, self.planning = actions, planning
         self.library, self.budget, self.detector = library, budget, detector
         self.extended, self.search_model = extended, search_model
-        self.drives = Drives(actions) if own_goals else None
+        self.drives = Drives(actions, futile) if own_goals else None
         self.maps = [self._fresh_map()]
         self.current = 0
         self.events: list[MapEvent] = []

@@ -49,11 +49,12 @@ WARMUP: Final = 4
 """Die ersten Runden zählen nicht: Da lernt der Agent erst."""
 
 Agent = Literal["Zufall", "Tabelle", "Stand 0.20", "Stand 0.21", "Stand 0.22"]
-"""„Stand 0.20“ und „Stand 0.21“ nur zum Lesen alter Messungen; gespielt wird der aktuelle
-Stand."""
+"""„Stand 0.20“ nur zum Lesen alter Messungen. „Stand 0.21“ ist der aktuelle Agent ohne die
+Grenze für wirkungslose Versuche (`drives.FUTILE`), zum Vergleich in derselben Messung."""
 MAKERS: Final[dict[Agent, Callable[[int], Learner]]] = {
     "Zufall": RandomAgent,
     "Tabelle": TableAgent,
+    "Stand 0.21": lambda actions: GeneralAgent(actions, own_goals=True, futile=None),
     "Stand 0.22": lambda actions: GeneralAgent(actions, own_goals=True),
 }
 

@@ -56,3 +56,13 @@ def test_a_key_without_effect_is_tried_at_most_futile_times() -> None:
     darum ohne Ende (1314 Versuche in 2000 Schritten); jetzt höchstens `FUTILE`-mal je Taste
     und Besitz. Den Ort hält er hier für einen Besitz, darum zählt es ein paarmal neu."""
     assert _trials(2000) <= 3 * FUTILE
+
+
+def test_without_limit_it_tries_as_before() -> None:
+    """Zum Vergleich in Messungen: `futile=None` ist das Verhalten bis 0.21."""
+    agent = GeneralAgent(4, own_goals=True, futile=None)
+    assert agent.drives is not None
+    assert agent.drives.futile is None
+    limited = GeneralAgent(4, own_goals=True).drives
+    assert limited is not None
+    assert limited.futile == FUTILE
