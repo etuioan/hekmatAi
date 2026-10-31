@@ -22,6 +22,10 @@ Minecraft-Server (offiziell, 1.20.4)   ohne Grafikkarte, ohne Bildschirm
 - 130 Zahlen: Blöcke in 5 × 5 Feldern auf drei Höhen, Wesen in 5 × 5 Feldern, Block und Wesen
   im Fadenkreuz, Schnellleiste (Ding, Anzahl), gewähltes Fach, Leben, Hunger, Blickrichtung,
   Position, Tageszeit. Die Nummern sind Minecrafts eigene, ohne Namen.
+- Ab 0.22 vom Blick aus, wie am Bildschirm: Blöcke, Wesen und Position zählen nach vorn und
+  nach rechts, nicht nach Himmelsrichtung. Ein Schritt geht genau einen Block weit. So
+  verschiebt „vor“ das Bild immer gleich, egal wohin er schaut; beim Drehen ändert sich das
+  ganze Bild.
 - 23 Tasten: nichts, vor, zurück, links, rechts, springen, links/rechts drehen, hoch/runter
   schauen, angreifen (abbauen oder schlagen), benutzen (setzen, essen, öffnen), nächstes/voriges
   Fach und neun Rezepte (Bretter, Stöcke, Werkbank, Holz- und Steinwerkzeuge, Ofen, Fackel).

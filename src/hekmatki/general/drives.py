@@ -744,8 +744,12 @@ class Drives:
         return rng.choice(fresh) if fresh else None
 
     def _worth_trying(self, action: int, carried: tuple[int, ...]) -> bool:
-        """Hat er die Taste mit diesem Besitz noch keine `futile`-mal ohne Wirkung gedrückt?"""
-        return self.futile is None or self._futile[action, carried] < self.futile
+        """Hat er die Taste mit diesem Besitz noch keine `futile`-mal ohne Wirkung gedrückt?
+        Die Grenze gilt nur, solange die Taste ohne Wirkung ist: Hat er ihre Wirkung erkannt,
+        probiert er sie wie bisher an neuen Werten (`TRIES`)."""
+        if self.futile is None or action not in self._unknown:
+            return True
+        return self._futile[action, carried] < self.futile
 
     def _carried(self, observation: Partial) -> tuple[int, ...]:
         """Welche seiner Mengen er gerade hat (mehr als 0): Ein Versuch, der ohne Spitzhacke

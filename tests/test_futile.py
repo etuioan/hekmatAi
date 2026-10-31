@@ -3,7 +3,7 @@
 import random
 
 from hekmatki.general.agent import GeneralAgent
-from hekmatki.general.drives import FUTILE
+from hekmatki.general.drives import FUTILE, Drives
 from hekmatki.general.env import Observation, Outcome, Transition
 
 
@@ -66,3 +66,14 @@ def test_without_limit_it_tries_as_before() -> None:
     limited = GeneralAgent(4, own_goals=True).drives
     assert limited is not None
     assert limited.futile == FUTILE
+
+
+def test_the_limit_ends_once_the_key_has_an_effect() -> None:
+    """Wirkt eine Taste doch (erkannt erst beim nächsten Rückblick), probiert er sie wieder
+    wie jede Taste mit Wirkung, auch wenn er sie davor schon `FUTILE`-mal gedrückt hatte."""
+    drives = Drives(4)
+    drives._futile[2, ()] = FUTILE
+    drives._unknown = {2}
+    assert not drives._worth_trying(2, ())
+    drives._unknown = set()
+    assert drives._worth_trying(2, ())
