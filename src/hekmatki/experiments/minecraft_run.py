@@ -10,7 +10,7 @@ enthält die Fortschritte, die man in den ersten Minuten ohne Reise schaffen kan
 der Auswertung; der Agent erfährt nur „ein neuer Fortschritt kam“.
 
 Eine Messung läuft in Teilen, weil jeder Teil einen eigenen Minecraft-Server braucht:
-`python -m hekmatki.experiments.minecraft_run play "Stand 0.21" 7 teil.json --port 25565`
+`python -m hekmatki.experiments.minecraft_run play "Stand 0.22" 7 teil.json --port 25565`
 `python -m hekmatki.experiments.minecraft_run merge messung.json teil-*.json`
 """
 
@@ -48,12 +48,14 @@ EPISODES: Final = 12
 WARMUP: Final = 4
 """Die ersten Runden zählen nicht: Da lernt der Agent erst."""
 
-Agent = Literal["Zufall", "Tabelle", "Stand 0.20", "Stand 0.21"]
-"""„Stand 0.20“ nur zum Lesen alter Messungen; gespielt wird der aktuelle Stand."""
+Agent = Literal["Zufall", "Tabelle", "Stand 0.20", "Stand 0.21", "Stand 0.22"]
+"""„Stand 0.20“ nur zum Lesen alter Messungen. „Stand 0.21“ ist der aktuelle Agent ohne die
+Grenze für wirkungslose Versuche (`drives.FUTILE`), zum Vergleich in derselben Messung."""
 MAKERS: Final[dict[Agent, Callable[[int], Learner]]] = {
     "Zufall": RandomAgent,
     "Tabelle": TableAgent,
-    "Stand 0.21": lambda actions: GeneralAgent(actions, own_goals=True),
+    "Stand 0.21": lambda actions: GeneralAgent(actions, own_goals=True, futile=None),
+    "Stand 0.22": lambda actions: GeneralAgent(actions, own_goals=True),
 }
 
 
@@ -63,6 +65,13 @@ class Round:
 
     steps: int
     unlocked: tuple[tuple[int, str], ...]
+    looking: int = 0
+    """In wie vielen Schritten ein Block im Fadenkreuz war (Zwischenstand, ab 0.22)."""
+    items: int = 0
+    """Wie viele verschiedene Dinge er in der Schnellleiste hatte (Zwischenstand, ab 0.22)."""
+    grid: int = 0
+    """Felder in seinem Gitter am Ende der Runde, wenn es seine eigene Stelle kennt, sonst 0
+    (Zwischenstand, ab 0.22; nur der allgemeine Agent hat ein Gitter)."""
 
     @property
     def names(self) -> set[str]:
@@ -112,7 +121,15 @@ def play_round(learner: Learner, world: MinecraftWorld, rng: random.Random) -> R
         learner.learn(Transition(observation, action, outcome.observation, outcome.reached))
         observation = outcome.observation
         steps += 1
-    return Round(steps, tuple(world.unlocked))
+    return Round(steps, tuple(world.unlocked), world.looking, len(world.items), _grid(learner))
+
+
+def _grid(learner: Learner) -> int:
+    """Wie viele Felder sein Gitter mit eigener Stelle hat (0: keins, oder kein Gitter)."""
+    if not isinstance(learner, GeneralAgent):
+        return 0
+    layout = learner.knowledge.space.layout
+    return len(layout.places) if layout.centred else 0
 
 
 def save_replay(agent: Agent, world: MinecraftWorld, episode: int, path: Path) -> None:
@@ -139,6 +156,12 @@ class MinecraftRow:
     length: float
     per_round: float
     seeds: int
+    looking: float
+    """Anteil der Schritte mit einem Block im Fadenkreuz."""
+    items: float
+    """Verschiedene Dinge in der Schnellleiste je Runde."""
+    grid: float
+    """Anteil der Runden, an deren Ende er ein Gitter mit eigener Stelle hat."""
 
 
 def score(rates: dict[str, float]) -> float:
@@ -166,6 +189,9 @@ def rows(found: list[Career], warmup: int = WARMUP) -> list[MinecraftRow]:
                 mean(r.steps for r in counted),
                 mean(len(r.names) for r in counted),
                 len(mine),
+                sum(r.looking for r in counted) / max(1, sum(r.steps for r in counted)),
+                mean(r.items for r in counted),
+                mean(r.grid > 0 for r in counted),
             )
         )
     return result
@@ -178,7 +204,16 @@ def save_careers(found: list[Career], path: Path) -> None:
             "agent": c.agent,
             "seed": c.seed,
             "seconds": c.seconds,
-            "rounds": [{"steps": r.steps, "unlocked": list(r.unlocked)} for r in c.rounds],
+            "rounds": [
+                {
+                    "steps": r.steps,
+                    "unlocked": list(r.unlocked),
+                    "looking": r.looking,
+                    "items": r.items,
+                    "grid": r.grid,
+                }
+                for r in c.rounds
+            ],
         }
         for c in found
     ]
@@ -193,7 +228,13 @@ def load_careers(paths: list[Path]) -> list[Career]:
             if entry["agent"] not in get_args(Agent):
                 raise ValueError(f"Unbekannter Agent in {path}: {entry['agent']}")
             rounds = [
-                Round(r["steps"], tuple((int(at), str(name)) for at, name in r["unlocked"]))
+                Round(
+                    r["steps"],
+                    tuple((int(at), str(name)) for at, name in r["unlocked"]),
+                    int(r.get("looking", 0)),
+                    int(r.get("items", 0)),
+                    int(r.get("grid", 0)),
+                )
                 for r in entry["rounds"]
             ]
             found.append(
@@ -209,13 +250,22 @@ def report(found: list[Career]) -> None:
     """Druckt die Tabelle."""
     table = rows(found)
     print(f"Minecraft: {len(ADVANCEMENTS)} frühe Fortschritte (nur die späteren Runden)\n")
-    print(f"{'Agent':<12} | Wertung | Fortschritte/Runde | Länge | Karten")
-    print("-" * 64)
+    print(
+        f"{'Agent':<12} | Wertung | Fortschritte/Runde | Länge | Karten | Block im Blick | Dinge"
+        " | Gitter"
+    )
+    print("-" * 98)
     for row in table:
         print(
             f"{row.agent:<12} | {row.score:>6.1f}% | {row.per_round:>18.2f} | "
-            f"{row.length:>5.0f} | {row.seeds:>6}"
+            f"{row.length:>5.0f} | {row.seeds:>6} | {100 * row.looking:>13.0f}% | "
+            f"{row.items:>5.1f} | {100 * row.grid:>5.0f}%"
         )
+    print(
+        "\nZwischenstände: „Block im Blick“ ist der Anteil der Schritte mit einem Block im "
+        "Fadenkreuz,\n„Dinge“ die Zahl verschiedener Dinge in der Schnellleiste je Runde, "
+        "„Gitter“ der Anteil\nder Runden, an deren Ende er seinen Raum mit eigener Stelle kennt."
+    )
     print("\nQuote je Fortschritt (in Prozent der Runden):\n")
     print(f"{'Fortschritt':<34} | " + " | ".join(f"{row.agent:>10}" for row in table))
     names = list(ADVANCEMENTS) + sorted({n for row in table for n in row.others})

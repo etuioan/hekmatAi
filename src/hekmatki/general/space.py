@@ -52,7 +52,9 @@ Tier durchs Bild."""
 RINGS: Final = 3
 """Bis zu diesem Abstand bildet er Gruppen „irgendwo im Abstand ≤ d“ (ohne Grundlage)."""
 FILLED: Final = 0.9
-"""So viel des Gitters muss er kennen, bevor er seine eigene Stelle sucht (ohne Grundlage)."""
+"""So viel des Gitters muss er kennen, bevor er seine eigene Stelle sucht (ohne Grundlage).
+Ab 0.22 auch: So groß wie das größte Stück muss ein anderes Stück fast sein, damit er seine
+Stelle dort sucht, wenn das größte keine hat."""
 MAX_BOX: Final = 10_000
 """Größer darf das Gitter nicht sein, damit die Suche nach der Lücke schnell bleibt."""
 SETTLE: Final = 3
@@ -318,6 +320,11 @@ class Space:
                 self._matched[action, component, source] += changed
 
     @property
+    def walking(self) -> set[int]:
+        """Die Tasten, mit denen er geht: Bei ihnen ändert sich sein Ort."""
+        return set(self._walkers)
+
+    @property
     def whereabouts(self) -> set[int]:
         """Die Größen, die sein Ort sind: Sie ändern sich, wenn er geht."""
         return {component for component, _ in self._walkers.values()}
@@ -354,13 +361,16 @@ class Space:
         """Für jede Taste, mit der er geht, und jedes Feld i das Feld j, dessen Wert i nach
         einem echten Schritt fast immer hat (`FLOW_SHARE`), deutlich öfter als jedes andere
         (`GAP`). Die Gegenrichtung zählt mit: Holt „links“ j nach i, holt „rechts“ i nach j.
-        Dazu die Verschiebungen, die nur in eine Richtung passen (Abbilder wie „vorne“)."""
-        back = {
-            action: other
-            for action, (component, step) in self._walkers.items()
-            for other, (component2, step2) in self._walkers.items()
-            if component2 == component and step2 == -step
-        }
+        Dazu die Verschiebungen, die nur in eine Richtung passen (Abbilder wie „vorne“).
+
+        Gehen mehrere Tasten in die Gegenrichtung (in Minecraft „vor“ und „springen“), zählt
+        die, mit der es am besten passt (ab 0.22): Ein Sprung bergauf verschiebt das Bild
+        auch nach unten und darf das saubere „vor“ nicht verdecken."""
+        backs: dict[int, list[int]] = {}
+        for action, (component, step) in self._walkers.items():
+            for reverse, (component2, step2) in self._walkers.items():
+                if component2 == component and step2 == -step:
+                    backs.setdefault(action, []).append(reverse)
         scores: dict[tuple[int, int], dict[int, int]] = {}
         for (action, target, source), count in self._agreed.items():
             if source != target and target in self._mobile:
@@ -368,20 +378,12 @@ class Space:
         edges: list[Edge] = []
         oneway: list[Edge] = []
         for (action, target), found in scores.items():
-            other = back.get(action)
-            walked = self._walked[action] + (self._walked[other] if other is not None else 0)
-            if walked < MIN_WALKS:
+            candidates: list[int | None] = [*backs.get(action, [])] or [None]
+            ranked = [self._ranked(action, target, found, other) for other in candidates]
+            best = max((r for r in ranked if r is not None), key=lambda r: r[0], default=None)
+            if best is None:
                 continue
-            ranked = sorted(
-                (
-                    (count + (self._agreed[other, source, target] if other is not None else 0))
-                    / walked,
-                    source,
-                )
-                for source, count in found.items()
-            )
-            share, source = ranked[-1]
-            second = ranked[-2][0] if len(ranked) > 1 else 0.0
+            share, second, source, other = best
             if share < FLOW_SHARE or share - second < GAP:
                 continue
             if not self._fits_changes(action, target, source):
@@ -393,6 +395,27 @@ class Space:
             edges.append(edge)
         moving = Counter(edge.action for edge in edges)
         return [edge for edge in edges if moving[edge.action] >= MIN_EDGES], oneway
+
+    def _ranked(
+        self, action: int, target: int, found: dict[int, int], other: int | None
+    ) -> tuple[float, float, int, int | None] | None:
+        """Das Feld, dessen Wert ein Feld nach einem Schritt am öftesten hat, mit seinem Anteil
+        und dem des zweitbesten, zusammen mit der Gegenrichtung `other`. None, solange er
+        mit beiden zusammen weniger als `MIN_WALKS` echte Schritte gemacht hat."""
+        walked = self._walked[action] + (self._walked[other] if other is not None else 0)
+        if walked < MIN_WALKS:
+            return None
+        ranked = sorted(
+            (
+                (count + (self._agreed[other, source, target] if other is not None else 0))
+                / walked,
+                source,
+            )
+            for source, count in found.items()
+        )
+        share, source = ranked[-1]
+        second = ranked[-2][0] if len(ranked) > 1 else 0.0
+        return share, second, source, other
 
     def _strength(self, action: int, target: int, source: int, other: int | None) -> float:
         """Wie sicher die Verschiebung ist: wie oft bei echten Schritten, nach denen sich
@@ -429,18 +452,34 @@ def build(
         for action, (component, step) in walkers.items()
         if action in actions
     }
-    places, kept = _places([e for e in edges if e.action in vectors], vectors)
-    if not places:
+    pieces = _places([e for e in edges if e.action in vectors], vectors)
+    if not pieces:
         return Layout()
+    places, kept = _own_piece(pieces)
+    centre = _gap(places)
     flows: dict[int, dict[int, int]] = {}
     for edge in kept:
         flows.setdefault(edge.action, {})[edge.source] = edge.target
-    centre = _gap(places)
     if centre is None:
         return Layout(flows, places, vectors, tuple(axes), centred=False)
     shifted = {c: tuple(x - m for x, m in zip(p, centre, strict=True)) for c, p in places.items()}
     mirrors = _mirrors(oneway, shifted, vectors)
     return Layout(flows, shifted, vectors, tuple(axes), centred=True, mirrors=mirrors)
+
+
+def _own_piece(
+    pieces: list[tuple[dict[int, Point], list[Edge]]],
+) -> tuple[dict[int, Point], list[Edge]]:
+    """Das Stück, in dem er steht: das größte, wenn es seine eigene Stelle zeigt (eine
+    Lücke), sonst ein fast so großes mit Lücke (`FILLED`, ab 0.22). In Minecraft ist die
+    Schicht unter den Füßen voll, nur in der Schicht der Füße fehlt seine Stelle."""
+    largest = pieces[0]
+    for piece in pieces:
+        if len(piece[0]) < FILLED * len(largest[0]):
+            break
+        if _gap(piece[0]) is not None:
+            return piece
+    return largest
 
 
 def _mirrors(
@@ -458,25 +497,33 @@ def _mirrors(
     return {component: frozenset(points) for component, points in found.items()}
 
 
-def _places(edges: list[Edge], vectors: dict[int, Point]) -> tuple[dict[int, Point], list[Edge]]:
+def _places(
+    edges: list[Edge], vectors: dict[int, Point]
+) -> list[tuple[dict[int, Point], list[Edge]]]:
     """Stellen im Gitter: Bewegt er sich mit Taste a um v und wandert dabei j nach i, liegt j
     um v weiter als i. Die sichersten Verschiebungen zuerst; eine, die zu dem schon Gebauten
     nicht passt oder zwei Felder auf eine Stelle legen würde, fällt weg (wie beim Bauen
     eines Baums aus den stärksten Kanten, Kruskal 1956). Das Feld links von ihm bekommt
     beim Gehen, worauf er stand, und das sieht oft aus wie das Feld rechts von ihm: Solche
     Verschiebungen sind schwächer und passen nicht. Am Ende bleiben nur Felder, die mit
-    mindestens zwei Verschiebungen im Gitter stehen (das Feld „vorne“ fällt so heraus)."""
+    mindestens zwei Verschiebungen im Gitter stehen (das Feld „vorne“ fällt so heraus).
+
+    Ab 0.22 kommen alle Stücke zurück, das größte zuerst, jedes mit seinen Verschiebungen.
+    Sieht er mehrere Schichten (in Minecraft unter den Füßen, Füße, Kopf), ist jede ein
+    eigenes Stück, denn keine Taste bewegt ihn nach oben oder unten."""
     piece_of: dict[int, int] = {}
     pieces: dict[int, dict[int, Point]] = {}
     for edge in sorted(edges, reverse=True):
         _join(pieces, piece_of, edge.source, edge.target, vectors[edge.action])
-    if not pieces:
-        return {}, []
-    places = _settle(max(pieces.values(), key=len), edges, vectors)
-    kept = [e for e in edges if _fits_edge(e, places, vectors)]
-    support = Counter(c for e in kept for c in (e.source, e.target))
-    places = {c: p for c, p in places.items() if support[c] >= 2}
-    return places, [e for e in kept if e.source in places and e.target in places]
+    result = []
+    for piece in sorted(pieces.values(), key=len, reverse=True):
+        places = _settle(piece, edges, vectors)
+        kept = [e for e in edges if _fits_edge(e, places, vectors)]
+        support = Counter(c for e in kept for c in (e.source, e.target))
+        places = {c: p for c, p in places.items() if support[c] >= 2}
+        if places:
+            result.append((places, [e for e in kept if e.source in places and e.target in places]))
+    return sorted(result, key=lambda found: len(found[0]), reverse=True)
 
 
 def _settle(

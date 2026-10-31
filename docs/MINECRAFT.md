@@ -22,6 +22,10 @@ Minecraft-Server (offiziell, 1.20.4)   ohne Grafikkarte, ohne Bildschirm
 - 130 Zahlen: Blöcke in 5 × 5 Feldern auf drei Höhen, Wesen in 5 × 5 Feldern, Block und Wesen
   im Fadenkreuz, Schnellleiste (Ding, Anzahl), gewähltes Fach, Leben, Hunger, Blickrichtung,
   Position, Tageszeit. Die Nummern sind Minecrafts eigene, ohne Namen.
+- Ab 0.22 vom Blick aus, wie am Bildschirm: Blöcke, Wesen und Position zählen nach vorn und
+  nach rechts, nicht nach Himmelsrichtung. Ein Schritt geht genau einen Block weit. So
+  verschiebt „vor“ das Bild immer gleich, egal wohin er schaut; beim Drehen ändert sich das
+  ganze Bild.
 - 23 Tasten: nichts, vor, zurück, links, rechts, springen, links/rechts drehen, hoch/runter
   schauen, angreifen (abbauen oder schlagen), benutzen (setzen, essen, öffnen), nächstes/voriges
   Fach und neun Rezepte (Bretter, Stöcke, Werkbank, Holz- und Steinwerkzeuge, Ofen, Fackel).
@@ -45,11 +49,24 @@ pip install -e .
 python -m hekmatki.adapters.minecraft_server minecraft-server 0 --eula-angenommen
 # server.jar 1.20.4 von Mojang nach minecraft-server/ laden, dann:
 (cd minecraft-server && java -jar server.jar nogui) &
-python -m hekmatki.experiments.minecraft_run play "Stand 0.21" 0 teil.json --episodes 6
+python -m hekmatki.experiments.minecraft_run play "Stand 0.22" 0 teil.json --episodes 6
 ```
 
 Zum Ausprobieren ohne Mojangs Server gibt es `minecraft_bridge/testserver.js` (flying-squid,
 frei, `npm ci` mit Entwicklungspaketen). Er ist stark vereinfacht und taugt nicht zum Messen.
+
+### Ergebnis mit 0.22 (16 Karten, 8 Runden zu 1000 Schritten, gezählt ab Runde 5)
+
+| Agent | Wertung | Fortschritte je Runde | Block im Blick | Dinge |
+|---|---:|---:|---:|---:|
+| Zufall | 0,2 % | 0,03 | 51 % | 1,4 |
+| Tabelle | 0,2 % | 0,06 | 54 % | 1,6 |
+| Stand 0.21 | 0,4 % | 0,09 | 35 % | 1,0 |
+| Stand 0.22 | 0,4 % | 0,09 | 43 % | 1,3 |
+
+„Block im Blick“ ist der Anteil der Schritte mit einem Block im Fadenkreuz, „Dinge“ die Zahl
+verschiedener Dinge in der Schnellleiste. Er ist noch nicht besser als der Zufall: Er findet
+keinen Raum, weil sich die Sicht mit ihm dreht (README, Ergebnis 26).
 
 ## Live zuschauen (auf dem eigenen Rechner)
 

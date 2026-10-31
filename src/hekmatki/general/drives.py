@@ -113,6 +113,12 @@ TRIES: Final = 5
 wirkt erst nach mehreren Schlägen (von Hand gewählt, ohne Grundlage)."""
 RETRY: Final = 10
 """Weiß er für ein Ziel keinen Weg, fragt er erst nach so vielen Schritten wieder."""
+FUTILE: Final = 20
+"""So oft drückt er eine Taste ohne eigene Wirkung mit demselben Besitz, dann probiert er sie
+erst wieder, wenn er etwas anderes bei sich hat (ab 0.22, H36; ohne Grundlage)."""
+SPACE_PATIENCE: Final = 300
+"""So viele Schritte läuft er, um den Raum zu lernen, ohne dass sein Gitter wächst; dann gibt
+er es auf, bis es von selbst wächst (ab 0.22, H37; ohne Grundlage)."""
 
 
 @dataclass
@@ -138,8 +144,11 @@ class Pursuit:
 class Drives:
     """Bedürfnisse, Rekorde, Versuche und Erkunden: woher die eigenen Ziele kommen."""
 
-    def __init__(self, actions: int) -> None:
+    def __init__(self, actions: int, futile: int | None = FUTILE) -> None:
+        """`futile`: so oft probiert er eine Taste ohne Wirkung je Besitz (None: ohne Grenze,
+        wie bis 0.21; nur für Vergleiche)."""
         self.actions = actions
+        self.futile = futile
         self.steps = 0
         self.first: dict[int, int] = {}
         """Der erste Wert jeder Größe, den der Agent gesehen hat."""
@@ -175,6 +184,8 @@ class Drives:
         """(Taste, Größe) → wie oft die Größe nach der Taste stieg."""
         self._all_rises: Counter[int] = Counter()
         self._unknown: set[int] = set(range(actions))
+        self._futile: Counter[tuple[int, tuple[int, ...]]] = Counter()
+        """(Taste ohne eigene Wirkung, was er besitzt) → wie oft er sie so gedrückt hat."""
         self._retry: dict[int, int] = {}
         self._retry_goal: dict[Literal, int] = {}
         self._operands: dict[int, set[int]] = {}
@@ -185,6 +196,9 @@ class Drives:
         self._last: Observation | None = None
         self._heading: tuple[int, int] = (-1, 0)
         """Erkunden: in welche Richtung er geht und wie viele Schritte noch."""
+        self._space_size = 0
+        self._space_idle = 0
+        """Raum lernen: das größte Gitter bisher und wie lange er seitdem dafür lief."""
         self._last_point: Partial = ()
         self._repeats = 0
         self._last_choice: tuple[Observation, int] | None = None
@@ -227,10 +241,13 @@ class Drives:
         self.steps += 1
         before, after, action = transition.before, transition.after, transition.action
         self._pressed[action] += 1
+        carried = self._carried(before)
+        if action in self._unknown:
+            self._futile[action, carried] += 1
         for component, (old, new) in enumerate(zip(before, after, strict=True)):
             self.first.setdefault(component, old)
             self._seen[component, old] += 1
-            self._with[action, component, old, self._carried(before)] += 1
+            self._with[action, component, old, carried] += 1
             if new != old:
                 self._all_changes[component] += 1
                 self._unit_changes[component] += abs(new - old) == 1
@@ -294,6 +311,7 @@ class Drives:
         choices = (
             ("Bedürfnis", lambda: self._need(plan, observation, own)),
             ("Ziel", lambda: self._continue(plan, observation, own)),
+            ("Raum", lambda: self._learn_space(knowledge, world, rng)),
             ("Versuch", lambda: self._trial(knowledge, observation, body, own, rng)),
             ("Neugier", lambda: self._curious(plan, observation, body)),
             ("Rekord", lambda: self._record(plan, observation, own)),
@@ -664,6 +682,37 @@ class Drives:
             self._retry[component] = self.steps + RETRY  # Kein Weg bekannt: später wieder.
         return None
 
+    def _learn_space(self, knowledge: Knowledge, world: Model, rng: random.Random) -> int | None:
+        """Herumlaufen, um den Raum zu lernen: Er weiß schon, mit welchen Tasten er geht, hat
+        aber noch kein Gitter mit seiner eigenen Stelle. Dann geht er ein Stück geradeaus und
+        wählt eine neue Richtung (wie beim Erkunden), statt Tasten an Seltenem zu probieren.
+        Ohne Gitter fehlen ihm Neugier auf Felder, Erkunden und Gefahren in seiner Nähe; das
+        Gitter lernt er nur, wenn er geht (ab 0.22, H37). Erst sich bewegen, dann die Karte:
+        Pierce & Kuipers 1997; beim Kind kommt das Verstehen des Raums mit dem eigenen
+        Krabbeln (Campos u. a. 2000).
+
+        Ab und zu (`CURIOUS`) drückt er irgendeine Taste: So findet er auch Tasten, mit denen
+        er geht, die er noch nicht kennt. Wächst das Gitter `SPACE_PATIENCE` Schritte lang nicht,
+        lässt er es; in einer Welt ohne Blick um sich gibt es kein Gitter zu finden."""
+        space = knowledge.space
+        walking = sorted(a for a in space.walking if a in world)
+        if space.layout.centred or not walking:
+            return None
+        if len(space.layout.places) > self._space_size:
+            self._space_size, self._space_idle = len(space.layout.places), 0
+        if self._space_idle >= SPACE_PATIENCE:
+            return None
+        self._space_idle += 1
+        if rng.random() < CURIOUS:
+            return rng.choice(sorted(world))
+        heading, left = self._heading
+        if left > 0 and heading in walking:
+            self._heading = (heading, left - 1)
+            return heading
+        step = rng.choice(walking)
+        self._heading = (step, rng.randint(*STRETCH))
+        return step
+
     def _trial(
         self,
         knowledge: Knowledge,
@@ -675,18 +724,32 @@ class Drives:
         """Eine Taste ohne eigene Wirkung bei etwas Seltenem, das sie noch nie sah, oder eine
         mit Wirkung bei einem Wert dort, woran sie wirkt. Ist das etwas, das er sieht (nicht
         sein Körper), probiert er es bis zu `TRIES`-mal: Manches wirkt erst beim dritten
-        Schlag (H31)."""
+        Schlag (H31).
+
+        Ab 0.22 probiert er eine Taste ohne Wirkung mit demselben Besitz höchstens
+        `FUTILE`-mal: Wo er nichts lernt, lohnt Neugier nicht (Lernfortschritt als Antrieb,
+        Oudeyer & Kaplan 2007). Mit neuem Besitz zählt es neu (H33). In einer großen Welt ist
+        sonst immer etwas selten, und er drückte fast nur noch Tasten ohne Wirkung (H36)."""
         rare = [c for c, value in enumerate(observation) if self._seen[c, value] <= RARE]
         carried = self._carried(observation)
         fresh = [
             action
             for action in range(self.actions)
-            if any(
+            if self._worth_trying(action, carried)
+            and any(
                 self._with[action, c, observation[c], carried] < self._tries(action, c, body)
                 for c in (rare if action in self._unknown else self._operands.get(action, ()))
             )
         ]
         return rng.choice(fresh) if fresh else None
+
+    def _worth_trying(self, action: int, carried: tuple[int, ...]) -> bool:
+        """Hat er die Taste mit diesem Besitz noch keine `futile`-mal ohne Wirkung gedrückt?
+        Die Grenze gilt nur, solange die Taste ohne Wirkung ist: Hat er ihre Wirkung erkannt,
+        probiert er sie wie bisher an neuen Werten (`TRIES`)."""
+        if self.futile is None or action not in self._unknown:
+            return True
+        return self._futile[action, carried] < self.futile
 
     def _carried(self, observation: Partial) -> tuple[int, ...]:
         """Welche seiner Mengen er gerade hat (mehr als 0): Ein Versuch, der ohne Spitzhacke

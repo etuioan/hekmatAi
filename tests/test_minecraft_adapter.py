@@ -167,3 +167,38 @@ def test_replay_records_only_the_last_round(tmp_path: Path) -> None:
     assert data["episode"] == 3
     assert len(data["scenes"]) == 6  # Start und fünf Schritte
     assert all("advancements" in scene for scene in data["scenes"])
+
+
+class SightConnection(FakeConnection):
+    """Wie `FakeConnection`, aber mit Fadenkreuz und einem Fach: Taste 1 schaut auf einen
+    Block (Nummer 7, sonst −1) und legt Ding 3, dann Ding 4 ins Fach."""
+
+    layout = ("Block im Blick", "Fach 1 Ding", "Fach 1 Anzahl")
+
+    def request(self, message: dict[str, Any]) -> dict[str, Any]:
+        answer = super().request(message)
+        looks = message["op"] == "step" and message["action"] == 1
+        answer["inner"] = [7 if looks else -1, 2 + self.x if self.x else 0, min(self.x, 1)]
+        return answer
+
+
+def test_round_counts_sight_and_things_for_the_report() -> None:
+    world = MinecraftWorld(0, SightConnection(), length=5)
+    world.reset(random.Random(0))
+    walk, idle = inner_key(world, "vor"), inner_key(world, "nichts")
+    for action in (walk, idle, walk):
+        world.step(action, random.Random(0))
+    assert world.looking == 2
+    assert world.items == {3, 4}
+    world.reset(random.Random(0))
+    assert (world.looking, world.items) == (0, set())
+
+
+def test_the_report_counts_rounds_that_end_with_a_grid(tmp_path: Path) -> None:
+    """„Gitter“: Anteil der gezählten Runden, an deren Ende er seine eigene Stelle kennt."""
+    rounds = [Round(10, ())] * 4 + [Round(10, (), grid=24), Round(10, ())]
+    career = Career("Stand 0.22", 0, rounds)
+    assert rows([career], warmup=4)[0].grid == 0.5
+    part = tmp_path / "teil.json"
+    save_careers([career], part)
+    assert load_careers([part])[0].rounds == rounds
