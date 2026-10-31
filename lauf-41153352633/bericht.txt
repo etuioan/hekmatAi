@@ -1,0 +1,25 @@
+Minecraft: 10 frühe Fortschritte (nur die späteren Runden)
+
+Agent        | Wertung | Fortschritte/Runde | Länge | Karten | Block im Blick | Dinge
+-----------------------------------------------------------------------------------------
+Stand 0.22   |    0.4% |               0.08 |   719 |     16 |            34% |   0.8
+Tabelle      |    0.2% |               0.06 |   847 |     16 |            52% |   1.5
+Zufall       |    0.4% |               0.09 |   876 |     16 |            52% |   1.6
+
+Zwischenstände: „Block im Blick“ ist der Anteil der Schritte mit einem Block im Fadenkreuz,
+„Dinge“ die Zahl verschiedener Dinge in der Schnellleiste je Runde.
+
+Quote je Fortschritt (in Prozent der Runden):
+
+Fortschritt                        | Stand 0.22 |    Tabelle |     Zufall
+minecraft:story/root               |         5% |         6% |         8%
+minecraft:story/mine_stone         |         2% |         0% |         0%
+minecraft:story/upgrade_tools      |         0% |         0% |         0%
+minecraft:story/smelt_iron         |         0% |         0% |         0%
+minecraft:story/iron_tools         |         0% |         0% |         0%
+minecraft:adventure/root           |         2% |         0% |         2%
+minecraft:adventure/kill_a_mob     |         0% |         0% |         0%
+minecraft:adventure/sleep_in_bed   |         0% |         0% |         0%
+minecraft:husbandry/root           |         0% |         0% |         0%
+minecraft:husbandry/plant_seed     |         0% |         0% |         0%
+
