@@ -5,7 +5,7 @@ Dossier: https://claude.ai/artifact/Sghxz5AxhcHgCKY9dtGSM5, Abschnitt „Paper �
 
 **Regel:** Jede neue Version aktualisiert diese Datei. Ideen, die zuerst im Code entstehen,
 bekommen den Vermerk **ohne Grundlage**. Sie sind der Suchauftrag für die nächste Paper-Runde.
-P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers, H25–H28 neu mit 0.18, H29–H31 mit 0.19, H32–H34 mit 0.20, H35 mit 0.21, H36 mit 0.22 (siehe unten).
+P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers, H25–H28 neu mit 0.18, H29–H31 mit 0.19, H32–H34 mit 0.20, H35 mit 0.21, H36 und H37 mit 0.22 (siehe unten).
 
 ## Module und ihre Grundlagen
 
@@ -58,6 +58,29 @@ P1–P8 sind die Prinzipien, H1–H24 die Hypothesen des Dossiers, H25–H28 neu
 | Sprachorgan (LLM) | bewusst weggelassen | LILO; Tycho und Kepler zeigen, dass LLMs Weltmodelle als Code schreiben |
 | Lehrplan-Generator | fehlt | Absolute Zero, Oudeyer 2007, POET |
 | Kontext-Inferenz und Schlaf in der 2D-Welt | Kontext-Inferenz ab 0.16 im allgemeinen Agenten (`general/detector.py`), Schlaf fehlt | COIN, Bhattarai 2026; Runde 6: Sanders, Wilson, Gershman 2020, Yu & Dayan 2002 |
+
+## Umgesetzt in 0.22, Teil 2 (Raum mit Blickrichtung, H37)
+
+Abgeleitet aus Ergebnis 26: In Minecraft drehte sich die Bewegung mit dem Blick, das Bild
+aber nicht, also fand `space.py` kein Gitter. Die Brücke zeigt jetzt alles vom Blick aus
+(wie die Ansicht eines Menschen) und geht in ganzen Blöcken, wie die diskreten Befehle in
+Malmo (Johnson u. a. 2016).
+
+| Hypothese | Stand |
+|---|---|
+| H37: Wer schon weiß, mit welchen Tasten er geht, aber noch keinen Raum hat, soll erst herumlaufen, um ihn zu lernen (bis das Gitter nicht mehr wächst) | **offen** (Ergebnis 27): Crafter 3,4 statt 3,0 % (innerhalb der Streuung, nicht schlechter). Minecraft gleich wie Zufall (0,4 %), „Block im Blick“ sinkt auf 34 %, weil er mehr läuft; ob er dort ein Gitter findet, misst erst der neue Zwischenstand „Gitter“ |
+
+Grundlagen: Pierce & Kuipers 1997 (erst Bewegung erkunden, dann die Karte); Campos u. a.
+2000 (Krabbeln geht dem Verstehen von Raum beim Kind voraus); Philipona, O'Regan & Nadal 2003.
+Gegenstimmen und Warnungen: Ohne Ziel herumlaufen kostet Zeit, in der er nichts anderes
+lernt (hier sichtbar am Block im Blick). Die eigene Stelle in einer anderen Schicht zu suchen
+ist eine Notlösung, solange Höhe keine Achse ist. Dass die Brücke die Sicht mitdreht, nimmt
+ihm ab, was Kopfrichtungszellen leisten (Taube, Muller & Ranck 1990); das soll er später
+selbst lernen.
+
+**Ohne Grundlage (neu in 0.22, Teil 2):** 300 Schritte Geduld (`SPACE_PATIENCE`); ein anderes
+Stück muss mindestens 90 % so groß sein wie das größte (`FILLED`); „die passendste
+Gegenrichtung zählt“.
 
 ## Umgesetzt in 0.22 (Tasten ohne Wirkung, H36)
 

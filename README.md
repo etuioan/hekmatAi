@@ -13,7 +13,7 @@ Bitte lies das zuerst, wenn du verstehen willst, worum es mir geht.
   „Scheiben“ übereinander. Der Agent lernt das Gemeinsame („Warten“) einmal und wechselt
   zwischen den Kontexten.
 - **Stand:** Forschungsprototyp in Python, nur Standardbibliothek (Crafter als freiwilliges
-  Zusatzpaket), 306 Tests.
+  Zusatzpaket), 311 Tests.
   Spielwelten (ähnlich ARC-AGI-3) sind das Testfeld, nicht das Ziel.
 - **Ehrlich:** Hier wird nichts behauptet, was nicht gemessen ist. Widerlegte Hypothesen
   stehen genauso im README wie gestützte (siehe [Grenzen](#grenzen)).
@@ -51,7 +51,7 @@ Please read it first if you want to understand what it's about.
   each other like "slices". The agent learns what they share ("waiting") once and switches
   between contexts.
 - **Status:** Research prototype in Python, standard library only (Crafter as an optional
-  extra), 306 tests. Since 0.18 the general agent sets its own goals and plays Crafter, a
+  extra), 311 tests. Since 0.18 the general agent sets its own goals and plays Crafter, a
   small 2D Minecraft, through a separate adapter: [docs/crafter.html](docs/crafter.html).
   Since 0.19 it finds out by itself which of its numbers form a picture around it and where
   it stands in it (space from its own movement), with no knowledge of the game. Since 0.20
@@ -1210,6 +1210,52 @@ Runde 5; 0.21 ist derselbe Code ohne die Grenze, beide mit derselben Brücke):
 Zum Anschauen: die Wiedergabe der letzten Runde jedes Agenten liegt auf dem Branch
 `minecraft-messungen`, Ordner `lauf-41128050734`, Datei `minecraft.html`.
 
+## Ergebnis 27: Raum mit Blickrichtung (neu in 0.22, H37)
+
+Ergebnis 26 zeigte: In Minecraft findet er kein Gitter, weil „vor“ das Bild je nach
+Blickrichtung anders verschiebt. Drei Änderungen:
+
+- **Die Brücke zeigt alles vom Blick aus**, wie am Bildschirm: Blöcke, Wesen und Ort zählen
+  nach vorn und nach rechts, und ein Schritt geht genau einen Block weit (nach einem Sprung
+  erst landen). Das ist kein Spielwissen für den Agenten, sondern die Sicht, die auch ein
+  Mensch hat.
+- **Seine eigene Stelle auch in einer anderen Schicht** (`space`): In Minecraft ist die
+  Schicht unter den Füßen voll, nur auf Höhe der Füße fehlt seine Stelle. Hat das größte
+  Stück keine Lücke, sucht er sie in einem fast so großen.
+- **Antrieb „Raum“** (`Drives._learn_space`): Kennt er Tasten, mit denen er geht, aber noch
+  kein Gitter, läuft er herum, statt Tasten an Seltenem zu probieren (erst bewegen, dann die
+  Karte: Pierce & Kuipers 1997; Campos u. a. 2000). Wächst das Gitter 300 Schritte lang
+  nicht, lässt er es.
+
+Auf dem Testserver findet er beim Herumlaufen ohne Springen ein Gitter mit 24 Feldern und
+seiner Stelle. Mit Springen im sehr hügeligen Gelände des Testservers noch nicht: Jeder
+Schritt bergauf verschiebt das ganze Bild auch nach unten.
+
+**Crafter** (16 Karten, 30 Runden; vorher = Ergebnis 26):
+
+| Agent | Wertung | Mittel je Startwert | Erfolge je Runde | Runde dauert |
+|---|---:|---:|---:|---:|
+| Zufall | 1,5 % | 1,35 ± 0,28 % | 2,33 | 169 |
+| Stand 0.22 vorher | 3,0 % | 2,54 ± 0,39 % | 3,26 | 179 |
+| **Stand 0.22** | **3,4 %** | **2,76 ± 0,50 %** | **3,45** | **180** |
+
+Bisher der beste Wert in Crafter, aber innerhalb der Streuung. Er baut öfter eine Werkbank
+(20 statt 17 %) und besiegt öfter Zombies (10 statt 8 %).
+
+**Minecraft** (16 Karten, 8 Runden zu 1000 Schritten, Lauf 41153352633):
+
+| Agent | Wertung | Fortschritte je Runde | Block im Blick | Dinge |
+|---|---:|---:|---:|---:|
+| Zufall | 0,4 % | 0,09 | 52 % | 1,6 |
+| Tabelle | 0,2 % | 0,06 | 52 % | 1,5 |
+| **Stand 0.22** | **0,4 %** | **0,08** | **34 %** | **0,8** |
+
+- **Noch kein Gewinn:** Er läuft viel, um den Raum zu lernen, und hat darum seltener einen
+  Block im Blick (34 statt 43 % mit Ergebnis 26). Zum ersten Mal baut er Stein ab (2 % der
+  Runden, „Steinzeit“), sonst gleich wie der Zufall.
+- **Offen:** ob er auf dem echten Server ein Gitter findet. Dafür zählt die Messung jetzt
+  auch „Gitter“ (Runden, an deren Ende er seine eigene Stelle kennt); die Messung läuft.
+
 ## Grenzen
 
 - In Crafter (Ergebnis 22 bis 25) ist der Vorsprung mit 0.21 deutlich, aber klein (3,0 statt
@@ -1220,8 +1266,9 @@ Zum Anschauen: die Wiedergabe der letzten Runde jedes Agenten liegt auf dem Bran
   Gruppen („irgendwo neben mir“) noch nicht, nur die Gefahren. Seine Wahrnehmung ist
   geschenkt (Crafters Karte als Nummern, dazu das Feld vor ihm), nicht das Bild. Er spielt
   nur etwa 5000 Schritte; ein Vergleich mit tiefem Lernen bei gleich vielen Schritten fehlt.
-- In Minecraft (Ergebnis 26) ist er nicht besser als der Zufall. Er findet dort keinen Raum,
-  weil sich die Sicht mit ihm dreht, und hat seltener einen Block im Blick als der Zufall.
+- In Minecraft (Ergebnis 26 und 27) ist er nicht besser als der Zufall. Seit der Sicht vom
+  Blick aus erkennt er, mit welchen Tasten er geht; ob er auch auf dem echten Server ein
+  Gitter findet, ist offen. Er hat seltener einen Block im Blick als der Zufall.
 - Die eigenen Ziele und der Raum haben viele Schwellen von Hand (Hälfte für „dringend“, 60
   Schritte Geduld, 8 Schritte für Schaden und Abwehr, 5 Stöße und 80 % für ein Hindernis, 95 % Sicherheit und
   15 % für eine Gefahr, 3 Literale je Ursache, 90 % für einen Nachbarn,
@@ -1293,7 +1340,7 @@ PYTHONPATH=src python -m hekmatki
 Qualitätsprüfungen (einmalig `pip install -e ".[dev]"`):
 
 ```bash
-pytest            # 306 Tests (9 davon nur mit Crafter)
+pytest            # 311 Tests (9 davon nur mit Crafter)
 mypy              # strikte Typprüfung
 ruff check .      # Linter
 ruff format --check .
@@ -1346,6 +1393,11 @@ Bezeichner sind englisch (Python-Konvention), Dokumentation und Ausgaben deutsch
   Rundenstart Teile der Welt nicht rechtzeitig laden.
 - Crafter-Messung mit „Stand 0.22“ (Ergebnis 26); die Zeile von 0.21 kommt aus einer
   Messung auf `main` im selben Durchgang.
+- Raum mit Blickrichtung (Ergebnis 27, H37): Brücke vom Blick aus und in ganzen Blöcken,
+  eigene Stelle auch in einer anderen Schicht (`space._own_piece`), bei mehreren
+  Gegenrichtungen zählt die passendste, Antrieb „Raum“ (`SPACE_PATIENCE = 300`).
+- Die Grenze für wirkungslose Tasten gilt nur, solange die Taste ohne Wirkung ist.
+- Minecraft-Messung: Zwischenstand „Gitter“; nur noch Zufall, Tabelle und Stand 0.22.
 
 ## Änderungen nach dem Code-Review (nach 0.21)
 
@@ -1623,10 +1675,11 @@ Ein Review fand fünf Fehler. Alle sind behoben und haben Tests.
 
 ## Nächste Schritte
 
-1. Raum mit Blickrichtung (Minecraft, Ergebnis 26): Wenn ein Schritt das Bild je nach
-   Blickrichtung anders verschiebt, soll er das als Bewegung erkennen, die von einer
-   eigenen Zahl abhängt (Kopfrichtungszellen, Wegintegration), statt kein Gitter zu finden.
-   Danach Rekorde nur für Zahlen, die er selbst ändern kann und die etwas bringen.
+1. Raum in Minecraft fertig (Ergebnis 27): Schritte bergauf und bergab vom Gitter trennen
+   (Höhe als eigene Achse), damit das Gitter auch im Hügelland entsteht. Später soll er
+   selbst lernen, dass ein Schritt von der Blickrichtung abhängt (Kopfrichtungszellen,
+   Wegintegration), statt dass die Brücke die Sicht mitdreht. Danach Rekorde nur für
+   Zahlen, die etwas bringen.
 2. Gefahren noch sicherer erkennen: Noch kommt die Hälfte der Zombie-Treffer ohne Abwehr
    davor (Ergebnis 25). Das Gitter auf allen Karten finden (dann gibt es die Gruppen „nah bei
    mir“ überall), und was er an einem Feld über eine Gefahr gelernt hat, auf die Felder im
