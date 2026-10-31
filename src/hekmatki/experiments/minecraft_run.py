@@ -69,6 +69,9 @@ class Round:
     """In wie vielen Schritten ein Block im Fadenkreuz war (Zwischenstand, ab 0.22)."""
     items: int = 0
     """Wie viele verschiedene Dinge er in der Schnellleiste hatte (Zwischenstand, ab 0.22)."""
+    grid: int = 0
+    """Felder in seinem Gitter am Ende der Runde, wenn es seine eigene Stelle kennt, sonst 0
+    (Zwischenstand, ab 0.22; nur der allgemeine Agent hat ein Gitter)."""
 
     @property
     def names(self) -> set[str]:
@@ -118,7 +121,15 @@ def play_round(learner: Learner, world: MinecraftWorld, rng: random.Random) -> R
         learner.learn(Transition(observation, action, outcome.observation, outcome.reached))
         observation = outcome.observation
         steps += 1
-    return Round(steps, tuple(world.unlocked), world.looking, len(world.items))
+    return Round(steps, tuple(world.unlocked), world.looking, len(world.items), _grid(learner))
+
+
+def _grid(learner: Learner) -> int:
+    """Wie viele Felder sein Gitter mit eigener Stelle hat (0: keins, oder kein Gitter)."""
+    if not isinstance(learner, GeneralAgent):
+        return 0
+    layout = learner.knowledge.space.layout
+    return len(layout.places) if layout.centred else 0
 
 
 def save_replay(agent: Agent, world: MinecraftWorld, episode: int, path: Path) -> None:
@@ -149,6 +160,8 @@ class MinecraftRow:
     """Anteil der Schritte mit einem Block im Fadenkreuz."""
     items: float
     """Verschiedene Dinge in der Schnellleiste je Runde."""
+    grid: float
+    """Anteil der Runden, an deren Ende er ein Gitter mit eigener Stelle hat."""
 
 
 def score(rates: dict[str, float]) -> float:
@@ -178,6 +191,7 @@ def rows(found: list[Career], warmup: int = WARMUP) -> list[MinecraftRow]:
                 len(mine),
                 sum(r.looking for r in counted) / max(1, sum(r.steps for r in counted)),
                 mean(r.items for r in counted),
+                mean(r.grid > 0 for r in counted),
             )
         )
     return result
@@ -196,6 +210,7 @@ def save_careers(found: list[Career], path: Path) -> None:
                     "unlocked": list(r.unlocked),
                     "looking": r.looking,
                     "items": r.items,
+                    "grid": r.grid,
                 }
                 for r in c.rounds
             ],
@@ -218,6 +233,7 @@ def load_careers(paths: list[Path]) -> list[Career]:
                     tuple((int(at), str(name)) for at, name in r["unlocked"]),
                     int(r.get("looking", 0)),
                     int(r.get("items", 0)),
+                    int(r.get("grid", 0)),
                 )
                 for r in entry["rounds"]
             ]
@@ -234,17 +250,21 @@ def report(found: list[Career]) -> None:
     """Druckt die Tabelle."""
     table = rows(found)
     print(f"Minecraft: {len(ADVANCEMENTS)} frühe Fortschritte (nur die späteren Runden)\n")
-    print(f"{'Agent':<12} | Wertung | Fortschritte/Runde | Länge | Karten | Block im Blick | Dinge")
-    print("-" * 89)
+    print(
+        f"{'Agent':<12} | Wertung | Fortschritte/Runde | Länge | Karten | Block im Blick | Dinge"
+        " | Gitter"
+    )
+    print("-" * 98)
     for row in table:
         print(
             f"{row.agent:<12} | {row.score:>6.1f}% | {row.per_round:>18.2f} | "
             f"{row.length:>5.0f} | {row.seeds:>6} | {100 * row.looking:>13.0f}% | "
-            f"{row.items:>5.1f}"
+            f"{row.items:>5.1f} | {100 * row.grid:>5.0f}%"
         )
     print(
         "\nZwischenstände: „Block im Blick“ ist der Anteil der Schritte mit einem Block im "
-        "Fadenkreuz,\n„Dinge“ die Zahl verschiedener Dinge in der Schnellleiste je Runde."
+        "Fadenkreuz,\n„Dinge“ die Zahl verschiedener Dinge in der Schnellleiste je Runde, "
+        "„Gitter“ der Anteil\nder Runden, an deren Ende er seinen Raum mit eigener Stelle kennt."
     )
     print("\nQuote je Fortschritt (in Prozent der Runden):\n")
     print(f"{'Fortschritt':<34} | " + " | ".join(f"{row.agent:>10}" for row in table))

@@ -192,3 +192,13 @@ def test_round_counts_sight_and_things_for_the_report() -> None:
     assert world.items == {3, 4}
     world.reset(random.Random(0))
     assert (world.looking, world.items) == (0, set())
+
+
+def test_the_report_counts_rounds_that_end_with_a_grid(tmp_path: Path) -> None:
+    """„Gitter“: Anteil der gezählten Runden, an deren Ende er seine eigene Stelle kennt."""
+    rounds = [Round(10, ())] * 4 + [Round(10, (), grid=24), Round(10, ())]
+    career = Career("Stand 0.22", 0, rounds)
+    assert rows([career], warmup=4)[0].grid == 0.5
+    part = tmp_path / "teil.json"
+    save_careers([career], part)
+    assert load_careers([part])[0].rounds == rounds
