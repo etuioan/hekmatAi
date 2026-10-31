@@ -112,10 +112,13 @@ TRIES: Final = 5
 """So oft probiert er eine Taste mit Wirkung an einem Wert aus, bevor er aufgibt: Manches
 wirkt erst nach mehreren Schlägen (von Hand gewählt, ohne Grundlage)."""
 RETRY: Final = 10
+"""Weiß er für ein Ziel keinen Weg, fragt er erst nach so vielen Schritten wieder."""
 FUTILE: Final = 20
 """So oft drückt er eine Taste ohne eigene Wirkung mit demselben Besitz, dann probiert er sie
 erst wieder, wenn er etwas anderes bei sich hat (ab 0.22, H36; ohne Grundlage)."""
-"""Weiß er für ein Ziel keinen Weg, fragt er erst nach so vielen Schritten wieder."""
+SPACE_PATIENCE: Final = 300
+"""So viele Schritte läuft er, um den Raum zu lernen, ohne dass sein Gitter wächst; dann gibt
+er es auf, bis es von selbst wächst (ab 0.22, H37; ohne Grundlage)."""
 
 
 @dataclass
@@ -193,6 +196,9 @@ class Drives:
         self._last: Observation | None = None
         self._heading: tuple[int, int] = (-1, 0)
         """Erkunden: in welche Richtung er geht und wie viele Schritte noch."""
+        self._space_size = 0
+        self._space_idle = 0
+        """Raum lernen: das größte Gitter bisher und wie lange er seitdem dafür lief."""
         self._last_point: Partial = ()
         self._repeats = 0
         self._last_choice: tuple[Observation, int] | None = None
@@ -305,6 +311,7 @@ class Drives:
         choices = (
             ("Bedürfnis", lambda: self._need(plan, observation, own)),
             ("Ziel", lambda: self._continue(plan, observation, own)),
+            ("Raum", lambda: self._learn_space(knowledge, world, rng)),
             ("Versuch", lambda: self._trial(knowledge, observation, body, own, rng)),
             ("Neugier", lambda: self._curious(plan, observation, body)),
             ("Rekord", lambda: self._record(plan, observation, own)),
@@ -674,6 +681,37 @@ class Drives:
                 return step
             self._retry[component] = self.steps + RETRY  # Kein Weg bekannt: später wieder.
         return None
+
+    def _learn_space(self, knowledge: Knowledge, world: Model, rng: random.Random) -> int | None:
+        """Herumlaufen, um den Raum zu lernen: Er weiß schon, mit welchen Tasten er geht, hat
+        aber noch kein Gitter mit seiner eigenen Stelle. Dann geht er ein Stück geradeaus und
+        wählt eine neue Richtung (wie beim Erkunden), statt Tasten an Seltenem zu probieren.
+        Ohne Gitter fehlen ihm Neugier auf Felder, Erkunden und Gefahren in seiner Nähe; das
+        Gitter lernt er nur, wenn er geht (ab 0.22, H37). Erst sich bewegen, dann die Karte:
+        Pierce & Kuipers 1997; beim Kind kommt das Verstehen des Raums mit dem eigenen
+        Krabbeln (Campos u. a. 2000).
+
+        Ab und zu (`CURIOUS`) drückt er irgendeine Taste: So findet er auch Tasten, mit denen
+        er geht, die er noch nicht kennt. Wächst das Gitter `SPACE_PATIENCE` Schritte lang nicht,
+        lässt er es; in einer Welt ohne Blick um sich gibt es kein Gitter zu finden."""
+        space = knowledge.space
+        walking = sorted(a for a in space.walking if a in world)
+        if space.layout.centred or not walking:
+            return None
+        if len(space.layout.places) > self._space_size:
+            self._space_size, self._space_idle = len(space.layout.places), 0
+        if self._space_idle >= SPACE_PATIENCE:
+            return None
+        self._space_idle += 1
+        if rng.random() < CURIOUS:
+            return rng.choice(sorted(world))
+        heading, left = self._heading
+        if left > 0 and heading in walking:
+            self._heading = (heading, left - 1)
+            return heading
+        step = rng.choice(walking)
+        self._heading = (step, rng.randint(*STRETCH))
+        return step
 
     def _trial(
         self,

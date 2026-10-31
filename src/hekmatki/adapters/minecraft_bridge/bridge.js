@@ -12,6 +12,13 @@
 //
 // Die Brücke kennt Minecraft, der Agent nie: Sie gibt nur Zahlen weiter. Was die Zahlen
 // bedeuten, steht in LAYOUT; der Python-Adapter mischt sie, bevor der Agent sie sieht.
+//
+// Die Blöcke und Wesen um die Figur zeigt sie vom Blick aus, wie am Bildschirm: „−2“ in der
+// dritten Stelle ist immer zwei Felder vor ihr, „+1“ in der ersten eins rechts. Laufen geht
+// in ganzen Blöcken. So verschiebt ein Schritt „vor“ das Bild immer gleich, egal wohin sie
+// schaut (ab 0.22). Auch der Ort zählt vom Blick aus: „Ort längs“ steigt mit jedem Schritt
+// vor, „Ort quer“ mit jedem nach rechts; beim Drehen springen beide (wie ein Schrittzähler,
+// der sich mitdreht).
 
 'use strict'
 
@@ -28,7 +35,9 @@ const LAYERS = [-1, 0, 1] // unter den Füßen, Füße, Kopf
 const REACH = 4.5 // so weit reicht ein Spieler im Überlebensmodus
 const START_ATTEMPTS = 8 // so oft sucht `reset` einen Startplatz an Land mit Bäumen
 const SCENE = 15 // Breite des Ausschnitts für die Wiedergabe (nur für die Seite)
-const MOVE_TICKS = 5 // ein Schritt Laufen: 5 Spielticks, etwa ein Block
+const MOVE_TICKS = 5 // so lange dauern Handlungen ohne eigene Dauer (nichts, angreifen)
+const MAX_WALK_TICKS = 12 // länger läuft ein Schritt nicht, auch wenn er den Block nicht erreicht
+const ARRIVED = 0.2 // so nah an der Mitte des Zielblocks gilt ein Schritt als angekommen
 const DIG_TIMEOUT_MS = 10000
 const PITCHES = [-Math.PI / 3, 0, Math.PI / 4] // nach unten, geradeaus, nach oben (Mineflayer: positiv = oben)
 const FACINGS = [[0, -1], [-1, 0], [0, 1], [1, 0]] // Norden, Westen, Süden, Osten als (dx, dz)
@@ -78,7 +87,7 @@ function layoutNames () {
   names.push('Block im Blick', 'Wesen im Blick')
   for (let slot = 0; slot < 9; slot++) names.push(`Fach ${slot + 1} Ding`, `Fach ${slot + 1} Anzahl`)
   names.push('gewähltes Fach', 'Leben', 'Hunger', 'Blick x', 'Blick z', 'Blick hoch')
-  names.push('Ort x', 'Ort y', 'Ort z', 'Tageszeit')
+  names.push('Ort quer', 'Ort Höhe', 'Ort längs', 'Tageszeit')
   return names
 }
 
@@ -203,8 +212,15 @@ class Player {
   }
 
   async act (name) {
-    const moves = { vor: ['forward'], zurück: ['back'], links: ['left'], rechts: ['right'], springen: ['forward', 'jump'] }
-    if (name in moves) return this.hold(moves[name])
+    // Steuerung und Richtung im Blick (rechts, vor) für jeden Schritt.
+    const moves = {
+      vor: [['forward'], 0, 1],
+      zurück: [['back'], 0, -1],
+      links: [['left'], -1, 0],
+      rechts: [['right'], 1, 0],
+      springen: [['forward', 'jump'], 0, 1]
+    }
+    if (name in moves) return this.walk(...moves[name])
     if (name === 'links drehen') { this.facing = (this.facing + 1) % 4; return this.look() }
     if (name === 'rechts drehen') { this.facing = (this.facing + 3) % 4; return this.look() }
     if (name === 'hoch schauen') { this.pitch = Math.min(this.pitch + 1, PITCHES.length - 1); return this.look() }
@@ -217,11 +233,27 @@ class Player {
     return this.ticks(MOVE_TICKS) // nichts
   }
 
-  async hold (controls) {
+  // Ein Schritt um einen ganzen Block: Die Figur läuft, bis sie in Laufrichtung nahe der
+  // Mitte des Nachbarblocks ist oder die Zeit um ist (dann steht sie vor einem Hindernis).
+  // Nur die Laufrichtung zählt: Steht sie quer dazu nicht mittig, kommt sie trotzdem an.
+  async walk (controls, right, ahead) {
+    const [wx, wz] = this.toWorld(right, -ahead)
+    const start = this.bot.entity.position.floored()
+    const goal = (start.x + wx + 0.5) * wx + (start.z + wz + 0.5) * wz
     for (const control of controls) this.bot.setControlState(control, true)
-    await this.ticks(MOVE_TICKS)
+    for (let tick = 0; tick < MAX_WALK_TICKS; tick++) {
+      await this.ticks(1)
+      const at = this.bot.entity.position
+      if (at.x * wx + at.z * wz > goal - ARRIVED) break
+    }
     this.bot.clearControlStates()
     await this.ticks(1)
+  }
+
+  // Ein Feld im Blick (dx nach rechts, dz nach hinten) als Versatz in der Welt.
+  toWorld (dx, dz) {
+    const [fx, fz] = FACINGS[this.facing]
+    return [dx * -fz + dz * -fx, dx * fx + dz * -fz]
   }
 
   async look () {
@@ -358,7 +390,8 @@ class Player {
     for (const dy of LAYERS) {
       for (let dz = -half; dz <= half; dz++) {
         for (let dx = -half; dx <= half; dx++) {
-          const block = bot.blockAt(feet.offset(dx, dy, dz))
+          const [wx, wz] = this.toWorld(dx, dz)
+          const block = bot.blockAt(feet.offset(wx, dy, wz))
           inner.push(block ? block.type : -1)
         }
       }
@@ -371,7 +404,10 @@ class Player {
       beings.set(`${cell.x},${cell.z}`, entity.entityType + 1)
     }
     for (let dz = -half; dz <= half; dz++) {
-      for (let dx = -half; dx <= half; dx++) inner.push(beings.get(`${dx},${dz}`) ?? 0)
+      for (let dx = -half; dx <= half; dx++) {
+        const [wx, wz] = this.toWorld(dx, dz)
+        inner.push(beings.get(`${wx},${wz}`) ?? 0)
+      }
     }
     const block = bot.blockAtCursor(REACH)
     const entity = this.entityInSight()
@@ -382,7 +418,8 @@ class Player {
     }
     const [dx, dz] = FACINGS[this.facing]
     inner.push(bot.quickBarSlot, Math.round(bot.health ?? 20), Math.round(bot.food ?? 20))
-    inner.push(dx, dz, this.pitch - 1, feet.x, feet.y, feet.z)
+    // Der Ort in Blickrichtung: quer = nach rechts, längs = nach vorn.
+    inner.push(dx, dz, this.pitch - 1, -dz * feet.x + dx * feet.z, feet.y, dx * feet.x + dz * feet.z)
     inner.push(Math.floor(((bot.time && bot.time.timeOfDay) || 0) / 1000))
     if (inner.length !== LAYOUT.length) throw new Error(`Beobachtung hat ${inner.length} statt ${LAYOUT.length} Zahlen`)
     return inner
