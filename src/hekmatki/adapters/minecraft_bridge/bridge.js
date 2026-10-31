@@ -38,6 +38,7 @@ const SCENE = 15 // Breite des Ausschnitts für die Wiedergabe (nur für die Sei
 const MOVE_TICKS = 5 // so lange dauern Handlungen ohne eigene Dauer (nichts, angreifen)
 const MAX_WALK_TICKS = 12 // länger läuft ein Schritt nicht, auch wenn er den Block nicht erreicht
 const ARRIVED = 0.2 // so nah an der Mitte des Zielblocks gilt ein Schritt als angekommen
+const LANDING_TICKS = 10 // so lange wartet ein Schritt höchstens, bis die Figur wieder steht
 const DIG_TIMEOUT_MS = 10000
 const PITCHES = [-Math.PI / 3, 0, Math.PI / 4] // nach unten, geradeaus, nach oben (Mineflayer: positiv = oben)
 const FACINGS = [[0, -1], [-1, 0], [0, 1], [1, 0]] // Norden, Westen, Süden, Osten als (dx, dz)
@@ -248,6 +249,8 @@ class Player {
     }
     this.bot.clearControlStates()
     await this.ticks(1)
+    // Nach einem Sprung erst landen: Mitten in der Luft stünde das ganze Bild einen Block höher.
+    for (let tick = 0; tick < LANDING_TICKS && !this.bot.entity.onGround; tick++) await this.ticks(1)
   }
 
   // Ein Feld im Blick (dx nach rechts, dz nach hinten) als Versatz in der Welt.

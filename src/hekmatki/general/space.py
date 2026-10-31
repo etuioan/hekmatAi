@@ -361,13 +361,16 @@ class Space:
         """Für jede Taste, mit der er geht, und jedes Feld i das Feld j, dessen Wert i nach
         einem echten Schritt fast immer hat (`FLOW_SHARE`), deutlich öfter als jedes andere
         (`GAP`). Die Gegenrichtung zählt mit: Holt „links“ j nach i, holt „rechts“ i nach j.
-        Dazu die Verschiebungen, die nur in eine Richtung passen (Abbilder wie „vorne“)."""
-        back = {
-            action: other
-            for action, (component, step) in self._walkers.items()
-            for other, (component2, step2) in self._walkers.items()
-            if component2 == component and step2 == -step
-        }
+        Dazu die Verschiebungen, die nur in eine Richtung passen (Abbilder wie „vorne“).
+
+        Gehen mehrere Tasten in die Gegenrichtung (in Minecraft „vor“ und „springen“), zählt
+        die, mit der es am besten passt (ab 0.22): Ein Sprung bergauf verschiebt das Bild
+        auch nach unten und darf das saubere „vor“ nicht verdecken."""
+        backs: dict[int, list[int]] = {}
+        for action, (component, step) in self._walkers.items():
+            for reverse, (component2, step2) in self._walkers.items():
+                if component2 == component and step2 == -step:
+                    backs.setdefault(action, []).append(reverse)
         scores: dict[tuple[int, int], dict[int, int]] = {}
         for (action, target, source), count in self._agreed.items():
             if source != target and target in self._mobile:
@@ -375,20 +378,12 @@ class Space:
         edges: list[Edge] = []
         oneway: list[Edge] = []
         for (action, target), found in scores.items():
-            other = back.get(action)
-            walked = self._walked[action] + (self._walked[other] if other is not None else 0)
-            if walked < MIN_WALKS:
+            candidates: list[int | None] = [*backs.get(action, [])] or [None]
+            ranked = [self._ranked(action, target, found, other) for other in candidates]
+            best = max((r for r in ranked if r is not None), key=lambda r: r[0], default=None)
+            if best is None:
                 continue
-            ranked = sorted(
-                (
-                    (count + (self._agreed[other, source, target] if other is not None else 0))
-                    / walked,
-                    source,
-                )
-                for source, count in found.items()
-            )
-            share, source = ranked[-1]
-            second = ranked[-2][0] if len(ranked) > 1 else 0.0
+            share, second, source, other = best
             if share < FLOW_SHARE or share - second < GAP:
                 continue
             if not self._fits_changes(action, target, source):
@@ -400,6 +395,27 @@ class Space:
             edges.append(edge)
         moving = Counter(edge.action for edge in edges)
         return [edge for edge in edges if moving[edge.action] >= MIN_EDGES], oneway
+
+    def _ranked(
+        self, action: int, target: int, found: dict[int, int], other: int | None
+    ) -> tuple[float, float, int, int | None] | None:
+        """Das Feld, dessen Wert ein Feld nach einem Schritt am öftesten hat, mit seinem Anteil
+        und dem des zweitbesten, zusammen mit der Gegenrichtung `other`. None, solange er
+        mit beiden zusammen weniger als `MIN_WALKS` echte Schritte gemacht hat."""
+        walked = self._walked[action] + (self._walked[other] if other is not None else 0)
+        if walked < MIN_WALKS:
+            return None
+        ranked = sorted(
+            (
+                (count + (self._agreed[other, source, target] if other is not None else 0))
+                / walked,
+                source,
+            )
+            for source, count in found.items()
+        )
+        share, source = ranked[-1]
+        second = ranked[-2][0] if len(ranked) > 1 else 0.0
+        return share, second, source, other
 
     def _strength(self, action: int, target: int, source: int, other: int | None) -> float:
         """Wie sicher die Verschiebung ist: wie oft bei echten Schritten, nach denen sich
